@@ -1,0 +1,61 @@
+{
+  "Hem": {
+    "_id": "hem",
+    "_icon": "fa-house",
+    "_path": "/",
+    "_overviewCards": []
+  },
+  "Personligt": {
+    "_id": "personligt",
+    "_icon": "fa-clipboard-check",
+    "_overviewCards": [],
+    "Förmåger": { "options": ["ePassi", "Förmånsportalen", "Wellnet"] },
+    "HR": { "options": ["Kompetens", "Lediga jobb", "Utbildning", "Bisyssla", "Dokument"] },
+    "Lön": { "options": ["Löneresultat*"] },
+    "Resor": { "options": ["Resor och utlägg", "Reseärenden", "Hälpfilmer", "Koppla långtidsförättning"] },
+    "Tid": { "options": ["Schemauppgifter", "Tidredovisning*", "Stämplingar", "Saldo och stämplingar", "Signering av tjänstgöringsuppgift", "Personlig arbetstid"] },
+    "Ärenden": { "options": ["Registrera nytt ärende", "Signeringsärenden"] },
+    "Frånvaro": { "options": ["Frånvaro", "Arbetsförändringar", "Föräldrarledighet", "Semester"] },
+    "Övriga uppgifter": { "options": ["Nämnder"] }
+  },
+  "HR": {
+    "_id": "hr",
+    "_icon": "fa-users",
+    "_overviewCards": [],
+    "Personal": { "options": ["Personalregister", "Anställningar", "Kompetens"] }
+  },
+  "Lön": {
+    "_id": "lon",
+    "_icon": "fa-building-columns",
+    "_overviewCards": [],
+    "Lön": { "options": ["Löneresultat", "Lönerapporter"] }
+  },
+  "Personal": {
+    "_id": "personal",
+    "_icon": "fa-user",
+    "_overviewCards": [],
+    "Personal": { "options": ["Personaluppgifter", "Dokument"] }
+  },
+  "Systeminställningar": {
+    "_id": "system",
+    "_icon": "fa-users-gear",
+    "_overviewCards": [],
+    "Inställningar": { "options": ["Systeminställningar", "Gränssnittsanpassningar", "Användarhantering", "Byt lösenord"] }
+  },
+  "Tid & Bemanning": {
+    "_id": "tid",
+    "_icon": "fa-calendar-days",
+    "_path": "/tid/schema",
+    "_new": true,
+    "_overviewCards": [],
+    "Tid & Bemanning": { "options": ["Schema", "Tidrapportering", "Bemanningsplanering"] }
+  },
+  "Page Builder Studio": {
+    "_id": "components",
+    "_icon": "fa-cube",
+    "_path": "/components",
+    "_dividerBefore": true,
+    "_overviewCards": [],
+    "Components": { "options": ["Badge", "Button", "Card", "DataGrid", "Chart", "Menu", "Icons"] }
+  }
+}

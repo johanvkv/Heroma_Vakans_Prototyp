@@ -1,0 +1,105 @@
+@import "../../common/helpers";
+
+// ===========================================
+// Centralized Button Hex Color Variables
+// ===========================================
+$btn-disabled-border: #c9c9c9;
+$btn-outline-danger-hover: #fdf7f8;
+
+// ===========================================
+// Button Theme Aliases (maps to core colors)
+// ===========================================
+$btn-theme-primary: $cgi-purple;
+$btn-theme-primary-dark: $cgi-purple-900;
+$btn-theme-primary-medium: $cgi-purple-700;
+$btn-theme-primary-hover: $cgi-purple-200;
+$btn-theme-primary-light: $cgi-purple-100;
+$btn-theme-primary-lightest: $cgi-purple-50;
+$btn-theme-primary-focus: $cgi-purple-300;
+$btn-theme-white: $cgi-white;
+$btn-theme-error: $cgi-error;
+
+// Button
+
+:where(html) {
+    // ===========================================
+    // Button Property Variables (Reusable CSS custom properties)
+    // ===========================================
+    --prop-btn-primary: #{$btn-theme-primary};
+    --prop-btn-primary-dark: #{$btn-theme-primary-dark};
+    --prop-btn-primary-medium: #{$btn-theme-primary-medium};
+    --prop-btn-primary-hover: #{$btn-theme-primary-hover};
+    --prop-btn-primary-light: #{$btn-theme-primary-light};
+    --prop-btn-primary-lightest: #{$btn-theme-primary-lightest};
+    --prop-btn-primary-focus: #{$btn-theme-primary-focus};
+    --prop-btn-white: #{$btn-theme-white};
+    --prop-btn-error: #{$btn-theme-error};
+    --prop-btn-disabled-border: #{$btn-disabled-border};
+    --prop-btn-outline-danger-hover: #{$btn-outline-danger-hover};
+    // ===========================================
+    // Button Transparent Styles
+    // ===========================================
+    --btn-trans-color: var(--primary-color);
+    --btn-trans-hover-bg: var(--primary-hover);
+    // ===========================================
+    // Button Primary Styles
+    // ===========================================
+    --btn-primary: #{$btn-theme-primary};
+    --btn-primary-bg: var(--btn-primary);
+    --btn-primary-border: #{$btn-theme-primary};
+    --btn-primary-border-color: var(--btn-primary);
+    --btn-primary-color: var(--primary-text-color);
+    --btn-primary-icon: #{$btn-theme-white};
+    --btn-primary-hover: var(--primary-color);
+    --btn-primary-hover-bg: #{$btn-theme-primary-hover};
+    --btn-primary-hover-color: #{$btn-theme-primary-dark};
+    --btn-primary-hover-border-color: #{$btn-theme-primary-hover};
+    --btn-primary-focus-bg: #{$btn-theme-primary-focus};
+    --btn-primary-focus-color: #{$btn-theme-primary-dark};
+    --btn-primary-focus-border-color: #{$btn-theme-primary-focus};
+    --btn-primary-active: var(--secondary-color);
+    --btn-primary-active-bg: #{$btn-theme-primary-medium};
+    --btn-primary-active-color: var(--primary-text-color);
+    --btn-primary-active-border-color: #{$btn-theme-primary-medium};
+    --btn-primary-disabled: var(--btn-disabled-color);
+    // ===========================================
+    // Button Secondary Styles
+    // ===========================================
+    --btn-secondary-color: var(--primary-color);
+    --btn-secondary-bg: #{$btn-theme-white};
+    --btn-secondary-border-color: #{$btn-theme-primary};
+    --btn-secondary-hover: var(--secondary-hover);
+    --btn-secondary-hover-bg: #{$btn-theme-primary-lightest};
+    --btn-secondary-hover-color: #{$btn-theme-primary};
+    --btn-secondary-hover-border-color: #{$btn-theme-primary};
+    --btn-secondary-icon-hover-color: var(--primary-color);
+    --btn-secondary-focus-bg: #{$btn-theme-primary-light};
+    --btn-secondary-focus-color: #{$btn-theme-primary-dark};
+    --btn-secondary-focus-border-color: #{$btn-theme-primary-dark};
+    --btn-secondary-active-bg: #{$btn-theme-primary-light};
+    --btn-secondary-active-color: #{$btn-theme-primary};
+    --btn-secondary-active-border-color: #{$btn-theme-primary};
+    --btn-secondary-disabled: var(--disabled-bg);
+    // ===========================================
+    // Button Disabled Styles
+    // ===========================================
+    --btn-disabled-bg: #{$btn-theme-white};
+    --btn-disabled-color: var(--disabled-color);
+    --btn-disabled-border-color: #{$btn-disabled-border};
+    // ===========================================
+    // Button Link Styles
+    // ===========================================
+    --btn-link-hover-color: var(--btn-primary-hover);
+    --btn-link-focus-color: var(--secondary-color);
+    --btn-link-focus-border-color: var(--secondary-color);
+    // ===========================================
+    // Button Group Styles
+    // ===========================================
+    --btn-group-list-bg: #{$btn-theme-primary-light};
+    --btn-group-list-hover: var(--row-hover-bg);
+    // ===========================================
+    // Button Outline Danger Styles
+    // ===========================================
+    --btn-outline-danger-color: #{$btn-theme-error};
+    --btn-outline-danger-hover-bg: #{$btn-outline-danger-hover};
+}

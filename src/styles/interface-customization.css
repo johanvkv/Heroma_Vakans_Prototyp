@@ -1,0 +1,312 @@
+/* Interface Customization Page Styles */
+
+/* Tabs Navigation */
+.interface-tabs-container {
+  background-color: #ffffff;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.interface-tabs {
+  display: flex;
+  gap: 0;
+  padding: 0;
+  overflow-x: auto;
+}
+
+.interface-tab {
+  background-color: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  padding: 16px 24px;
+  font-family: var(--font-family-base);
+  font-size: 14px;
+  font-weight: 600;
+  color: #6c757d;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.interface-tab:hover {
+  color: #5236ab;
+  background-color: #f8f9fa;
+}
+
+.interface-tab.active {
+  color: var(--active-tab-border-color, #5236ab);
+  border-bottom-color: var(--active-tab-border-color, #5236ab);
+  background-color: transparent;
+}
+
+/* Tab Content Area */
+.interface-tab-content {
+  background-color: #ffffff;
+  padding: 32px 24px;
+  min-height: 400px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Ensure cards and drop zones work inside tabs */
+.interface-tab-content .card-container,
+.interface-tab-content .card-drop-zone,
+.interface-tab-content .card-child-component,
+.interface-tab-content .dropped-component-wrapper,
+.interface-tab-content .accordion-section-drop-zone,
+.interface-tab-content .card-standard,
+.interface-tab-content .card-drop-placeholder,
+.interface-tab-content .card-header-drop-zone {
+  position: relative;
+  pointer-events: auto;
+  z-index: auto;
+}
+
+/* Theme Customizer Styles */
+.theme-customizer-container {
+  padding: 24px 0;
+}
+
+.theme-customizer-card {
+  background-color: #ffffff;
+  border: none;
+  padding: 32px;
+  margin-bottom: 24px;
+}
+
+.theme-customizer-header {
+  margin-bottom: 32px;
+}
+
+.theme-customizer-title {
+  font-family: 'Source Sans Pro', sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: #200a58;
+  margin: 0 0 8px 0;
+}
+
+.theme-customizer-description {
+  font-family: var(--font-family-base);
+  font-size: 14px;
+  color: #6c757d;
+  margin: 0;
+}
+
+.theme-customizer-body {
+  /* Container for all customization controls */
+}
+
+.color-controls-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 32px;
+  margin-bottom: 32px;
+}
+
+.color-control-item {
+  /* Single color control */
+}
+
+.color-control-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.color-control-label {
+  font-family: var(--font-family-base);
+  font-size: 16px;
+  font-weight: 600;
+  color: #151515;
+}
+
+.color-control-value {
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  color: #6c757d;
+  background-color: #f8f9fa;
+  padding: 4px 8px;
+}
+
+.color-control-description {
+  font-family: var(--font-family-base);
+  font-size: 13px;
+  color: #6c757d;
+  margin: 0 0 12px 0;
+}
+
+.color-control-input-wrapper {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.color-control-input {
+  width: 80px;
+  height: 48px;
+  border: 2px solid #e0e0e0;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.color-control-input:hover {
+  border-color: #5236ab;
+}
+
+.color-control-text-input {
+  flex: 1;
+  height: 48px;
+  border: 1px solid #e0e0e0;
+  padding: 0 16px;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  color: #151515;
+}
+
+.color-control-text-input:focus {
+  outline: none;
+  border-color: #5236ab;
+  box-shadow: 0 0 0 3px rgba(82, 54, 171, 0.1);
+}
+
+.theme-customizer-actions {
+  display: flex;
+  gap: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.btn-reset-theme,
+.btn-save-theme {
+  height: 48px;
+  padding: 0 24px;
+  border: none;
+  font-family: var(--font-family-base);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.btn-reset-theme {
+  background-color: transparent;
+  color: #6c757d;
+  border: 1px solid #e0e0e0;
+}
+
+.btn-reset-theme:hover {
+  background-color: #f8f9fa;
+  border-color: #6c757d;
+  color: #151515;
+}
+
+.btn-save-theme {
+  background-color: #5236ab;
+  color: #ffffff;
+}
+
+.btn-save-theme:hover {
+  background-color: #3f2989;
+}
+
+/* Theme Preview Card */
+.theme-preview-card {
+  background-color: #ffffff;
+  border: none;
+  padding: 24px;
+  position: sticky;
+  top: 24px;
+}
+
+.theme-preview-title {
+  font-family: 'Source Sans Pro', sans-serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: #200a58;
+  margin: 0 0 16px 0;
+}
+
+.theme-preview-content {
+  /* Container for preview content */
+}
+
+.theme-preview-sample {
+  background-color: var(--background, #f8f9fa);
+  border: 1px solid #e0e0e0;
+  padding: 24px;
+}
+
+.sample-title {
+  font-family: var(--font-family-base);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--title-color, #151515);
+  margin: 0 0 12px 0;
+}
+
+.sample-text {
+  font-family: var(--font-family-base);
+  font-size: 14px;
+  color: #6c757d;
+  margin: 0 0 16px 0;
+}
+
+.sample-buttons {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.sample-primary-btn {
+  height: 40px;
+  padding: 0 20px;
+  background-color: var(--primary-button-color, #5236ab);
+  color: #ffffff;
+  border: none;
+  font-family: var(--font-family-base);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sample-secondary-btn {
+  height: 40px;
+  padding: 0 20px;
+  background-color: var(--secondary-button-color, #ffffff);
+  color: var(--secondary-button-border-color, #5236ab);
+  border: 1px solid var(--secondary-button-border-color, #5236ab);
+  font-family: var(--font-family-base);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sample-card {
+  background-color: #ffffff;
+  border: 1px solid #e0e0e0;
+  padding: 16px;
+}
+
+.sample-card p {
+  font-family: var(--font-family-base);
+  font-size: 14px;
+  color: #6c757d;
+  margin: 0;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 64px 24px;
+}
+
+.empty-state p {
+  font-family: var(--font-family-base);
+  font-size: 16px;
+  color: #6c757d;
+  margin: 0;
+}

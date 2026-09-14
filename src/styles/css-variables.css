@@ -1,0 +1,199 @@
+/* CSS Theme Variables */
+:root {
+  /* Basic Colors */
+  --color-white: #ffffff;
+  --color-black: #000;
+  --color-dark-text: #333;
+  --color-disabled-text: #a3a3a3;
+  --color-disabled-input-bg: #efefef;
+  --color-readonly-text: #6b6b6b;
+  --color-readonly-border: rgba(0, 0, 0, 0.17);
+  --color-readonly-bg: rgba(255, 255, 255, 0.35);
+  --color-disabled-border: #b8b8b8;
+  --disabled-bg: #efefef;
+  --disabled-color: #767676;
+  --disabled-color-alpha: rgba(21, 21, 21, 0.45);
+
+  /* Primary Colors */
+  --primary-color: #5236ab;
+  --primary-text-color: #ffffff;
+  --primary-hover: #cbc3e6;
+  --primary-dark: #200a58;
+  --primary-light: #e3dff5;
+  --primary-medium: #7c5cdb;
+  --secondary-color: #4229a0;
+  --secondary-hover: #cbc3e6;
+
+  /* Background Colors */
+  --page-bg: #f9f9f9;
+  --card-bg: #ffffff;
+  --widget-bg: #ffffff;
+  --row-alt-bg: #f9f9f9;
+  --row-active-bg: #e3dff5;
+  --row-hover-bg: #e3dff5;
+  --badge-bg-gray: #f2f1f9;
+
+  /* Border Colors */
+  --border-color: #ddd;
+  --border-color-default: #ddd;
+  --light-border-color: #e5e5e5;
+  --secondary-border-color: #cbc3e6;
+
+  /* Text Colors */
+  --text-color: #151515;
+  --default-text-color: #151515;
+  --text-dark: #000;
+  --text-white-color: #ffffff;
+  --text-mid-color: #767676;
+  --active-text-color: #5236ab;
+  --inactive-text-color: #6b6b6b;
+
+  /* Status Colors */
+  --success: #18a86c;
+  --warning: #ab741a;
+  --critical: #b00020;
+  --critical-color: #b00020;
+  --search-highlight-color: #fac000;
+
+  /* Input Styles */
+  --input-bg: #ffffff;
+  --input-border: #a8a8a8;
+  --input-color: #151515;
+  --input-placeholder-color: #767676;
+  --input-focus-bg: #5236ab;
+  --input-disabled-bg: #efefef;
+  --input-disabled-border: #b8b8b8;
+  --input-disabled-color: #6b6b6b;
+  --input-readonly-bg: rgba(255, 255, 255, 0.35);
+  --input-readonly-border: rgba(0, 0, 0, 0.17);
+  --input-readonly-color: #6b6b6b;
+
+  /* Button Styles */
+  --heroma-button-size: 34px;
+  --heroma-btn-padding-x: 0.475rem;
+  --heroma-btn-padding-y: 0.175rem;
+  --heroma-btn-font-size: 1rem;
+  --heroma-btn-font-weight: 500;
+
+  /* Button Colors */
+  --btn-disabled-border: #c9c9c9;
+  --btn-outline-danger-hover: #fdf7f8;
+
+  /* Button Transparent Styles */
+  --btn-trans-color: var(--primary-color);
+  --btn-trans-hover-bg: var(--primary-hover);
+
+  /* Button Primary Styles */
+  --btn-primary: var(--primary-color);
+  --btn-primary-bg: var(--primary-color);
+  --btn-primary-border: var(--primary-color);
+  --btn-primary-border-color: var(--primary-color);
+  --btn-primary-color: var(--primary-text-color);
+  --btn-primary-icon: var(--color-white);
+  --btn-primary-hover: var(--primary-color);
+  --btn-primary-hover-bg: var(--primary-hover);
+  --btn-primary-hover-color: var(--primary-dark);
+  --btn-primary-hover-border-color: var(--primary-hover);
+  --btn-primary-focus-bg: var(--primary-light-focus);
+  --btn-primary-focus-color: var(--primary-dark);
+  --btn-primary-focus-border-color: var(--primary-light-focus);
+  --btn-primary-active: var(--secondary-color);
+  --btn-primary-active-bg: var(--primary-medium);
+  --btn-primary-active-color: var(--primary-text-color);
+  --btn-primary-active-border-color: var(--primary-medium);
+
+  /* Button Secondary Styles */
+  --btn-secondary-color: var(--primary-color);
+  --btn-secondary-bg: var(--color-white);
+  --btn-secondary-border-color: var(--primary-color);
+  --btn-secondary-hover: var(--secondary-hover);
+  --btn-secondary-hover-bg: var(--primary-light);
+  --btn-secondary-hover-color: var(--primary-color);
+  --btn-secondary-hover-border-color: var(--primary-color);
+  --btn-secondary-icon-hover-color: var(--primary-color);
+  --btn-secondary-focus-bg: var(--primary-hover);
+  --btn-secondary-focus-color: var(--primary-dark);
+  --btn-secondary-focus-border-color: var(--primary-dark);
+  --btn-secondary-active-bg: var(--primary-hover);
+  --btn-secondary-active-color: var(--primary-color);
+  --btn-secondary-active-border-color: var(--primary-color);
+  --btn-secondary-disabled: var(--disabled-bg);
+
+  /* Button Disabled Styles */
+  --btn-disabled-bg: var(--color-white);
+  --btn-disabled-color: var(--color-disabled-text);
+  --btn-disabled-border-color: var(--btn-disabled-border);
+
+  /* Button Link Styles */
+  --btn-link-hover-color: var(--btn-primary-hover);
+  --btn-link-focus-color: var(--secondary-color);
+  --btn-link-focus-border-color: var(--secondary-color);
+
+  /* Button Group Styles */
+  --btn-group-list-bg: var(--primary-hover);
+  --btn-group-list-hover: var(--row-hover-bg);
+
+  /* Button Outline Danger Styles */
+  --btn-outline-danger-color: var(--critical);
+  --btn-outline-danger-hover-bg: var(--btn-outline-danger-hover);
+
+  /* Stepper Styles */
+  --stepper-bg: #ffffff;
+  --stepper-color: #a8a8a8;
+  --stepper-active: #5236ab;
+  --stepper-active-border: #5236ab;
+  --stepper-completed: #5236ab;
+  --stepper-text-color: #a3a3a3;
+
+  /* Badge Styles */
+  --badge-bg: #cbc3e6;
+  --badge-text-color: #5236ab;
+  --badge-danger-bg: #b00020;
+
+  /* Grid & Table Styles */
+  --row-bg: #ffffff;
+  --grid-text-color: #151515;
+  --grid-header-border: #5236ab;
+  --table-link-color: #5236ab;
+
+  /* Scheduler Styles */
+  --scheduler-border-color: #c0c0c0;
+}
+
+/* Additional Purple Shades */
+:root {
+  --primary-light-focus: #afa3d8;
+  --primary-medium: #9b8fd9;
+  --primary-bright: #7c5cdb;
+  --primary-lighter: #c4b5fd;
+  --primary-light-alt: #a78bfa;
+}
+
+/* Additional Gray Shades */
+:root {
+  --text-muted-dark: #666666;
+  --bg-lighter: #f5f5f5;
+  --bg-lightest: #f8f8f8;
+  --border-light: #e0e0e0;
+}
+
+/* Dark Theme */
+[data-theme="dark"] {
+  --color-white: #ffffff;
+  --color-black: #000;
+  --page-bg: #1e1e1e;
+  --card-bg: #2b2b2b;
+  --widget-bg: #2b2b2b;
+  --row-alt-bg: #1e1e1e;
+  --row-active-bg: #3d3d3d;
+  --row-hover-bg: #3d3d3d;
+  --border-color: #4a4a4a;
+  --light-border-color: #4a4a4a;
+  --text-color: #e5e5e5;
+  --default-text-color: #e5e5e5;
+  --text-mid-color: #a3a3a3;
+  --input-bg: #2b2b2b;
+  --input-border: #4a4a4a;
+  --input-color: #e5e5e5;
+  --color-disabled-input-bg: #3d3d3d;
+}

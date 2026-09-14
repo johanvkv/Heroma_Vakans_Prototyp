@@ -1,0 +1,3218 @@
+{
+  "meta": {
+    "schemaVersion": "1.1.0",
+    "systemName": "Heroma concept seed",
+    "generatedAt": "2026-05-05",
+    "seedPurpose": "20 synthetic testpersoner för koncept, UI och vibe coding"
+  },
+  "persons": [
+    {
+      "id": "person-001",
+      "personalIdentityNumber": "19750202-1001",
+      "firstName": "Anna",
+      "lastName": "Svensson",
+      "displayName": "Svensson, Anna",
+      "birthDate": "1975-01-01",
+      "gender": "female",
+      "addresses": [
+        {
+          "type": "home",
+          "careOf": "c/o Familjen",
+          "street": "Storgatan 8",
+          "postalCode": "12000",
+          "city": "Småstad",
+          "country": "SE",
+          "isPrimary": true
+        }
+      ],
+      "nextOfKin": [
+        {
+          "id": "nok-001",
+          "name": "Valerie Törnqvist",
+          "relationship": "partner",
+          "phone": "+4610700000",
+          "mobilePhone": "+4670100000",
+          "email": "valerie.tornqvist@example.com",
+          "careOf": "c/o Familjen",
+          "address": {
+            "street": "Parkvägen 12",
+            "postalCode": "12000",
+            "city": "Västhamn",
+            "country": "SE"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "child-001-01",
+          "name": "Olle",
+          "birthDate": "2006-01-01",
+          "calculatedBirthDate": "2006-01-01",
+          "adoptionDate": null,
+          "multipleBirth": false
+        }
+      ],
+      "taxInfo": {
+        "taxType": "",
+        "taxTable": 29,
+        "column": 1,
+        "taxCode": "9",
+        "taxCodeLabel": "Tabellskatt",
+        "voluntaryTax": 100,
+        "companyCarModelCode": "CAR-100",
+        "companyCarMonths": 12
+      },
+      "employments": [
+        {
+          "id": "employment-001",
+          "status": "active",
+          "idnr": "2000",
+          "validFrom": "2025-01-01",
+          "validTo": "2025-06-30",
+          "v": "",
+          "position": {
+            "title": "Systemförvaltare",
+            "positionClass": "Systemförvaltare",
+            "jobLabel": "Verksamhetssystem, förvaltning"
+          },
+          "employmentForm": "Permanent",
+          "fmgGroup": "11 - Heltid",
+          "degree": 100,
+          "salary": {
+            "monthlySalary": 32000,
+            "hourlySalary": 0,
+            "payGrade": "",
+            "payGradeAmount": 0
+          },
+          "rules": {
+            "overtimeCompensation": true,
+            "travelTimeCompensation": true,
+            "resursHanteringRule": "Rule-1",
+            "collectiveAgreement": " HÖK OFR-Läkare",
+            "vacationRule": "AB Semester",
+            "travelRule": "Basregelverk "
+          },
+          "timeMeasures": {
+            "fullTimeMeasure": "40:00",
+            "restTimeCompensation": true
+          },
+          "organization": {
+            "department": "HR",
+            "costCenter": "418901",
+            "accountingCode": "7010",
+            "rekvag": "410000",
+            "avgvag": "510000",
+            "annotation": "PVO lön 2025 / testperson 1"
+          }
+        }
+      ],
+      "balances": [
+        {
+          "id": "balance-001-flex",
+          "personId": "person-001",
+          "employmentId": "employment-001",
+          "type": "flex",
+          "label": "Flex Balance",
+          "unit": "time",
+          "value": "40:00"
+        },
+        {
+          "id": "balance-001-comp",
+          "personId": "person-001",
+          "employmentId": "employment-001",
+          "type": "comp",
+          "label": "Kompsaldo",
+          "unit": "time",
+          "value": "60:00"
+        },
+        {
+          "id": "balance-001-vac",
+          "personId": "person-001",
+          "employmentId": "employment-001",
+          "type": "vacation",
+          "label": "Vacation balance",
+          "unit": "days",
+          "summary": {
+            "total": 30,
+            "saved": 20
+          },
+          "rows": [
+            {
+              "key": "paidTime",
+              "label": "Betald tid",
+              "earned": 25,
+              "remaining": 4
+            },
+            {
+              "key": "savedTime",
+              "label": "Sparad tid",
+              "earned": 20,
+              "remaining": 15
+            },
+            {
+              "key": "convertedSavedHours",
+              "label": "Omvandlade sparade timmar",
+              "earned": 10,
+              "remaining": 10
+            },
+            {
+              "key": "savedDaysOver30",
+              "label": "Sparade dgr > 30",
+              "earned": 1,
+              "remaining": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "person-002",
+      "personalIdentityNumber": "19760303-1002",
+      "firstName": "Erik",
+      "lastName": "Johansson",
+      "displayName": "Johansson, Erik",
+      "birthDate": "1976-01-18",
+      "gender": "male",
+      "addresses": [
+        {
+          "type": "home",
+          "careOf": "",
+          "street": "Parkvägen 12",
+          "postalCode": "12001",
+          "city": "Västhamn",
+          "country": "SE",
+          "isPrimary": true
+        }
+      ],
+      "nextOfKin": [
+        {
+          "id": "nok-002",
+          "name": "Erik Holm",
+          "relationship": "spouse",
+          "phone": "+4610700001",
+          "mobilePhone": "+4670100001",
+          "email": "erik.holm@example.com",
+          "careOf": "",
+          "address": {
+            "street": "Stationsgatan 4",
+            "postalCode": "12001",
+            "city": "Söderköping",
+            "country": "SE"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "child-002-01",
+          "name": "Sahar",
+          "birthDate": "2005-02-02",
+          "calculatedBirthDate": "2005-02-02",
+          "adoptionDate": null,
+          "multipleBirth": false
+        }
+      ],
+      "taxInfo": {
+        "taxType": "Jämkning",
+        "taxTable": 30,
+        "column": 1,
+        "taxCode": "9",
+        "taxCodeLabel": "Tabellskatt",
+        "voluntaryTax": 225,
+        "companyCarModelCode": "",
+        "companyCarMonths": 0
+      },
+      "employments": [
+        {
+          "id": "employment-002",
+          "status": "active",
+          "idnr": "2001",
+          "validFrom": "2025-01-14",
+          "validTo": null,
+          "v": "",
+          "position": {
+            "title": "HR-partner",
+            "positionClass": "HR-specialist",
+            "jobLabel": "HR och stöd"
+          },
+          "employmentForm": "Permanent",
+          "fmgGroup": "11 - Deltid",
+          "degree": 80,
+          "salary": {
+            "monthlySalary": 32850,
+            "hourlySalary": 0,
+            "payGrade": "",
+            "payGradeAmount": 0
+          },
+          "rules": {
+            "overtimeCompensation": false,
+            "travelTimeCompensation": false,
+            "resursHanteringRule": "Rule-2",
+            "collectiveAgreement": "AB",
+            "vacationRule": "AB Semester",
+            "travelRule": "Basregelverk "
+          },
+          "timeMeasures": {
+            "fullTimeMeasure": "40:00",
+            "restTimeCompensation": false
+          },
+          "organization": {
+            "department": "Lön",
+            "costCenter": "418902",
+            "accountingCode": "7020",
+            "rekvag": "410001",
+            "avgvag": "510001",
+            "annotation": "PVO lön 2025 / testperson 2"
+          }
+        }
+      ],
+      "balances": [
+        {
+          "id": "balance-002-flex",
+          "personId": "person-002",
+          "employmentId": "employment-002",
+          "type": "flex",
+          "label": "Flex Balance",
+          "unit": "time",
+          "value": "41:03"
+        },
+        {
+          "id": "balance-002-comp",
+          "personId": "person-002",
+          "employmentId": "employment-002",
+          "type": "comp",
+          "label": "Kompsaldo",
+          "unit": "time",
+          "value": "62:07"
+        }
+      ]
+    },
+    {
+      "id": "person-003",
+      "personalIdentityNumber": "19770404-1003",
+      "firstName": "Sara",
+      "lastName": "Karlsson",
+      "displayName": "Karlsson, Sara",
+      "birthDate": "1977-02-04",
+      "gender": "female",
+      "addresses": [
+        {
+          "type": "home",
+          "careOf": "",
+          "street": "Stationsgatan 4",
+          "postalCode": "12002",
+          "city": "Söderköping",
+          "country": "SE",
+          "isPrimary": true
+        }
+      ],
+      "nextOfKin": [
+        {
+          "id": "nok-003",
+          "name": "Karin Lind",
+          "relationship": "mother",
+          "phone": "+4610700002",
+          "mobilePhone": "+4670100002",
+          "email": "karin.lind@example.com",
+          "careOf": "c/o Familjen",
+          "address": {
+            "street": "Ängsvägen 19",
+            "postalCode": "12002",
+            "city": "Lillköping",
+            "country": "SE"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "child-003-01",
+          "name": "Emil",
+          "birthDate": "2004-03-03",
+          "calculatedBirthDate": "2004-03-03",
+          "adoptionDate": null,
+          "multipleBirth": false
+        }
+      ],
+      "taxInfo": {
+        "taxType": "",
+        "taxTable": 31,
+        "column": 1,
+        "taxCode": "9",
+        "taxCodeLabel": "Tabellskatt",
+        "voluntaryTax": 250,
+        "companyCarModelCode": "",
+        "companyCarMonths": 0
+      },
+      "employments": [
+        {
+          "id": "employment-003",
+          "status": "active",
+          "idnr": "2002",
+          "validFrom": "2025-01-27",
+          "validTo": null,
+          "v": "",
+          "position": {
+            "title": "Lönespecialist",
+            "positionClass": "Löneadministratör",
+            "jobLabel": "Lön och tid"
+          },
+          "employmentForm": "Temporary",
+          "fmgGroup": "11 - Heltid",
+          "degree": 100,
+          "salary": {
+            "monthlySalary": 33700,
+            "hourlySalary": 0,
+            "payGrade": "",
+            "payGradeAmount": 0
+          },
+          "rules": {
+            "overtimeCompensation": true,
+            "travelTimeCompensation": false,
+            "resursHanteringRule": "Rule-3",
+            "collectiveAgreement": "AB",
+            "vacationRule": "AB Semester",
+            "travelRule": "Basregelverk "
+          },
+          "timeMeasures": {
+            "fullTimeMeasure": "38:30",
+            "restTimeCompensation": false
+          },
+          "organization": {
+            "department": "IT",
+            "costCenter": "418903",
+            "accountingCode": "7030",
+            "rekvag": "410002",
+            "avgvag": "510002",
+            "annotation": "PVO lön 2025 / testperson 3"
+          }
+        }
+      ],
+      "balances": [
+        {
+          "id": "balance-003-flex",
+          "personId": "person-003",
+          "employmentId": "employment-003",
+          "type": "flex",
+          "label": "Flex Balance",
+          "unit": "time",
+          "value": "42:06"
+        },
+        {
+          "id": "balance-003-comp",
+          "personId": "person-003",
+          "employmentId": "employment-003",
+          "type": "comp",
+          "label": "Kompsaldo",
+          "unit": "time",
+          "value": "64:14"
+        },
+        {
+          "id": "balance-003-vac",
+          "personId": "person-003",
+          "employmentId": "employment-003",
+          "type": "vacation",
+          "label": "Vacation balance",
+          "unit": "days",
+          "summary": {
+            "total": 34,
+            "saved": 24
+          },
+          "rows": [
+            {
+              "key": "paidTime",
+              "label": "Betald tid",
+              "earned": 27,
+              "remaining": 6
+            },
+            {
+              "key": "savedTime",
+              "label": "Sparad tid",
+              "earned": 22,
+              "remaining": 17
+            },
+            {
+              "key": "convertedSavedHours",
+              "label": "Omvandlade sparade timmar",
+              "earned": 18,
+              "remaining": 18
+            },
+            {
+              "key": "savedDaysOver30",
+              "label": "Sparade dgr > 30",
+              "earned": 0,
+              "remaining": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "person-004",
+      "personalIdentityNumber": "19780505-1004",
+      "firstName": "Johan",
+      "lastName": "Nilsson",
+      "displayName": "Nilsson, Johan",
+      "birthDate": "1978-02-21",
+      "gender": "male",
+      "addresses": [
+        {
+          "type": "home",
+          "careOf": "c/o Familjen",
+          "street": "Ängsvägen 19",
+          "postalCode": "12003",
+          "city": "Lillköping",
+          "country": "SE",
+          "isPrimary": true
+        }
+      ],
+      "nextOfKin": [
+        {
+          "id": "nok-004",
+          "name": "Lars Berg",
+          "relationship": "father",
+          "phone": "+4610700003",
+          "mobilePhone": "+4670100003",
+          "email": "lars.berg@example.com",
+          "careOf": "",
+          "address": {
+            "street": "Sjövägen 3",
+            "postalCode": "12003",
+            "city": "Österby",
+            "country": "SE"
+          }
+        }
+      ],
+      "children": [],
+      "taxInfo": {
+        "taxType": "Jämkning",
+        "taxTable": 32,
+        "column": 2,
+        "taxCode": "9",
+        "taxCodeLabel": "Tabellskatt",
+        "voluntaryTax": 375,
+        "companyCarModelCode": "",
+        "companyCarMonths": 0
+      },
+      "employments": [
+        {
+          "id": "employment-004",
+          "status": "active",
+          "idnr": "2003",
+          "validFrom": "2025-02-09",
+          "validTo": null,
+          "v": "",
+          "position": {
+            "title": "Objektsledare",
+            "positionClass": "Objektsledare",
+            "jobLabel": "IT och förvaltning"
+          },
+          "employmentForm": "Permanent",
+          "fmgGroup": "11 - Heltid",
+          "degree": 100,
+          "salary": {
+            "monthlySalary": 34550,
+            "hourlySalary": 0,
+            "payGrade": "",
+            "payGradeAmount": 0
+          },
+          "rules": {
+            "overtimeCompensation": true,
+            "travelTimeCompensation": false,
+            "resursHanteringRule": "Rule-4",
+            "collectiveAgreement": "AB",
+            "vacationRule": "AB Semester",
+            "travelRule": "Basregelverk "
+          },
+          "timeMeasures": {
+            "fullTimeMeasure": "40:00",
+            "restTimeCompensation": true
+          },
+          "organization": {
+            "department": "UX",
+            "costCenter": "418904",
+            "accountingCode": "7040",
+            "rekvag": "410003",
+            "avgvag": "510003",
+            "annotation": "PVO lön 2025 / testperson 4"
+          }
+        }
+      ],
+      "balances": [
+        {
+          "id": "balance-004-flex",
+          "personId": "person-004",
+          "employmentId": "employment-004",
+          "type": "flex",
+          "label": "Flex Balance",
+          "unit": "time",
+          "value": "43:09"
+        },
+        {
+          "id": "balance-004-comp",
+          "personId": "person-004",
+          "employmentId": "employment-004",
+          "type": "comp",
+          "label": "Kompsaldo",
+          "unit": "time",
+          "value": "66:21"
+        }
+      ]
+    },
+    {
+      "id": "person-005",
+      "personalIdentityNumber": "19790606-1005",
+      "firstName": "Maria",
+      "lastName": "Andersson",
+      "displayName": "Andersson, Maria",
+      "birthDate": "1979-03-10",
+      "gender": "female",
+      "addresses": [
+        {
+          "type": "home",
+          "careOf": "",
+          "street": "Sjövägen 3",
+          "postalCode": "12004",
+          "city": "Österby",
+          "country": "SE",
+          "isPrimary": true
+        }
+      ],
+      "nextOfKin": [
+        {
+          "id": "nok-005",
+          "name": "Maja Ek",
+          "relationship": "sibling",
+          "phone": "+4610700004",
+          "mobilePhone": "+4670100004",
+          "email": "maja.ek@example.com",
+          "careOf": "c/o Familjen",
+          "address": {
+            "street": "Tallgatan 27",
+            "postalCode": "12004",
+            "city": "Norrdal",
+            "country": "SE"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "child-005-01",
+          "name": "Tilde",
+          "birthDate": "2005-05-05",
+          "calculatedBirthDate": "2005-05-05",
+          "adoptionDate": null,
+          "multipleBirth": false
+        },
+        {
+          "id": "child-005-02",
+          "name": "Isak",
+          "birthDate": "2001-06-06",
+          "calculatedBirthDate": "2001-06-06",
+          "adoptionDate": "2014-07-15",
+          "multipleBirth": true
+        }
+      ],
+      "taxInfo": {
+        "taxType": "",
+        "taxTable": 33,
+        "column": 1,
+        "taxCode": "9",
+        "taxCodeLabel": "Tabellskatt",
+        "voluntaryTax": 400,
+        "companyCarModelCode": "",
+        "companyCarMonths": 0
+      },
+      "employments": [
+        {
+          "id": "employment-005",
+          "status": "active",
+          "idnr": "2004",
+          "validFrom": "2025-02-22",
+          "validTo": null,
+          "v": "",
+          "position": {
+            "title": "UX-designer",
+            "positionClass": "UX-designer",
+            "jobLabel": "Design och användning"
+          },
+          "employmentForm": "Permanent",
+          "fmgGroup": "11 - Heltid",
+          "degree": 100,
+          "salary": {
+            "monthlySalary": 35400,
+            "hourlySalary": 0,
+            "payGrade": "",
+            "payGradeAmount": 0
+          },
+          "rules": {
+            "overtimeCompensation": false,
+            "travelTimeCompensation": true,
+            "resursHanteringRule": "Rule-5",
+            "collectiveAgreement": " HÖK OFR-Läkare",
+            "vacationRule": "AB Semester",
+            "travelRule": "Basregelverk "
+          },
+          "timeMeasures": {
+            "fullTimeMeasure": "40:00",
+            "restTimeCompensation": false
+          },
+          "organization": {
+            "department": "Platform",
+            "costCenter": "418905",
+            "accountingCode": "7050",
+            "rekvag": "410004",
+            "avgvag": "510004",
+            "annotation": "PVO lön 2025 / testperson 5"
+          }
+        }
+      ],
+      "balances": [
+        {
+          "id": "balance-005-flex",
+          "personId": "person-005",
+          "employmentId": "employment-005",
+          "type": "flex",
+          "label": "Flex Balance",
+          "unit": "time",
+          "value": "44:12"
+        },
+        {
+          "id": "balance-005-comp",
+          "personId": "person-005",
+          "employmentId": "employment-005",
+          "type": "comp",
+          "label": "Kompsaldo",
+          "unit": "time",
+          "value": "68:28"
+        },
+        {
+          "id": "balance-005-vac",
+          "personId": "person-005",
+          "employmentId": "employment-005",
+          "type": "vacation",
+          "label": "Vacation balance",
+          "unit": "days",
+          "summary": {
+            "total": 38,
+            "saved": 28
+          },
+          "rows": [
+            {
+              "key": "paidTime",
+              "label": "Betald tid",
+              "earned": 29,
+              "remaining": 4
+            },
+            {
+              "key": "savedTime",
+              "label": "Sparad tid",
+              "earned": 24,
+              "remaining": 19
+            },
+            {
+              "key": "convertedSavedHours",
+              "label": "Omvandlade sparade timmar",
+              "earned": 14,
+              "remaining": 14
+            },
+            {
+              "key": "savedDaysOver30",
+              "label": "Sparade dgr > 30",
+              "earned": 0,
+              "remaining": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "person-006",
+      "personalIdentityNumber": "19800707-1006",
+      "firstName": "Oskar",
+      "lastName": "Pettersson",
+      "displayName": "Pettersson, Oskar",
+      "birthDate": "1980-03-26",
+      "gender": "male",
+      "addresses": [
+        {
+          "type": "home",
+          "careOf": "",
+          "street": "Tallgatan 27",
+          "postalCode": "12005",
+          "city": "Norrdal",
+          "country": "SE",
+          "isPrimary": true
+        }
+      ],
+      "nextOfKin": [
+        {
+          "id": "nok-006",
+          "name": "Jonas Sand",
+          "relationship": "friend",
+          "phone": "+4610700005",
+          "mobilePhone": "+4670100005",
+          "email": "jonas.sand@example.com",
+          "careOf": "",
+          "address": {
+            "street": "Skogsvägen 11",
+            "postalCode": "12005",
+            "city": "Sjövik",
+            "country": "SE"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "child-006-01",
+          "name": "Isak",
+          "birthDate": "2004-06-06",
+          "calculatedBirthDate": "2004-06-06",
+          "adoptionDate": null,
+          "multipleBirth": false
+        }
+      ],
+      "taxInfo": {
+        "taxType": "Jämkning",
+        "taxTable": 34,
+        "column": 1,
+        "taxCode": "9",
+        "taxCodeLabel": "Tabellskatt",
+        "voluntaryTax": 525,
+        "companyCarModelCode": "",
+        "companyCarMonths": 0
+      },
+      "employments": [
+        {
+          "id": "employment-006",
+          "status": "active",
+          "idnr": "2005",
+          "validFrom": "2025-03-07",
+          "validTo": null,
+          "v": "",
+          "position": {
+            "title": "DevOps-engineer",
+            "positionClass": "DevOps-engineer",
+            "jobLabel": "Plattform och drift"
+          },
+          "employmentForm": "Temporary",
+          "fmgGroup": "11 - Deltid",
+          "degree": 80,
+          "salary": {
+            "monthlySalary": 36250,
+            "hourlySalary": 0,
+            "payGrade": "",
+            "payGradeAmount": 0
+          },
+          "rules": {
+            "overtimeCompensation": true,
+            "travelTimeCompensation": false,
+            "resursHanteringRule": "Rule-1",
+            "collectiveAgreement": "AB",
+            "vacationRule": "AB Semester",
+            "travelRule": "Basregelverk "
+          },
+          "timeMeasures": {
+            "fullTimeMeasure": "40:00",
+            "restTimeCompensation": false
+          },
+          "organization": {
+            "department": "Förvaltning",
+            "costCenter": "418906",
+            "accountingCode": "7060",
+            "rekvag": "410005",
+            "avgvag": "510005",
+            "annotation": "PVO lön 2025 / testperson 6"
+          }
+        }
+      ],
+      "balances": [
+        {
+          "id": "balance-006-flex",
+          "personId": "person-006",
+          "employmentId": "employment-006",
+          "type": "flex",
+          "label": "Flex Balance",
+          "unit": "time",
+          "value": "45:15"
+        },
+        {
+          "id": "balance-006-comp",
+          "personId": "person-006",
+          "employmentId": "employment-006",
+          "type": "comp",
+          "label": "Kompsaldo",
+          "unit": "time",
+          "value": "70:35"
+        }
+      ]
+    },
+    {
+      "id": "person-007",
+      "personalIdentityNumber": "19810808-1007",
+      "firstName": "Lina",
+      "lastName": "Eriksson",
+      "displayName": "Eriksson, Lina",
+      "birthDate": "1981-04-13",
+      "gender": "female",
+      "addresses": [
+        {
+          "type": "home",
+          "careOf": "c/o Familjen",
+          "street": "Skogsvägen 11",
+          "postalCode": "12006",
+          "city": "Sjövik",
+          "country": "SE",
+          "isPrimary": true
+        }
+      ],
+      "nextOfKin": [
+        {
+          "id": "nok-007",
+          "name": "Eva Nyström",
+          "relationship": "partner",
+          "phone": "+4610700006",
+          "mobilePhone": "+4670100006",
+          "email": "eva.nystrom@example.com",
+          "careOf": "c/o Familjen",
+          "address": {
+            "street": "Lindallén 6",
+            "postalCode": "12006",
+            "city": "Bergby",
+            "country": "SE"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "child-007-01",
+          "name": "Mira",
+          "birthDate": "2006-07-07",
+          "calculatedBirthDate": "2006-07-07",
+          "adoptionDate": null,
+          "multipleBirth": false
+        }
+      ],
+      "taxInfo": {
+        "taxType": "",
+        "taxTable": 35,
+        "column": 1,
+        "taxCode": "9",
+        "taxCodeLabel": "Tabellskatt",
+        "voluntaryTax": 550,
+        "companyCarModelCode": "CAR-106",
+        "companyCarMonths": 12
+      },
+      "employments": [
+        {
+          "id": "employment-007",
+          "status": "onLeave",
+          "idnr": "2006",
+          "validFrom": "2025-03-20",
+          "validTo": "2025-10-16",
+          "v": "",
+          "position": {
+            "title": "Förvaltningsledare",
+            "positionClass": "Förvaltningsledare",
+            "jobLabel": "Styrning och planering"
+          },
+          "employmentForm": "Permanent",
+          "fmgGroup": "11 - Heltid",
+          "degree": 100,
+          "salary": {
+            "monthlySalary": 37100,
+            "hourlySalary": 0,
+            "payGrade": "",
+            "payGradeAmount": 0
+          },
+          "rules": {
+            "overtimeCompensation": true,
+            "travelTimeCompensation": false,
+            "resursHanteringRule": "Rule-2",
+            "collectiveAgreement": "AB",
+            "vacationRule": "AB Semester",
+            "travelRule": "Basregelverk "
+          },
+          "timeMeasures": {
+            "fullTimeMeasure": "40:00",
+            "restTimeCompensation": true
+          },
+          "organization": {
+            "department": "Analys",
+            "costCenter": "418907",
+            "accountingCode": "7070",
+            "rekvag": "410006",
+            "avgvag": "510006",
+            "annotation": "PVO lön 2025 / testperson 7"
+          }
+        }
+      ],
+      "balances": [
+        {
+          "id": "balance-007-flex",
+          "personId": "person-007",
+          "employmentId": "employment-007",
+          "type": "flex",
+          "label": "Flex Balance",
+          "unit": "time",
+          "value": "46:18"
+        },
+        {
+          "id": "balance-007-comp",
+          "personId": "person-007",
+          "employmentId": "employment-007",
+          "type": "comp",
+          "label": "Kompsaldo",
+          "unit": "time",
+          "value": "72:42"
+        },
+        {
+          "id": "balance-007-vac",
+          "personId": "person-007",
+          "employmentId": "employment-007",
+          "type": "vacation",
+          "label": "Vacation balance",
+          "unit": "days",
+          "summary": {
+            "total": 42,
+            "saved": 22
+          },
+          "rows": [
+            {
+              "key": "paidTime",
+              "label": "Betald tid",
+              "earned": 25,
+              "remaining": 6
+            },
+            {
+              "key": "savedTime",
+              "label": "Sparad tid",
+              "earned": 26,
+              "remaining": 16
+            },
+            {
+              "key": "convertedSavedHours",
+              "label": "Omvandlade sparade timmar",
+              "earned": 10,
+              "remaining": 10
+            },
+            {
+              "key": "savedDaysOver30",
+              "label": "Sparade dgr > 30",
+              "earned": 0,
+              "remaining": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "person-008",
+      "personalIdentityNumber": "19820909-1008",
+      "firstName": "Fredrik",
+      "lastName": "Larsson",
+      "displayName": "Larsson, Fredrik",
+      "birthDate": "1982-04-30",
+      "gender": "male",
+      "addresses": [
+        {
+          "type": "home",
+          "careOf": "",
+          "street": "Lindallén 6",
+          "postalCode": "12007",
+          "city": "Bergby",
+          "country": "SE",
+          "isPrimary": true
+        }
+      ],
+      "nextOfKin": [
+        {
+          "id": "nok-008",
+          "name": "Peter Blom",
+          "relationship": "spouse",
+          "phone": "+4610700007",
+          "mobilePhone": "+4670100007",
+          "email": "peter.blom@example.com",
+          "careOf": "",
+          "address": {
+            "street": "Kyrkgatan 14",
+            "postalCode": "12007",
+            "city": "Småstad",
+            "country": "SE"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "child-008-01",
+          "name": "Theo",
+          "birthDate": "2005-08-08",
+          "calculatedBirthDate": "2005-08-08",
+          "adoptionDate": null,
+          "multipleBirth": false
+        }
+      ],
+      "taxInfo": {
+        "taxType": "Jämkning",
+        "taxTable": 29,
+        "column": 2,
+        "taxCode": "9",
+        "taxCodeLabel": "Tabellskatt",
+        "voluntaryTax": 150,
+        "companyCarModelCode": "",
+        "companyCarMonths": 0
+      },
+      "employments": [
+        {
+          "id": "employment-008",
+          "status": "active",
+          "idnr": "2007",
+          "validFrom": "2025-04-02",
+          "validTo": null,
+          "v": "",
+          "position": {
+            "title": "Utredare",
+            "positionClass": "Utredare",
+            "jobLabel": "Analys och uppföljning"
+          },
+          "employmentForm": "Permanent",
+          "fmgGroup": "11 - Heltid",
+          "degree": 100,
+          "salary": {
+            "monthlySalary": 37950,
+            "hourlySalary": 0,
+            "payGrade": "",
+            "payGradeAmount": 0
+          },
+          "rules": {
+            "overtimeCompensation": false,
+            "travelTimeCompensation": false,
+            "resursHanteringRule": "Rule-3",
+            "collectiveAgreement": "AB",
+            "vacationRule": "AB Semester",
+            "travelRule": "Basregelverk "
+          },
+          "timeMeasures": {
+            "fullTimeMeasure": "38:30",
+            "restTimeCompensation": false
+          },
+          "organization": {
+            "department": "Verksamhet",
+            "costCenter": "418908",
+            "accountingCode": "7080",
+            "rekvag": "410007",
+            "avgvag": "510007",
+            "annotation": "PVO lön 2025 / testperson 8"
+          }
+        }
+      ],
+      "balances": [
+        {
+          "id": "balance-008-flex",
+          "personId": "person-008",
+          "employmentId": "employment-008",
+          "type": "flex",
+          "label": "Flex Balance",
+          "unit": "time",
+          "value": "47:21"
+        },
+        {
+          "id": "balance-008-comp",
+          "personId": "person-008",
+          "employmentId": "employment-008",
+          "type": "comp",
+          "label": "Kompsaldo",
+          "unit": "time",
+          "value": "74:49"
+        }
+      ]
+    },
+    {
+      "id": "person-009",
+      "personalIdentityNumber": "19831010-1009",
+      "firstName": "Elin",
+      "lastName": "Olsson",
+      "displayName": "Olsson, Elin",
+      "birthDate": "1983-05-17",
+      "gender": "female",
+      "addresses": [
+        {
+          "type": "home",
+          "careOf": "",
+          "street": "Kyrkgatan 14",
+          "postalCode": "12008",
+          "city": "Småstad",
+          "country": "SE",
+          "isPrimary": true
+        }
+      ],
+      "nextOfKin": [
+        {
+          "id": "nok-009",
+          "name": "Sanna Lund",
+          "relationship": "mother",
+          "phone": "+4610700008",
+          "mobilePhone": "+4670100008",
+          "email": "sanna.lund@example.com",
+          "careOf": "c/o Familjen",
+          "address": {
+            "street": "Björkvägen 22",
+            "postalCode": "12008",
+            "city": "Västhamn",
+            "country": "SE"
+          }
+        }
+      ],
+      "children": [],
+      "taxInfo": {
+        "taxType": "",
+        "taxTable": 30,
+        "column": 1,
+        "taxCode": "9",
+        "taxCodeLabel": "Tabellskatt",
+        "voluntaryTax": 175,
+        "companyCarModelCode": "",
+        "companyCarMonths": 0
+      },
+      "employments": [
+        {
+          "id": "employment-009",
+          "status": "active",
+          "idnr": "2008",
+          "validFrom": "2025-04-15",
+          "validTo": null,
+          "v": "",
+          "position": {
+            "title": "Systemförvaltare",
+            "positionClass": "Systemförvaltare",
+            "jobLabel": "Verksamhetssystem, förvaltning"
+          },
+          "employmentForm": "Temporary",
+          "fmgGroup": "11 - Heltid",
+          "degree": 100,
+          "salary": {
+            "monthlySalary": 38800,
+            "hourlySalary": 0,
+            "payGrade": "",
+            "payGradeAmount": 0
+          },
+          "rules": {
+            "overtimeCompensation": true,
+            "travelTimeCompensation": true,
+            "resursHanteringRule": "Rule-4",
+            "collectiveAgreement": " HÖK OFR-Läkare",
+            "vacationRule": "AB Semester",
+            "travelRule": "Basregelverk "
+          },
+          "timeMeasures": {
+            "fullTimeMeasure": "40:00",
+            "restTimeCompensation": false
+          },
+          "organization": {
+            "department": "HR",
+            "costCenter": "418901",
+            "accountingCode": "7010",
+            "rekvag": "410008",
+            "avgvag": "510008",
+            "annotation": "PVO lön 2025 / testperson 9"
+          }
+        }
+      ],
+      "balances": [
+        {
+          "id": "balance-009-flex",
+          "personId": "person-009",
+          "employmentId": "employment-009",
+          "type": "flex",
+          "label": "Flex Balance",
+          "unit": "time",
+          "value": "48:24"
+        },
+        {
+          "id": "balance-009-comp",
+          "personId": "person-009",
+          "employmentId": "employment-009",
+          "type": "comp",
+          "label": "Kompsaldo",
+          "unit": "time",
+          "value": "76:56"
+        },
+        {
+          "id": "balance-009-vac",
+          "personId": "person-009",
+          "employmentId": "employment-009",
+          "type": "vacation",
+          "label": "Vacation balance",
+          "unit": "days",
+          "summary": {
+            "total": 32,
+            "saved": 26
+          },
+          "rows": [
+            {
+              "key": "paidTime",
+              "label": "Betald tid",
+              "earned": 27,
+              "remaining": 4
+            },
+            {
+              "key": "savedTime",
+              "label": "Sparad tid",
+              "earned": 20,
+              "remaining": 18
+            },
+            {
+              "key": "convertedSavedHours",
+              "label": "Omvandlade sparade timmar",
+              "earned": 18,
+              "remaining": 18
+            },
+            {
+              "key": "savedDaysOver30",
+              "label": "Sparade dgr > 30",
+              "earned": 0,
+              "remaining": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "person-010",
+      "personalIdentityNumber": "19841111-1010",
+      "firstName": "Mikael",
+      "lastName": "Lindberg",
+      "displayName": "Lindberg, Mikael",
+      "birthDate": "1984-06-02",
+      "gender": "male",
+      "addresses": [
+        {
+          "type": "home",
+          "careOf": "c/o Familjen",
+          "street": "Björkvägen 22",
+          "postalCode": "12009",
+          "city": "Västhamn",
+          "country": "SE",
+          "isPrimary": true
+        }
+      ],
+      "nextOfKin": [
+        {
+          "id": "nok-010",
+          "name": "Per Wikström",
+          "relationship": "father",
+          "phone": "+4610700009",
+          "mobilePhone": "+4670100009",
+          "email": "per.wikstrom@example.com",
+          "careOf": "",
+          "address": {
+            "street": "Rosenlund 5",
+            "postalCode": "12009",
+            "city": "Söderköping",
+            "country": "SE"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "child-010-01",
+          "name": "Noel",
+          "birthDate": "2006-10-10",
+          "calculatedBirthDate": "2006-10-10",
+          "adoptionDate": null,
+          "multipleBirth": false
+        }
+      ],
+      "taxInfo": {
+        "taxType": "Jämkning",
+        "taxTable": 31,
+        "column": 1,
+        "taxCode": "9",
+        "taxCodeLabel": "Tabellskatt",
+        "voluntaryTax": 300,
+        "companyCarModelCode": "",
+        "companyCarMonths": 0
+      },
+      "employments": [
+        {
+          "id": "employment-010",
+          "status": "active",
+          "idnr": "2009",
+          "validFrom": "2025-04-28",
+          "validTo": null,
+          "v": "",
+          "position": {
+            "title": "HR-partner",
+            "positionClass": "HR-specialist",
+            "jobLabel": "HR och stöd"
+          },
+          "employmentForm": "Permanent",
+          "fmgGroup": "11 - Deltid",
+          "degree": 80,
+          "salary": {
+            "monthlySalary": 39650,
+            "hourlySalary": 0,
+            "payGrade": "",
+            "payGradeAmount": 0
+          },
+          "rules": {
+            "overtimeCompensation": true,
+            "travelTimeCompensation": false,
+            "resursHanteringRule": "Rule-5",
+            "collectiveAgreement": "AB",
+            "vacationRule": "AB Semester",
+            "travelRule": "Basregelverk "
+          },
+          "timeMeasures": {
+            "fullTimeMeasure": "40:00",
+            "restTimeCompensation": true
+          },
+          "organization": {
+            "department": "Lön",
+            "costCenter": "418902",
+            "accountingCode": "7020",
+            "rekvag": "410009",
+            "avgvag": "510009",
+            "annotation": "PVO lön 2025 / testperson 10"
+          }
+        }
+      ],
+      "balances": [
+        {
+          "id": "balance-010-flex",
+          "personId": "person-010",
+          "employmentId": "employment-010",
+          "type": "flex",
+          "label": "Flex Balance",
+          "unit": "time",
+          "value": "49:27"
+        },
+        {
+          "id": "balance-010-comp",
+          "personId": "person-010",
+          "employmentId": "employment-010",
+          "type": "comp",
+          "label": "Kompsaldo",
+          "unit": "time",
+          "value": "78:03"
+        }
+      ]
+    },
+    {
+      "id": "person-011",
+      "personalIdentityNumber": "19851212-1011",
+      "firstName": "Nina",
+      "lastName": "Berg",
+      "displayName": "Berg, Nina",
+      "birthDate": "1985-06-20",
+      "gender": "female",
+      "addresses": [
+        {
+          "type": "home",
+          "careOf": "",
+          "street": "Rosenlund 5",
+          "postalCode": "12010",
+          "city": "Söderköping",
+          "country": "SE",
+          "isPrimary": true
+        }
+      ],
+      "nextOfKin": [
+        {
+          "id": "nok-011",
+          "name": "Helena Åkesson",
+          "relationship": "sibling",
+          "phone": "+4610700010",
+          "mobilePhone": "+4670100010",
+          "email": "helena.akesson@example.com",
+          "careOf": "c/o Familjen",
+          "address": {
+            "street": "Solgatan 9",
+            "postalCode": "12010",
+            "city": "Lillköping",
+            "country": "SE"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "child-011-01",
+          "name": "Selma",
+          "birthDate": "2005-11-11",
+          "calculatedBirthDate": "2005-11-11",
+          "adoptionDate": null,
+          "multipleBirth": false
+        }
+      ],
+      "taxInfo": {
+        "taxType": "",
+        "taxTable": 32,
+        "column": 1,
+        "taxCode": "9",
+        "taxCodeLabel": "Tabellskatt",
+        "voluntaryTax": 325,
+        "companyCarModelCode": "",
+        "companyCarMonths": 0
+      },
+      "employments": [
+        {
+          "id": "employment-011",
+          "status": "active",
+          "idnr": "2010",
+          "validFrom": "2025-05-11",
+          "validTo": null,
+          "v": "",
+          "position": {
+            "title": "Lönespecialist",
+            "positionClass": "Löneadministratör",
+            "jobLabel": "Lön och tid"
+          },
+          "employmentForm": "Permanent",
+          "fmgGroup": "11 - Heltid",
+          "degree": 100,
+          "salary": {
+            "monthlySalary": 40500,
+            "hourlySalary": 0,
+            "payGrade": "",
+            "payGradeAmount": 0
+          },
+          "rules": {
+            "overtimeCompensation": false,
+            "travelTimeCompensation": false,
+            "resursHanteringRule": "Rule-1",
+            "collectiveAgreement": "AB",
+            "vacationRule": "AB Semester",
+            "travelRule": "Basregelverk "
+          },
+          "timeMeasures": {
+            "fullTimeMeasure": "40:00",
+            "restTimeCompensation": false
+          },
+          "organization": {
+            "department": "IT",
+            "costCenter": "418903",
+            "accountingCode": "7030",
+            "rekvag": "410010",
+            "avgvag": "510010",
+            "annotation": "PVO lön 2025 / testperson 11"
+          }
+        }
+      ],
+      "balances": [
+        {
+          "id": "balance-011-flex",
+          "personId": "person-011",
+          "employmentId": "employment-011",
+          "type": "flex",
+          "label": "Flex Balance",
+          "unit": "time",
+          "value": "50:30"
+        },
+        {
+          "id": "balance-011-comp",
+          "personId": "person-011",
+          "employmentId": "employment-011",
+          "type": "comp",
+          "label": "Kompsaldo",
+          "unit": "time",
+          "value": "80:10"
+        },
+        {
+          "id": "balance-011-vac",
+          "personId": "person-011",
+          "employmentId": "employment-011",
+          "type": "vacation",
+          "label": "Vacation balance",
+          "unit": "days",
+          "summary": {
+            "total": 36,
+            "saved": 20
+          },
+          "rows": [
+            {
+              "key": "paidTime",
+              "label": "Betald tid",
+              "earned": 29,
+              "remaining": 6
+            },
+            {
+              "key": "savedTime",
+              "label": "Sparad tid",
+              "earned": 22,
+              "remaining": 15
+            },
+            {
+              "key": "convertedSavedHours",
+              "label": "Omvandlade sparade timmar",
+              "earned": 14,
+              "remaining": 14
+            },
+            {
+              "key": "savedDaysOver30",
+              "label": "Sparade dgr > 30",
+              "earned": 1,
+              "remaining": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "person-012",
+      "personalIdentityNumber": "19860113-1012",
+      "firstName": "Henrik",
+      "lastName": "Lundgren",
+      "displayName": "Lundgren, Henrik",
+      "birthDate": "1986-07-07",
+      "gender": "male",
+      "addresses": [
+        {
+          "type": "home",
+          "careOf": "",
+          "street": "Solgatan 9",
+          "postalCode": "12011",
+          "city": "Lillköping",
+          "country": "SE",
+          "isPrimary": true
+        }
+      ],
+      "nextOfKin": [
+        {
+          "id": "nok-012",
+          "name": "Magnus Hedlund",
+          "relationship": "friend",
+          "phone": "+4610700011",
+          "mobilePhone": "+4670100011",
+          "email": "magnus.hedlund@example.com",
+          "careOf": "",
+          "address": {
+            "street": "Vintergatan 15",
+            "postalCode": "12011",
+            "city": "Österby",
+            "country": "SE"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "child-012-01",
+          "name": "Liam",
+          "birthDate": "2004-12-12",
+          "calculatedBirthDate": "2004-12-12",
+          "adoptionDate": null,
+          "multipleBirth": false
+        }
+      ],
+      "taxInfo": {
+        "taxType": "Jämkning",
+        "taxTable": 33,
+        "column": 2,
+        "taxCode": "9",
+        "taxCodeLabel": "Tabellskatt",
+        "voluntaryTax": 450,
+        "companyCarModelCode": "",
+        "companyCarMonths": 0
+      },
+      "employments": [
+        {
+          "id": "employment-012",
+          "status": "active",
+          "idnr": "2011",
+          "validFrom": "2025-05-24",
+          "validTo": null,
+          "v": "",
+          "position": {
+            "title": "Objektsledare",
+            "positionClass": "Objektsledare",
+            "jobLabel": "IT och förvaltning"
+          },
+          "employmentForm": "Temporary",
+          "fmgGroup": "11 - Heltid",
+          "degree": 100,
+          "salary": {
+            "monthlySalary": 41350,
+            "hourlySalary": 0,
+            "payGrade": "",
+            "payGradeAmount": 0
+          },
+          "rules": {
+            "overtimeCompensation": true,
+            "travelTimeCompensation": false,
+            "resursHanteringRule": "Rule-2",
+            "collectiveAgreement": "AB",
+            "vacationRule": "AB Semester",
+            "travelRule": "Basregelverk "
+          },
+          "timeMeasures": {
+            "fullTimeMeasure": "40:00",
+            "restTimeCompensation": false
+          },
+          "organization": {
+            "department": "UX",
+            "costCenter": "418904",
+            "accountingCode": "7040",
+            "rekvag": "410011",
+            "avgvag": "510011",
+            "annotation": "PVO lön 2025 / testperson 12"
+          }
+        }
+      ],
+      "balances": [
+        {
+          "id": "balance-012-flex",
+          "personId": "person-012",
+          "employmentId": "employment-012",
+          "type": "flex",
+          "label": "Flex Balance",
+          "unit": "time",
+          "value": "51:33"
+        },
+        {
+          "id": "balance-012-comp",
+          "personId": "person-012",
+          "employmentId": "employment-012",
+          "type": "comp",
+          "label": "Kompsaldo",
+          "unit": "time",
+          "value": "82:17"
+        }
+      ]
+    },
+    {
+      "id": "person-013",
+      "personalIdentityNumber": "19870214-1013",
+      "firstName": "Ida",
+      "lastName": "Holm",
+      "displayName": "Holm, Ida",
+      "birthDate": "1987-07-24",
+      "gender": "female",
+      "addresses": [
+        {
+          "type": "home",
+          "careOf": "c/o Familjen",
+          "street": "Vintergatan 15",
+          "postalCode": "12012",
+          "city": "Österby",
+          "country": "SE",
+          "isPrimary": true
+        }
+      ],
+      "nextOfKin": [
+        {
+          "id": "nok-013",
+          "name": "Jenny Björk",
+          "relationship": "partner",
+          "phone": "+4610700012",
+          "mobilePhone": "+4670100012",
+          "email": "jenny.bjork@example.com",
+          "careOf": "c/o Familjen",
+          "address": {
+            "street": "Gröna vägen 2",
+            "postalCode": "12012",
+            "city": "Norrdal",
+            "country": "SE"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "child-013-01",
+          "name": "Ella",
+          "birthDate": "2006-01-13",
+          "calculatedBirthDate": "2006-01-13",
+          "adoptionDate": null,
+          "multipleBirth": false
+        }
+      ],
+      "taxInfo": {
+        "taxType": "",
+        "taxTable": 34,
+        "column": 1,
+        "taxCode": "9",
+        "taxCodeLabel": "Tabellskatt",
+        "voluntaryTax": 475,
+        "companyCarModelCode": "CAR-112",
+        "companyCarMonths": 12
+      },
+      "employments": [
+        {
+          "id": "employment-013",
+          "status": "active",
+          "idnr": "2012",
+          "validFrom": "2025-06-06",
+          "validTo": "2026-02-01",
+          "v": "",
+          "position": {
+            "title": "UX-designer",
+            "positionClass": "UX-designer",
+            "jobLabel": "Design och användning"
+          },
+          "employmentForm": "Permanent",
+          "fmgGroup": "11 - Heltid",
+          "degree": 100,
+          "salary": {
+            "monthlySalary": 42200,
+            "hourlySalary": 0,
+            "payGrade": "",
+            "payGradeAmount": 0
+          },
+          "rules": {
+            "overtimeCompensation": true,
+            "travelTimeCompensation": true,
+            "resursHanteringRule": "Rule-3",
+            "collectiveAgreement": " HÖK OFR-Läkare",
+            "vacationRule": "AB Semester",
+            "travelRule": "Basregelverk "
+          },
+          "timeMeasures": {
+            "fullTimeMeasure": "38:30",
+            "restTimeCompensation": true
+          },
+          "organization": {
+            "department": "Platform",
+            "costCenter": "418905",
+            "accountingCode": "7050",
+            "rekvag": "410012",
+            "avgvag": "510012",
+            "annotation": "PVO lön 2025 / testperson 13"
+          }
+        }
+      ],
+      "balances": [
+        {
+          "id": "balance-013-flex",
+          "personId": "person-013",
+          "employmentId": "employment-013",
+          "type": "flex",
+          "label": "Flex Balance",
+          "unit": "time",
+          "value": "52:36"
+        },
+        {
+          "id": "balance-013-comp",
+          "personId": "person-013",
+          "employmentId": "employment-013",
+          "type": "comp",
+          "label": "Kompsaldo",
+          "unit": "time",
+          "value": "84:24"
+        },
+        {
+          "id": "balance-013-vac",
+          "personId": "person-013",
+          "employmentId": "employment-013",
+          "type": "vacation",
+          "label": "Vacation balance",
+          "unit": "days",
+          "summary": {
+            "total": 40,
+            "saved": 24
+          },
+          "rows": [
+            {
+              "key": "paidTime",
+              "label": "Betald tid",
+              "earned": 25,
+              "remaining": 4
+            },
+            {
+              "key": "savedTime",
+              "label": "Sparad tid",
+              "earned": 24,
+              "remaining": 17
+            },
+            {
+              "key": "convertedSavedHours",
+              "label": "Omvandlade sparade timmar",
+              "earned": 10,
+              "remaining": 10
+            },
+            {
+              "key": "savedDaysOver30",
+              "label": "Sparade dgr > 30",
+              "earned": 0,
+              "remaining": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "person-014",
+      "personalIdentityNumber": "19880315-1014",
+      "firstName": "Patrik",
+      "lastName": "Wikström",
+      "displayName": "Wikström, Patrik",
+      "birthDate": "1988-08-09",
+      "gender": "male",
+      "addresses": [
+        {
+          "type": "home",
+          "careOf": "",
+          "street": "Gröna vägen 2",
+          "postalCode": "12013",
+          "city": "Norrdal",
+          "country": "SE",
+          "isPrimary": true
+        }
+      ],
+      "nextOfKin": [
+        {
+          "id": "nok-014",
+          "name": "Tommy Nilsson",
+          "relationship": "spouse",
+          "phone": "+4610700013",
+          "mobilePhone": "+4670100013",
+          "email": "tommy.nilsson@example.com",
+          "careOf": "",
+          "address": {
+            "street": "Furugatan 18",
+            "postalCode": "12013",
+            "city": "Sjövik",
+            "country": "SE"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "child-014-01",
+          "name": "Nils",
+          "birthDate": "2005-02-14",
+          "calculatedBirthDate": "2005-02-14",
+          "adoptionDate": null,
+          "multipleBirth": false
+        }
+      ],
+      "taxInfo": {
+        "taxType": "Jämkning",
+        "taxTable": 35,
+        "column": 1,
+        "taxCode": "9",
+        "taxCodeLabel": "Tabellskatt",
+        "voluntaryTax": 600,
+        "companyCarModelCode": "",
+        "companyCarMonths": 0
+      },
+      "employments": [
+        {
+          "id": "employment-014",
+          "status": "onLeave",
+          "idnr": "2013",
+          "validFrom": "2025-06-19",
+          "validTo": null,
+          "v": "",
+          "position": {
+            "title": "DevOps-engineer",
+            "positionClass": "DevOps-engineer",
+            "jobLabel": "Plattform och drift"
+          },
+          "employmentForm": "Permanent",
+          "fmgGroup": "11 - Deltid",
+          "degree": 80,
+          "salary": {
+            "monthlySalary": 43050,
+            "hourlySalary": 0,
+            "payGrade": "",
+            "payGradeAmount": 0
+          },
+          "rules": {
+            "overtimeCompensation": false,
+            "travelTimeCompensation": false,
+            "resursHanteringRule": "Rule-4",
+            "collectiveAgreement": "AB",
+            "vacationRule": "AB Semester",
+            "travelRule": "Basregelverk "
+          },
+          "timeMeasures": {
+            "fullTimeMeasure": "40:00",
+            "restTimeCompensation": false
+          },
+          "organization": {
+            "department": "Förvaltning",
+            "costCenter": "418906",
+            "accountingCode": "7060",
+            "rekvag": "410013",
+            "avgvag": "510013",
+            "annotation": "PVO lön 2025 / testperson 14"
+          }
+        }
+      ],
+      "balances": [
+        {
+          "id": "balance-014-flex",
+          "personId": "person-014",
+          "employmentId": "employment-014",
+          "type": "flex",
+          "label": "Flex Balance",
+          "unit": "time",
+          "value": "53:39"
+        },
+        {
+          "id": "balance-014-comp",
+          "personId": "person-014",
+          "employmentId": "employment-014",
+          "type": "comp",
+          "label": "Kompsaldo",
+          "unit": "time",
+          "value": "86:31"
+        }
+      ]
+    },
+    {
+      "id": "person-015",
+      "personalIdentityNumber": "19890416-1015",
+      "firstName": "Emma",
+      "lastName": "Björk",
+      "displayName": "Björk, Emma",
+      "birthDate": "1989-08-27",
+      "gender": "female",
+      "addresses": [
+        {
+          "type": "home",
+          "careOf": "",
+          "street": "Furugatan 18",
+          "postalCode": "12014",
+          "city": "Sjövik",
+          "country": "SE",
+          "isPrimary": true
+        }
+      ],
+      "nextOfKin": [
+        {
+          "id": "nok-015",
+          "name": "Ulrika Ek",
+          "relationship": "mother",
+          "phone": "+4610700014",
+          "mobilePhone": "+4670100014",
+          "email": "ulrika.ek@example.com",
+          "careOf": "c/o Familjen",
+          "address": {
+            "street": "Måsvägen 7",
+            "postalCode": "12014",
+            "city": "Bergby",
+            "country": "SE"
+          }
+        }
+      ],
+      "children": [],
+      "taxInfo": {
+        "taxType": "",
+        "taxTable": 29,
+        "column": 1,
+        "taxCode": "9",
+        "taxCodeLabel": "Tabellskatt",
+        "voluntaryTax": 100,
+        "companyCarModelCode": "",
+        "companyCarMonths": 0
+      },
+      "employments": [
+        {
+          "id": "employment-015",
+          "status": "active",
+          "idnr": "2014",
+          "validFrom": "2025-07-02",
+          "validTo": null,
+          "v": "",
+          "position": {
+            "title": "Förvaltningsledare",
+            "positionClass": "Förvaltningsledare",
+            "jobLabel": "Styrning och planering"
+          },
+          "employmentForm": "Temporary",
+          "fmgGroup": "11 - Heltid",
+          "degree": 100,
+          "salary": {
+            "monthlySalary": 43900,
+            "hourlySalary": 0,
+            "payGrade": "",
+            "payGradeAmount": 0
+          },
+          "rules": {
+            "overtimeCompensation": true,
+            "travelTimeCompensation": false,
+            "resursHanteringRule": "Rule-5",
+            "collectiveAgreement": "AB",
+            "vacationRule": "AB Semester",
+            "travelRule": "Basregelverk "
+          },
+          "timeMeasures": {
+            "fullTimeMeasure": "40:00",
+            "restTimeCompensation": false
+          },
+          "organization": {
+            "department": "Analys",
+            "costCenter": "418907",
+            "accountingCode": "7070",
+            "rekvag": "410014",
+            "avgvag": "510014",
+            "annotation": "PVO lön 2025 / testperson 15"
+          }
+        }
+      ],
+      "balances": [
+        {
+          "id": "balance-015-flex",
+          "personId": "person-015",
+          "employmentId": "employment-015",
+          "type": "flex",
+          "label": "Flex Balance",
+          "unit": "time",
+          "value": "54:42"
+        },
+        {
+          "id": "balance-015-comp",
+          "personId": "person-015",
+          "employmentId": "employment-015",
+          "type": "comp",
+          "label": "Kompsaldo",
+          "unit": "time",
+          "value": "88:38"
+        },
+        {
+          "id": "balance-015-vac",
+          "personId": "person-015",
+          "employmentId": "employment-015",
+          "type": "vacation",
+          "label": "Vacation balance",
+          "unit": "days",
+          "summary": {
+            "total": 30,
+            "saved": 28
+          },
+          "rows": [
+            {
+              "key": "paidTime",
+              "label": "Betald tid",
+              "earned": 27,
+              "remaining": 6
+            },
+            {
+              "key": "savedTime",
+              "label": "Sparad tid",
+              "earned": 26,
+              "remaining": 19
+            },
+            {
+              "key": "convertedSavedHours",
+              "label": "Omvandlade sparade timmar",
+              "earned": 18,
+              "remaining": 18
+            },
+            {
+              "key": "savedDaysOver30",
+              "label": "Sparade dgr > 30",
+              "earned": 0,
+              "remaining": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "person-016",
+      "personalIdentityNumber": "19900517-1016",
+      "firstName": "Robin",
+      "lastName": "Blom",
+      "displayName": "Blom, Robin",
+      "birthDate": "1990-09-13",
+      "gender": "male",
+      "addresses": [
+        {
+          "type": "home",
+          "careOf": "c/o Familjen",
+          "street": "Måsvägen 7",
+          "postalCode": "12015",
+          "city": "Bergby",
+          "country": "SE",
+          "isPrimary": true
+        }
+      ],
+      "nextOfKin": [
+        {
+          "id": "nok-016",
+          "name": "Sebastian Berg",
+          "relationship": "father",
+          "phone": "+4610700015",
+          "mobilePhone": "+4670100015",
+          "email": "sebastian.berg@example.com",
+          "careOf": "",
+          "address": {
+            "street": "Bryggvägen 10",
+            "postalCode": "12015",
+            "city": "Småstad",
+            "country": "SE"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "child-016-01",
+          "name": "Alicia",
+          "birthDate": "2006-04-16",
+          "calculatedBirthDate": "2006-04-16",
+          "adoptionDate": null,
+          "multipleBirth": false
+        }
+      ],
+      "taxInfo": {
+        "taxType": "Jämkning",
+        "taxTable": 30,
+        "column": 2,
+        "taxCode": "9",
+        "taxCodeLabel": "Tabellskatt",
+        "voluntaryTax": 225,
+        "companyCarModelCode": "",
+        "companyCarMonths": 0
+      },
+      "employments": [
+        {
+          "id": "employment-016",
+          "status": "active",
+          "idnr": "2015",
+          "validFrom": "2025-07-15",
+          "validTo": null,
+          "v": "",
+          "position": {
+            "title": "Utredare",
+            "positionClass": "Utredare",
+            "jobLabel": "Analys och uppföljning"
+          },
+          "employmentForm": "Permanent",
+          "fmgGroup": "11 - Heltid",
+          "degree": 100,
+          "salary": {
+            "monthlySalary": 44750,
+            "hourlySalary": 0,
+            "payGrade": "",
+            "payGradeAmount": 0
+          },
+          "rules": {
+            "overtimeCompensation": true,
+            "travelTimeCompensation": false,
+            "resursHanteringRule": "Rule-1",
+            "collectiveAgreement": "AB",
+            "vacationRule": "AB Semester",
+            "travelRule": "Basregelverk "
+          },
+          "timeMeasures": {
+            "fullTimeMeasure": "40:00",
+            "restTimeCompensation": true
+          },
+          "organization": {
+            "department": "Verksamhet",
+            "costCenter": "418908",
+            "accountingCode": "7080",
+            "rekvag": "410015",
+            "avgvag": "510015",
+            "annotation": "PVO lön 2025 / testperson 16"
+          }
+        }
+      ],
+      "balances": [
+        {
+          "id": "balance-016-flex",
+          "personId": "person-016",
+          "employmentId": "employment-016",
+          "type": "flex",
+          "label": "Flex Balance",
+          "unit": "time",
+          "value": "55:45"
+        },
+        {
+          "id": "balance-016-comp",
+          "personId": "person-016",
+          "employmentId": "employment-016",
+          "type": "comp",
+          "label": "Kompsaldo",
+          "unit": "time",
+          "value": "90:45"
+        }
+      ]
+    },
+    {
+      "id": "person-017",
+      "personalIdentityNumber": "19910618-1017",
+      "firstName": "Karin",
+      "lastName": "Hedlund",
+      "displayName": "Hedlund, Karin",
+      "birthDate": "1991-09-30",
+      "gender": "female",
+      "addresses": [
+        {
+          "type": "home",
+          "careOf": "",
+          "street": "Bryggvägen 10",
+          "postalCode": "12016",
+          "city": "Småstad",
+          "country": "SE",
+          "isPrimary": true
+        }
+      ],
+      "nextOfKin": [
+        {
+          "id": "nok-017",
+          "name": "Camilla Holm",
+          "relationship": "sibling",
+          "phone": "+4610700016",
+          "mobilePhone": "+4670100016",
+          "email": "camilla.holm@example.com",
+          "careOf": "c/o Familjen",
+          "address": {
+            "street": "Ekbacken 1",
+            "postalCode": "12016",
+            "city": "Västhamn",
+            "country": "SE"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "child-017-01",
+          "name": "Hugo",
+          "birthDate": "2005-05-17",
+          "calculatedBirthDate": "2005-05-17",
+          "adoptionDate": null,
+          "multipleBirth": false
+        },
+        {
+          "id": "child-017-02",
+          "name": "Leah",
+          "birthDate": "2001-06-18",
+          "calculatedBirthDate": "2001-06-18",
+          "adoptionDate": "2011-07-27",
+          "multipleBirth": true
+        }
+      ],
+      "taxInfo": {
+        "taxType": "",
+        "taxTable": 31,
+        "column": 1,
+        "taxCode": "9",
+        "taxCodeLabel": "Tabellskatt",
+        "voluntaryTax": 250,
+        "companyCarModelCode": "",
+        "companyCarMonths": 0
+      },
+      "employments": [
+        {
+          "id": "employment-017",
+          "status": "active",
+          "idnr": "2016",
+          "validFrom": "2025-07-28",
+          "validTo": null,
+          "v": "",
+          "position": {
+            "title": "Systemförvaltare",
+            "positionClass": "Systemförvaltare",
+            "jobLabel": "Verksamhetssystem, förvaltning"
+          },
+          "employmentForm": "Permanent",
+          "fmgGroup": "11 - Heltid",
+          "degree": 100,
+          "salary": {
+            "monthlySalary": 45600,
+            "hourlySalary": 0,
+            "payGrade": "",
+            "payGradeAmount": 0
+          },
+          "rules": {
+            "overtimeCompensation": false,
+            "travelTimeCompensation": true,
+            "resursHanteringRule": "Rule-2",
+            "collectiveAgreement": " HÖK OFR-Läkare",
+            "vacationRule": "AB Semester",
+            "travelRule": "Basregelverk "
+          },
+          "timeMeasures": {
+            "fullTimeMeasure": "40:00",
+            "restTimeCompensation": false
+          },
+          "organization": {
+            "department": "HR",
+            "costCenter": "418901",
+            "accountingCode": "7010",
+            "rekvag": "410016",
+            "avgvag": "510016",
+            "annotation": "PVO lön 2025 / testperson 17"
+          }
+        }
+      ],
+      "balances": [
+        {
+          "id": "balance-017-flex",
+          "personId": "person-017",
+          "employmentId": "employment-017",
+          "type": "flex",
+          "label": "Flex Balance",
+          "unit": "time",
+          "value": "56:48"
+        },
+        {
+          "id": "balance-017-comp",
+          "personId": "person-017",
+          "employmentId": "employment-017",
+          "type": "comp",
+          "label": "Kompsaldo",
+          "unit": "time",
+          "value": "92:52"
+        },
+        {
+          "id": "balance-017-vac",
+          "personId": "person-017",
+          "employmentId": "employment-017",
+          "type": "vacation",
+          "label": "Vacation balance",
+          "unit": "days",
+          "summary": {
+            "total": 34,
+            "saved": 22
+          },
+          "rows": [
+            {
+              "key": "paidTime",
+              "label": "Betald tid",
+              "earned": 29,
+              "remaining": 4
+            },
+            {
+              "key": "savedTime",
+              "label": "Sparad tid",
+              "earned": 20,
+              "remaining": 16
+            },
+            {
+              "key": "convertedSavedHours",
+              "label": "Omvandlade sparade timmar",
+              "earned": 14,
+              "remaining": 14
+            },
+            {
+              "key": "savedDaysOver30",
+              "label": "Sparade dgr > 30",
+              "earned": 0,
+              "remaining": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "person-018",
+      "personalIdentityNumber": "19920719-1018",
+      "firstName": "Daniel",
+      "lastName": "Ek",
+      "displayName": "Ek, Daniel",
+      "birthDate": "1992-10-16",
+      "gender": "male",
+      "addresses": [
+        {
+          "type": "home",
+          "careOf": "",
+          "street": "Ekbacken 1",
+          "postalCode": "12017",
+          "city": "Västhamn",
+          "country": "SE",
+          "isPrimary": true
+        }
+      ],
+      "nextOfKin": [
+        {
+          "id": "nok-018",
+          "name": "Anton Larsson",
+          "relationship": "friend",
+          "phone": "+4610700017",
+          "mobilePhone": "+4670100017",
+          "email": "anton.larsson@example.com",
+          "careOf": "",
+          "address": {
+            "street": "Hedvägen 24",
+            "postalCode": "12017",
+            "city": "Söderköping",
+            "country": "SE"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "child-018-01",
+          "name": "Leah",
+          "birthDate": "2004-06-18",
+          "calculatedBirthDate": "2004-06-18",
+          "adoptionDate": null,
+          "multipleBirth": false
+        }
+      ],
+      "taxInfo": {
+        "taxType": "Jämkning",
+        "taxTable": 32,
+        "column": 1,
+        "taxCode": "9",
+        "taxCodeLabel": "Tabellskatt",
+        "voluntaryTax": 375,
+        "companyCarModelCode": "",
+        "companyCarMonths": 0
+      },
+      "employments": [
+        {
+          "id": "employment-018",
+          "status": "active",
+          "idnr": "2017",
+          "validFrom": "2025-08-10",
+          "validTo": null,
+          "v": "",
+          "position": {
+            "title": "HR-partner",
+            "positionClass": "HR-specialist",
+            "jobLabel": "HR och stöd"
+          },
+          "employmentForm": "Temporary",
+          "fmgGroup": "11 - Deltid",
+          "degree": 80,
+          "salary": {
+            "monthlySalary": 46450,
+            "hourlySalary": 0,
+            "payGrade": "",
+            "payGradeAmount": 0
+          },
+          "rules": {
+            "overtimeCompensation": true,
+            "travelTimeCompensation": false,
+            "resursHanteringRule": "Rule-3",
+            "collectiveAgreement": "AB",
+            "vacationRule": "AB Semester",
+            "travelRule": "Basregelverk "
+          },
+          "timeMeasures": {
+            "fullTimeMeasure": "38:30",
+            "restTimeCompensation": false
+          },
+          "organization": {
+            "department": "Lön",
+            "costCenter": "418902",
+            "accountingCode": "7020",
+            "rekvag": "410017",
+            "avgvag": "510017",
+            "annotation": "PVO lön 2025 / testperson 18"
+          }
+        }
+      ],
+      "balances": [
+        {
+          "id": "balance-018-flex",
+          "personId": "person-018",
+          "employmentId": "employment-018",
+          "type": "flex",
+          "label": "Flex Balance",
+          "unit": "time",
+          "value": "57:51"
+        },
+        {
+          "id": "balance-018-comp",
+          "personId": "person-018",
+          "employmentId": "employment-018",
+          "type": "comp",
+          "label": "Kompsaldo",
+          "unit": "time",
+          "value": "94:59"
+        }
+      ]
+    },
+    {
+      "id": "person-019",
+      "personalIdentityNumber": "19750820-1019",
+      "firstName": "Sofia",
+      "lastName": "Nyström",
+      "displayName": "Nyström, Sofia",
+      "birthDate": "1975-11-03",
+      "gender": "female",
+      "addresses": [
+        {
+          "type": "home",
+          "careOf": "c/o Familjen",
+          "street": "Hedvägen 24",
+          "postalCode": "12018",
+          "city": "Söderköping",
+          "country": "SE",
+          "isPrimary": true
+        }
+      ],
+      "nextOfKin": [
+        {
+          "id": "nok-019",
+          "name": "Frida Svensson",
+          "relationship": "partner",
+          "phone": "+4610700018",
+          "mobilePhone": "+4670100018",
+          "email": "frida.svensson@example.com",
+          "careOf": "c/o Familjen",
+          "address": {
+            "street": "Källgatan 13",
+            "postalCode": "12018",
+            "city": "Lillköping",
+            "country": "SE"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "child-019-01",
+          "name": "Yasmin",
+          "birthDate": "2006-07-19",
+          "calculatedBirthDate": "2006-07-19",
+          "adoptionDate": null,
+          "multipleBirth": false
+        }
+      ],
+      "taxInfo": {
+        "taxType": "",
+        "taxTable": 33,
+        "column": 1,
+        "taxCode": "9",
+        "taxCodeLabel": "Tabellskatt",
+        "voluntaryTax": 400,
+        "companyCarModelCode": "CAR-118",
+        "companyCarMonths": 12
+      },
+      "employments": [
+        {
+          "id": "employment-019",
+          "status": "active",
+          "idnr": "2018",
+          "validFrom": "2025-08-23",
+          "validTo": "2026-05-20",
+          "v": "",
+          "position": {
+            "title": "Lönespecialist",
+            "positionClass": "Löneadministratör",
+            "jobLabel": "Lön och tid"
+          },
+          "employmentForm": "Permanent",
+          "fmgGroup": "11 - Heltid",
+          "degree": 100,
+          "salary": {
+            "monthlySalary": 47300,
+            "hourlySalary": 0,
+            "payGrade": "",
+            "payGradeAmount": 0
+          },
+          "rules": {
+            "overtimeCompensation": true,
+            "travelTimeCompensation": false,
+            "resursHanteringRule": "Rule-4",
+            "collectiveAgreement": "AB",
+            "vacationRule": "AB Semester",
+            "travelRule": "Basregelverk "
+          },
+          "timeMeasures": {
+            "fullTimeMeasure": "40:00",
+            "restTimeCompensation": true
+          },
+          "organization": {
+            "department": "IT",
+            "costCenter": "418903",
+            "accountingCode": "7030",
+            "rekvag": "410018",
+            "avgvag": "510018",
+            "annotation": "PVO lön 2025 / testperson 19"
+          }
+        }
+      ],
+      "balances": [
+        {
+          "id": "balance-019-flex",
+          "personId": "person-019",
+          "employmentId": "employment-019",
+          "type": "flex",
+          "label": "Flex Balance",
+          "unit": "time",
+          "value": "58:54"
+        },
+        {
+          "id": "balance-019-comp",
+          "personId": "person-019",
+          "employmentId": "employment-019",
+          "type": "comp",
+          "label": "Kompsaldo",
+          "unit": "time",
+          "value": "96:06"
+        },
+        {
+          "id": "balance-019-vac",
+          "personId": "person-019",
+          "employmentId": "employment-019",
+          "type": "vacation",
+          "label": "Vacation balance",
+          "unit": "days",
+          "summary": {
+            "total": 38,
+            "saved": 26
+          },
+          "rows": [
+            {
+              "key": "paidTime",
+              "label": "Betald tid",
+              "earned": 25,
+              "remaining": 6
+            },
+            {
+              "key": "savedTime",
+              "label": "Sparad tid",
+              "earned": 22,
+              "remaining": 18
+            },
+            {
+              "key": "convertedSavedHours",
+              "label": "Omvandlade sparade timmar",
+              "earned": 10,
+              "remaining": 10
+            },
+            {
+              "key": "savedDaysOver30",
+              "label": "Sparade dgr > 30",
+              "earned": 0,
+              "remaining": 0
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "person-020",
+      "personalIdentityNumber": "19760921-1020",
+      "firstName": "Anders",
+      "lastName": "Sandberg",
+      "displayName": "Sandberg, Anders",
+      "birthDate": "1976-11-19",
+      "gender": "male",
+      "addresses": [
+        {
+          "type": "home",
+          "careOf": "",
+          "street": "Källgatan 13",
+          "postalCode": "12019",
+          "city": "Lillköping",
+          "country": "SE",
+          "isPrimary": true
+        }
+      ],
+      "nextOfKin": [
+        {
+          "id": "nok-020",
+          "name": "Niklas Johansson",
+          "relationship": "spouse",
+          "phone": "+4610700019",
+          "mobilePhone": "+4670100019",
+          "email": "niklas.johansson@example.com",
+          "careOf": "",
+          "address": {
+            "street": "Storgatan 8",
+            "postalCode": "12019",
+            "city": "Österby",
+            "country": "SE"
+          }
+        }
+      ],
+      "children": [
+        {
+          "id": "child-020-01",
+          "name": "Ivar",
+          "birthDate": "2005-08-20",
+          "calculatedBirthDate": "2005-08-20",
+          "adoptionDate": null,
+          "multipleBirth": false
+        }
+      ],
+      "taxInfo": {
+        "taxType": "Jämkning",
+        "taxTable": 34,
+        "column": 2,
+        "taxCode": "9",
+        "taxCodeLabel": "Tabellskatt",
+        "voluntaryTax": 525,
+        "companyCarModelCode": "",
+        "companyCarMonths": 0
+      },
+      "employments": [
+        {
+          "id": "employment-020",
+          "status": "active",
+          "idnr": "2019",
+          "validFrom": "2025-09-05",
+          "validTo": null,
+          "v": "",
+          "position": {
+            "title": "Objektsledare",
+            "positionClass": "Objektsledare",
+            "jobLabel": "IT och förvaltning"
+          },
+          "employmentForm": "Permanent",
+          "fmgGroup": "11 - Heltid",
+          "degree": 100,
+          "salary": {
+            "monthlySalary": 48150,
+            "hourlySalary": 0,
+            "payGrade": "",
+            "payGradeAmount": 0
+          },
+          "rules": {
+            "overtimeCompensation": false,
+            "travelTimeCompensation": false,
+            "resursHanteringRule": "Rule-5",
+            "collectiveAgreement": "AB",
+            "vacationRule": "AB Semester",
+            "travelRule": "Basregelverk "
+          },
+          "timeMeasures": {
+            "fullTimeMeasure": "40:00",
+            "restTimeCompensation": false
+          },
+          "organization": {
+            "department": "UX",
+            "costCenter": "418904",
+            "accountingCode": "7040",
+            "rekvag": "410019",
+            "avgvag": "510019",
+            "annotation": "PVO lön 2025 / testperson 20"
+          }
+        }
+      ],
+      "balances": [
+        {
+          "id": "balance-020-flex",
+          "personId": "person-020",
+          "employmentId": "employment-020",
+          "type": "flex",
+          "label": "Flex Balance",
+          "unit": "time",
+          "value": "59:57"
+        },
+        {
+          "id": "balance-020-comp",
+          "personId": "person-020",
+          "employmentId": "employment-020",
+          "type": "comp",
+          "label": "Kompsaldo",
+          "unit": "time",
+          "value": "98:13"
+        }
+      ]
+    }
+  ],
+  "payrollRuns": [
+    {
+      "id": "payroll-2026-05",
+      "period": {
+        "year": 2026,
+        "month": 5,
+        "from": "2026-05-01",
+        "to": "2026-05-31"
+      },
+      "status": "draft",
+      "results": [
+        {
+          "personId": "person-001",
+          "employmentId": "employment-001",
+          "grossSalary": 33650,
+          "items": [
+            {
+              "code": "MONTHLY_SALARY",
+              "label": "Månadslön",
+              "amount": 32000
+            },
+            {
+              "code": "OVERTIME",
+              "label": "Övertid",
+              "amount": 1200
+            },
+            {
+              "code": "ALLOWANCE",
+              "label": "Tilllägg",
+              "amount": 450
+            },
+            {
+              "code": "TAX",
+              "label": "Preliminär skatt",
+              "amount": -8412.5
+            }
+          ],
+          "netSalary": 25237.5
+        },
+        {
+          "personId": "person-002",
+          "employmentId": "employment-002",
+          "grossSalary": 32850,
+          "items": [
+            {
+              "code": "MONTHLY_SALARY",
+              "label": "Månadslön",
+              "amount": 32850
+            },
+            {
+              "code": "TAX",
+              "label": "Preliminär skatt",
+              "amount": -8541.0
+            }
+          ],
+          "netSalary": 24309.0
+        },
+        {
+          "personId": "person-003",
+          "employmentId": "employment-003",
+          "grossSalary": 33700,
+          "items": [
+            {
+              "code": "MONTHLY_SALARY",
+              "label": "Månadslön",
+              "amount": 33700
+            },
+            {
+              "code": "TAX",
+              "label": "Preliminär skatt",
+              "amount": -9099.0
+            }
+          ],
+          "netSalary": 24601.0
+        },
+        {
+          "personId": "person-004",
+          "employmentId": "employment-004",
+          "grossSalary": 34550,
+          "items": [
+            {
+              "code": "MONTHLY_SALARY",
+              "label": "Månadslön",
+              "amount": 34550
+            },
+            {
+              "code": "TAX",
+              "label": "Preliminär skatt",
+              "amount": -9674.0
+            }
+          ],
+          "netSalary": 24876.0
+        },
+        {
+          "personId": "person-005",
+          "employmentId": "employment-005",
+          "grossSalary": 36640,
+          "items": [
+            {
+              "code": "MONTHLY_SALARY",
+              "label": "Månadslön",
+              "amount": 35400
+            },
+            {
+              "code": "OVERTIME",
+              "label": "Övertid",
+              "amount": 1240
+            },
+            {
+              "code": "TAX",
+              "label": "Preliminär skatt",
+              "amount": -10625.6
+            }
+          ],
+          "netSalary": 26014.4
+        },
+        {
+          "personId": "person-006",
+          "employmentId": "employment-006",
+          "grossSalary": 36700,
+          "items": [
+            {
+              "code": "MONTHLY_SALARY",
+              "label": "Månadslön",
+              "amount": 36250
+            },
+            {
+              "code": "ALLOWANCE",
+              "label": "Tilllägg",
+              "amount": 450
+            },
+            {
+              "code": "TAX",
+              "label": "Preliminär skatt",
+              "amount": -9175.0
+            }
+          ],
+          "netSalary": 27525.0
+        },
+        {
+          "personId": "person-007",
+          "employmentId": "employment-007",
+          "grossSalary": 37100,
+          "items": [
+            {
+              "code": "MONTHLY_SALARY",
+              "label": "Månadslön",
+              "amount": 37100
+            },
+            {
+              "code": "TAX",
+              "label": "Preliminär skatt",
+              "amount": -9646.0
+            }
+          ],
+          "netSalary": 27454.0
+        },
+        {
+          "personId": "person-008",
+          "employmentId": "employment-008",
+          "grossSalary": 37950,
+          "items": [
+            {
+              "code": "MONTHLY_SALARY",
+              "label": "Månadslön",
+              "amount": 37950
+            },
+            {
+              "code": "TAX",
+              "label": "Preliminär skatt",
+              "amount": -10246.5
+            }
+          ],
+          "netSalary": 27703.5
+        },
+        {
+          "personId": "person-009",
+          "employmentId": "employment-009",
+          "grossSalary": 40080,
+          "items": [
+            {
+              "code": "MONTHLY_SALARY",
+              "label": "Månadslön",
+              "amount": 38800
+            },
+            {
+              "code": "OVERTIME",
+              "label": "Övertid",
+              "amount": 1280
+            },
+            {
+              "code": "TAX",
+              "label": "Preliminär skatt",
+              "amount": -11222.4
+            }
+          ],
+          "netSalary": 28857.6
+        },
+        {
+          "personId": "person-010",
+          "employmentId": "employment-010",
+          "grossSalary": 39650,
+          "items": [
+            {
+              "code": "MONTHLY_SALARY",
+              "label": "Månadslön",
+              "amount": 39650
+            },
+            {
+              "code": "TAX",
+              "label": "Preliminär skatt",
+              "amount": -11498.5
+            }
+          ],
+          "netSalary": 28151.5
+        },
+        {
+          "personId": "person-011",
+          "employmentId": "employment-011",
+          "grossSalary": 40950,
+          "items": [
+            {
+              "code": "MONTHLY_SALARY",
+              "label": "Månadslön",
+              "amount": 40500
+            },
+            {
+              "code": "ALLOWANCE",
+              "label": "Tilllägg",
+              "amount": 450
+            },
+            {
+              "code": "TAX",
+              "label": "Preliminär skatt",
+              "amount": -10237.5
+            }
+          ],
+          "netSalary": 30712.5
+        },
+        {
+          "personId": "person-012",
+          "employmentId": "employment-012",
+          "grossSalary": 41350,
+          "items": [
+            {
+              "code": "MONTHLY_SALARY",
+              "label": "Månadslön",
+              "amount": 41350
+            },
+            {
+              "code": "TAX",
+              "label": "Preliminär skatt",
+              "amount": -10751.0
+            }
+          ],
+          "netSalary": 30599.0
+        },
+        {
+          "personId": "person-013",
+          "employmentId": "employment-013",
+          "grossSalary": 43520,
+          "items": [
+            {
+              "code": "MONTHLY_SALARY",
+              "label": "Månadslön",
+              "amount": 42200
+            },
+            {
+              "code": "OVERTIME",
+              "label": "Övertid",
+              "amount": 1320
+            },
+            {
+              "code": "TAX",
+              "label": "Preliminär skatt",
+              "amount": -11750.4
+            }
+          ],
+          "netSalary": 31769.6
+        },
+        {
+          "personId": "person-014",
+          "employmentId": "employment-014",
+          "grossSalary": 43050,
+          "items": [
+            {
+              "code": "MONTHLY_SALARY",
+              "label": "Månadslön",
+              "amount": 43050
+            },
+            {
+              "code": "TAX",
+              "label": "Preliminär skatt",
+              "amount": -12054.0
+            }
+          ],
+          "netSalary": 30996.0
+        },
+        {
+          "personId": "person-015",
+          "employmentId": "employment-015",
+          "grossSalary": 43900,
+          "items": [
+            {
+              "code": "MONTHLY_SALARY",
+              "label": "Månadslön",
+              "amount": 43900
+            },
+            {
+              "code": "TAX",
+              "label": "Preliminär skatt",
+              "amount": -12731.0
+            }
+          ],
+          "netSalary": 31169.0
+        },
+        {
+          "personId": "person-016",
+          "employmentId": "employment-016",
+          "grossSalary": 45200,
+          "items": [
+            {
+              "code": "MONTHLY_SALARY",
+              "label": "Månadslön",
+              "amount": 44750
+            },
+            {
+              "code": "ALLOWANCE",
+              "label": "Tilllägg",
+              "amount": 450
+            },
+            {
+              "code": "TAX",
+              "label": "Preliminär skatt",
+              "amount": -11300.0
+            }
+          ],
+          "netSalary": 33900.0
+        },
+        {
+          "personId": "person-017",
+          "employmentId": "employment-017",
+          "grossSalary": 46960,
+          "items": [
+            {
+              "code": "MONTHLY_SALARY",
+              "label": "Månadslön",
+              "amount": 45600
+            },
+            {
+              "code": "OVERTIME",
+              "label": "Övertid",
+              "amount": 1360
+            },
+            {
+              "code": "TAX",
+              "label": "Preliminär skatt",
+              "amount": -12209.6
+            }
+          ],
+          "netSalary": 34750.4
+        },
+        {
+          "personId": "person-018",
+          "employmentId": "employment-018",
+          "grossSalary": 46450,
+          "items": [
+            {
+              "code": "MONTHLY_SALARY",
+              "label": "Månadslön",
+              "amount": 46450
+            },
+            {
+              "code": "TAX",
+              "label": "Preliminär skatt",
+              "amount": -12541.5
+            }
+          ],
+          "netSalary": 33908.5
+        },
+        {
+          "personId": "person-019",
+          "employmentId": "employment-019",
+          "grossSalary": 47300,
+          "items": [
+            {
+              "code": "MONTHLY_SALARY",
+              "label": "Månadslön",
+              "amount": 47300
+            },
+            {
+              "code": "TAX",
+              "label": "Preliminär skatt",
+              "amount": -13244.0
+            }
+          ],
+          "netSalary": 34056.0
+        },
+        {
+          "personId": "person-020",
+          "employmentId": "employment-020",
+          "grossSalary": 48150,
+          "items": [
+            {
+              "code": "MONTHLY_SALARY",
+              "label": "Månadslön",
+              "amount": 48150
+            },
+            {
+              "code": "TAX",
+              "label": "Preliminär skatt",
+              "amount": -13963.5
+            }
+          ],
+          "netSalary": 34186.5
+        }
+      ]
+    }
+  ]
+}

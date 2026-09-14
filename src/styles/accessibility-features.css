@@ -1,0 +1,696 @@
+/* ========== ACCESSIBILITY FEATURES ========== */
+
+/* Larger Text - Level 1: 15px (small increase) */
+.accessibility-larger-text-1 body,
+.accessibility-larger-text-1 p,
+.accessibility-larger-text-1 span,
+.accessibility-larger-text-1 div,
+.accessibility-larger-text-1 td,
+.accessibility-larger-text-1 th,
+.accessibility-larger-text-1 label,
+.accessibility-larger-text-1 input,
+.accessibility-larger-text-1 button,
+.accessibility-larger-text-1 a,
+.accessibility-larger-text-1 li {
+  font-size: 15px !important;
+}
+
+/* Larger Text - Level 1: Specific elements */
+.accessibility-larger-text-1 .card-title,
+.accessibility-larger-text-1 .card-header,
+.accessibility-larger-text-1 .dx-datagrid-rowsview .dx-row > td,
+.accessibility-larger-text-1 .dx-datagrid-headers .dx-datagrid-table .dx-row > td,
+.accessibility-larger-text-1 .dx-button,
+.accessibility-larger-text-1 .btn,
+.accessibility-larger-text-1 ul li,
+.accessibility-larger-text-1 ol li,
+.accessibility-larger-text-1 .data-table-cell,
+.accessibility-larger-text-1 .data-table-header-cell {
+  font-size: 15px !important;
+}
+
+/* Larger Text - Level 2: 16px (medium increase) */
+.accessibility-larger-text-2 body,
+.accessibility-larger-text-2 p,
+.accessibility-larger-text-2 span,
+.accessibility-larger-text-2 div,
+.accessibility-larger-text-2 td,
+.accessibility-larger-text-2 th,
+.accessibility-larger-text-2 label,
+.accessibility-larger-text-2 input,
+.accessibility-larger-text-2 button,
+.accessibility-larger-text-2 a,
+.accessibility-larger-text-2 li {
+  font-size: 16px !important;
+}
+
+/* Larger Text - Level 2: Specific elements */
+.accessibility-larger-text-2 .card-title,
+.accessibility-larger-text-2 .card-header,
+.accessibility-larger-text-2 .dx-datagrid-rowsview .dx-row > td,
+.accessibility-larger-text-2 .dx-datagrid-headers .dx-datagrid-table .dx-row > td,
+.accessibility-larger-text-2 .dx-button,
+.accessibility-larger-text-2 .btn,
+.accessibility-larger-text-2 ul li,
+.accessibility-larger-text-2 ol li,
+.accessibility-larger-text-2 .data-table-cell,
+.accessibility-larger-text-2 .data-table-header-cell {
+  font-size: 16px !important;
+}
+
+/* Larger Text - Level 3: 17px (large increase) */
+.accessibility-larger-text-3 body,
+.accessibility-larger-text-3 p,
+.accessibility-larger-text-3 span,
+.accessibility-larger-text-3 div,
+.accessibility-larger-text-3 td,
+.accessibility-larger-text-3 th,
+.accessibility-larger-text-3 label,
+.accessibility-larger-text-3 input,
+.accessibility-larger-text-3 button,
+.accessibility-larger-text-3 a,
+.accessibility-larger-text-3 li {
+  font-size: 17px !important;
+}
+
+/* Larger Text - Level 3: Specific elements */
+.accessibility-larger-text-3 .card-title,
+.accessibility-larger-text-3 .card-header,
+.accessibility-larger-text-3 .dx-datagrid-rowsview .dx-row > td,
+.accessibility-larger-text-3 .dx-datagrid-headers .dx-datagrid-table .dx-row > td,
+.accessibility-larger-text-3 .dx-button,
+.accessibility-larger-text-3 .btn,
+.accessibility-larger-text-3 ul li,
+.accessibility-larger-text-3 ol li,
+.accessibility-larger-text-3 .data-table-cell,
+.accessibility-larger-text-3 .data-table-header-cell {
+  font-size: 17px !important;
+}
+
+/* Larger Buttons - Make all buttons bigger */
+.accessibility-larger-buttons button,
+.accessibility-larger-buttons .dx-button,
+.accessibility-larger-buttons .btn {
+  min-height: 48px !important;
+  padding: 12px 24px !important;
+  font-size: 16px !important;
+}
+
+/* Exclude header, breadcrumbs, and page title elements from larger buttons */
+.accessibility-larger-buttons .main-header *,
+.accessibility-larger-buttons [data-slot="breadcrumb"] *,
+.accessibility-larger-buttons nav[aria-label="breadcrumb"] * {
+  min-height: auto !important;
+  padding: revert !important;
+  font-size: revert !important;
+}
+
+.accessibility-larger-buttons .main-header button,
+.accessibility-larger-buttons .main-header .dx-button,
+.accessibility-larger-buttons .main-header .btn,
+.accessibility-larger-buttons .header-nav-group button,
+.accessibility-larger-buttons .breadcrumb button,
+.accessibility-larger-buttons .breadcrumb .dx-button,
+.accessibility-larger-buttons .breadcrumb .btn,
+.accessibility-larger-buttons .breadcrumb-link,
+.accessibility-larger-buttons .breadcrumb-item button,
+.accessibility-larger-buttons .page-title button,
+.accessibility-larger-buttons .page-title .dx-button,
+.accessibility-larger-buttons .page-title .btn,
+.accessibility-larger-buttons .page-title-dropdown,
+.accessibility-larger-buttons .nav-btn,
+.accessibility-larger-buttons .nav-btn-icon,
+.accessibility-larger-buttons .icon-btn,
+.accessibility-larger-buttons .settings-btn,
+.accessibility-larger-buttons .user-profile-btn,
+.accessibility-larger-buttons .notification-btn,
+.accessibility-larger-buttons .notification-combined,
+.accessibility-larger-buttons .favorites-btn,
+.accessibility-larger-buttons .accessibility-btn,
+.accessibility-larger-buttons .help-btn,
+.accessibility-larger-buttons .theme-toggle-btn,
+.accessibility-larger-buttons .header-icon-button,
+.accessibility-larger-buttons .header-user-name,
+.accessibility-larger-buttons .header-right button,
+.accessibility-larger-buttons .mega-menu button,
+.accessibility-larger-buttons .mega-menu .dx-button,
+.accessibility-larger-buttons .mega-menu .btn,
+.accessibility-larger-buttons [data-slot="breadcrumb"] button,
+.accessibility-larger-buttons [data-slot="breadcrumb"] a,
+.accessibility-larger-buttons nav[aria-label="breadcrumb"] button,
+.accessibility-larger-buttons nav[aria-label="breadcrumb"] a {
+  min-height: auto !important;
+  padding: 8px 12px !important;
+  font-size: 14px !important;
+}
+
+.accessibility-larger-buttons input,
+.accessibility-larger-buttons select,
+.accessibility-larger-buttons textarea,
+.accessibility-larger-buttons .dx-texteditor-input {
+  min-height: 48px !important;
+  padding: 12px 16px !important;
+  font-size: 16px !important;
+}
+
+/* Exclude header and breadcrumb inputs from larger inputs */
+.accessibility-larger-buttons .main-header input,
+.accessibility-larger-buttons .main-header select,
+.accessibility-larger-buttons .main-header textarea,
+.accessibility-larger-buttons .main-header .dx-texteditor-input,
+.accessibility-larger-buttons .breadcrumb input,
+.accessibility-larger-buttons .breadcrumb select,
+.accessibility-larger-buttons .breadcrumb textarea,
+.accessibility-larger-buttons .header-nav-group input,
+.accessibility-larger-buttons .header-nav-group select {
+  min-height: auto !important;
+  padding: 6px 12px !important;
+  font-size: 14px !important;
+}
+
+/* Zoom - Level 1: 120% scale */
+.accessibility-zoom-1 {
+  zoom: 1.2;
+}
+
+.accessibility-zoom-1 body {
+  transform-origin: top left;
+}
+
+/* Zoom - Level 2: 130% scale */
+.accessibility-zoom-2 {
+  zoom: 1.3;
+}
+
+.accessibility-zoom-2 body {
+  transform-origin: top left;
+}
+
+/* Zoom - Level 3: 140% scale */
+.accessibility-zoom-3 {
+  zoom: 1.4;
+}
+
+.accessibility-zoom-3 body {
+  transform-origin: top left;
+}
+
+/* Highlight Links - Yellow background on all links */
+.accessibility-highlight-links a {
+  background-color: #ffff00 !important;
+  padding: 2px 4px;
+  border-radius: 2px;
+}
+
+.accessibility-highlight-links .breadcrumb-link,
+.accessibility-highlight-links .nav-link {
+  background-color: #ffff00 !important;
+  color: #000000 !important;
+}
+
+/* Increased Row Spacing - Level 1: Small increase */
+.accessibility-increased-row-spacing-1 .dx-datagrid-rowsview .dx-row > td {
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+  line-height: 1.5 !important;
+}
+
+.accessibility-increased-row-spacing-1 .dx-datagrid-headers .dx-datagrid-table .dx-row > td {
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+  line-height: 1.5 !important;
+}
+
+.accessibility-increased-row-spacing-1 .data-table-row {
+  height: 44px !important;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+}
+
+.accessibility-increased-row-spacing-1 .data-table-cell {
+  line-height: 1.5 !important;
+}
+
+.accessibility-increased-row-spacing-1 .data-table-header-cell {
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+  line-height: 1.5 !important;
+}
+
+.accessibility-increased-row-spacing-1 .vacation-item {
+  padding-top: 12px !important;
+  padding-bottom: 12px !important;
+  margin-bottom: 8px !important;
+}
+
+.accessibility-increased-row-spacing-1 .vacation-label,
+.accessibility-increased-row-spacing-1 .vacation-value {
+  line-height: 1.5 !important;
+}
+
+.accessibility-increased-row-spacing-1 ul li,
+.accessibility-increased-row-spacing-1 ol li {
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+  line-height: 1.5 !important;
+}
+
+/* Increased Row Spacing - Level 2: Medium increase */
+.accessibility-increased-row-spacing-2 .dx-datagrid-rowsview .dx-row > td {
+  padding-top: 14px !important;
+  padding-bottom: 14px !important;
+  line-height: 1.65 !important;
+}
+
+.accessibility-increased-row-spacing-2 .dx-datagrid-headers .dx-datagrid-table .dx-row > td {
+  padding-top: 14px !important;
+  padding-bottom: 14px !important;
+  line-height: 1.65 !important;
+}
+
+.accessibility-increased-row-spacing-2 .data-table-row {
+  height: 48px !important;
+  padding-top: 7px !important;
+  padding-bottom: 7px !important;
+}
+
+.accessibility-increased-row-spacing-2 .data-table-cell {
+  line-height: 1.65 !important;
+}
+
+.accessibility-increased-row-spacing-2 .data-table-header-cell {
+  padding-top: 14px !important;
+  padding-bottom: 14px !important;
+  line-height: 1.65 !important;
+}
+
+.accessibility-increased-row-spacing-2 .vacation-item {
+  padding-top: 14px !important;
+  padding-bottom: 14px !important;
+  margin-bottom: 10px !important;
+}
+
+.accessibility-increased-row-spacing-2 .vacation-label,
+.accessibility-increased-row-spacing-2 .vacation-value {
+  line-height: 1.65 !important;
+}
+
+.accessibility-increased-row-spacing-2 ul li,
+.accessibility-increased-row-spacing-2 ol li {
+  padding-top: 7px !important;
+  padding-bottom: 7px !important;
+  line-height: 1.65 !important;
+}
+
+/* Increased Row Spacing - Level 3: Large increase */
+.accessibility-increased-row-spacing-3 .dx-datagrid-rowsview .dx-row > td {
+  padding-top: 18px !important;
+  padding-bottom: 18px !important;
+  line-height: 1.8 !important;
+}
+
+.accessibility-increased-row-spacing-3 .dx-datagrid-headers .dx-datagrid-table .dx-row > td {
+  padding-top: 18px !important;
+  padding-bottom: 18px !important;
+  line-height: 1.8 !important;
+}
+
+.accessibility-increased-row-spacing-3 .data-table-row {
+  height: 56px !important;
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+}
+
+.accessibility-increased-row-spacing-3 .data-table-cell {
+  line-height: 1.8 !important;
+}
+
+.accessibility-increased-row-spacing-3 .data-table-header-cell {
+  padding-top: 18px !important;
+  padding-bottom: 18px !important;
+  line-height: 1.8 !important;
+}
+
+.accessibility-increased-row-spacing-3 .vacation-item {
+  padding-top: 18px !important;
+  padding-bottom: 18px !important;
+  margin-bottom: 14px !important;
+}
+
+.accessibility-increased-row-spacing-3 .vacation-label,
+.accessibility-increased-row-spacing-3 .vacation-value {
+  line-height: 1.8 !important;
+}
+
+.accessibility-increased-row-spacing-3 ul li,
+.accessibility-increased-row-spacing-3 ol li {
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+  line-height: 1.8 !important;
+}
+
+/* Clear Borders - Increase contrast on borders in tables, cards, etc. */
+.accessibility-clear-borders .dx-datagrid {
+  border: 2px solid #000000 !important;
+}
+
+.accessibility-clear-borders .dx-datagrid-rowsview .dx-row {
+  border-bottom: 2px solid #000000 !important;
+}
+
+.accessibility-clear-borders .dx-datagrid-rowsview .dx-row > td {
+  border-right: 1px solid #000000 !important;
+}
+
+/* Clear Borders - Custom data tables (VacationCard etc.) */
+.accessibility-clear-borders .data-table-container {
+  border: 2px solid #000000 !important;
+}
+
+.accessibility-clear-borders .data-table-row {
+  border-bottom: 2px solid #000000 !important;
+}
+
+.accessibility-clear-borders .data-table-cell {
+  border-right: 1px solid #000000 !important;
+}
+
+.accessibility-clear-borders .data-table-cell:last-child {
+  border-right: none !important;
+}
+
+.accessibility-clear-borders .card,
+.accessibility-clear-borders .data-table-card,
+.accessibility-clear-borders .vacation-card {
+  border: 2px solid #000000 !important;
+}
+
+.accessibility-clear-borders .accordion-item {
+  border: 2px solid #000000 !important;
+  margin-bottom: 4px !important;
+}
+
+/* Keyboard Navigation - Clear focus indicators */
+.accessibility-keyboard-navigation *:focus {
+  outline: 4px solid #5236ab !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 6px rgba(82, 54, 171, 0.3), 0 0 12px rgba(82, 54, 171, 0.4) !important;
+}
+
+/* Exclude floating buttons from keyboard navigation focus styles */
+.accessibility-keyboard-navigation .help-floating-btn:focus,
+.accessibility-keyboard-navigation .scroll-to-bottom-btn:focus,
+.accessibility-keyboard-navigation .help-menu-popup:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.accessibility-keyboard-navigation .scroll-to-bottom-btn:focus {
+  transform: translateX(-50%) !important;
+}
+
+.accessibility-keyboard-navigation button:focus,
+.accessibility-keyboard-navigation a:focus,
+.accessibility-keyboard-navigation input:focus,
+.accessibility-keyboard-navigation select:focus,
+.accessibility-keyboard-navigation textarea:focus {
+  outline: 4px solid #5236ab !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 6px rgba(82, 54, 171, 0.3), 0 0 12px rgba(82, 54, 171, 0.4) !important;
+  background-color: rgba(82, 54, 171, 0.05) !important;
+}
+
+/* Exclude floating buttons */
+.accessibility-keyboard-navigation .help-floating-btn:focus,
+.accessibility-keyboard-navigation .scroll-to-bottom-btn:focus {
+  outline: none !important;
+  box-shadow: none !important;
+  background-color: transparent !important;
+}
+
+/* Enhanced focus for interactive elements */
+.accessibility-keyboard-navigation .dx-button:focus,
+.accessibility-keyboard-navigation .btn:focus {
+  outline: 4px solid #5236ab !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 6px rgba(82, 54, 171, 0.3), 0 0 12px rgba(82, 54, 171, 0.4) !important;
+  transform: scale(1.02);
+  transition: transform 0.1s ease;
+}
+
+/* Prevent transform on floating buttons to avoid layout issues */
+.accessibility-keyboard-navigation .help-floating-btn:focus,
+.accessibility-keyboard-navigation .scroll-to-bottom-btn:focus {
+  transform: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.accessibility-keyboard-navigation .scroll-to-bottom-btn:focus {
+  transform: translateX(-50%) !important;
+}
+
+/* Enhanced focus for links */
+.accessibility-keyboard-navigation a:focus {
+  background-color: rgba(82, 54, 171, 0.1) !important;
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px !important;
+  text-underline-offset: 3px !important;
+}
+
+/* Enhanced focus for form inputs */
+.accessibility-keyboard-navigation input:focus,
+.accessibility-keyboard-navigation select:focus,
+.accessibility-keyboard-navigation textarea:focus,
+.accessibility-keyboard-navigation .dx-texteditor:focus,
+.accessibility-keyboard-navigation .dx-texteditor.dx-state-focused {
+  outline: 4px solid #5236ab !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 6px rgba(82, 54, 171, 0.3), 0 0 12px rgba(82, 54, 171, 0.4) !important;
+  border-color: #5236ab !important;
+}
+
+/* Enhanced focus for navigation items */
+.accessibility-keyboard-navigation .nav-link:focus,
+.accessibility-keyboard-navigation .mega-menu-item:focus {
+  outline: 4px solid #5236ab !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 6px rgba(82, 54, 171, 0.3), 0 0 12px rgba(82, 54, 171, 0.4) !important;
+  background-color: rgba(82, 54, 171, 0.15) !important;
+}
+
+/* Enhanced focus for cards and interactive containers */
+.accessibility-keyboard-navigation .card:focus,
+.accessibility-keyboard-navigation .data-table-row:focus {
+  outline: 4px solid #5236ab !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 6px rgba(82, 54, 171, 0.3), 0 0 12px rgba(82, 54, 171, 0.4) !important;
+  background-color: rgba(82, 54, 171, 0.05) !important;
+}
+
+/* Show aria-label as tooltip on focus */
+.accessibility-keyboard-navigation [aria-label]:focus::after {
+  content: attr(aria-label);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #5236ab;
+  color: #ffffff;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+  z-index: 10000;
+  margin-bottom: 12px;
+  pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Add a small arrow to the tooltip */
+.accessibility-keyboard-navigation [aria-label]:focus::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 4px;
+  border: 6px solid transparent;
+  border-top-color: #5236ab;
+  z-index: 10001;
+}
+
+.accessibility-keyboard-navigation [aria-label]:focus {
+  position: relative;
+}
+
+/* Dark Mode - Enhanced Keyboard Navigation Focus with Cyan/Blue accent */
+[data-theme="dark"].accessibility-keyboard-navigation *:focus {
+  outline: 4px solid #00d4ff !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 6px rgba(0, 212, 255, 0.3), 0 0 12px rgba(0, 212, 255, 0.5) !important;
+}
+
+[data-theme="dark"].accessibility-keyboard-navigation button:focus,
+[data-theme="dark"].accessibility-keyboard-navigation a:focus,
+[data-theme="dark"].accessibility-keyboard-navigation input:focus,
+[data-theme="dark"].accessibility-keyboard-navigation select:focus,
+[data-theme="dark"].accessibility-keyboard-navigation textarea:focus {
+  outline: 4px solid #00d4ff !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 6px rgba(0, 212, 255, 0.3), 0 0 12px rgba(0, 212, 255, 0.5) !important;
+  background-color: rgba(0, 212, 255, 0.08) !important;
+}
+
+/* Enhanced focus for interactive elements in dark mode */
+[data-theme="dark"].accessibility-keyboard-navigation .dx-button:focus,
+[data-theme="dark"].accessibility-keyboard-navigation .btn:focus {
+  outline: 4px solid #00d4ff !important;
+  outline-offset: 3px !important;
+  box-shadow: 0 0 0 6px rgba(0, 212, 255, 0.3), 0 0 12px rgba(0, 212, 255, 0.5) !important;
+  transform: scale(1.02);
+  transition: transform 0.1s ease;
+}
+
+/* Enhanced focus for links in dark mode */
+[data-theme="dark"].accessibility-keyboard-navigation a:focus {
+  background-color: rgba(0, 212, 255, 0.12) !important;
+  text-decoration: underline !important;
+  text-decoration-thickness: 2px !important;
+  text-underline-offset: 3px !important;
+  text-decoration-color: #00d4ff !important;
+}
+
+/* Enhanced focus for form inputs in dark mode */
+[data-theme="dark"].accessibility-keyboard-navigation input:focus,
+[data-theme="dark"].accessibility-keyboard-navigation select:focus,
+[data-theme="dark"].accessibility-keyboard-navigation textarea:focus,
+[data-theme="dark"].accessibility-keyboard-navigation .dx-texteditor:focus,
+[data-theme="dark"].accessibility-keyboard-navigation .dx-texteditor.dx-state-focused {
+  outline: 4px solid #00d4ff !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 6px rgba(0, 212, 255, 0.3), 0 0 12px rgba(0, 212, 255, 0.5) !important;
+  border-color: #00d4ff !important;
+}
+
+/* Enhanced focus for navigation items in dark mode */
+[data-theme="dark"].accessibility-keyboard-navigation .nav-link:focus,
+[data-theme="dark"].accessibility-keyboard-navigation .mega-menu-item:focus {
+  outline: 4px solid #00d4ff !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 6px rgba(0, 212, 255, 0.3), 0 0 12px rgba(0, 212, 255, 0.5) !important;
+  background-color: rgba(0, 212, 255, 0.15) !important;
+}
+
+/* Enhanced focus for cards and interactive containers in dark mode */
+[data-theme="dark"].accessibility-keyboard-navigation .card:focus,
+[data-theme="dark"].accessibility-keyboard-navigation .data-table-row:focus {
+  outline: 4px solid #00d4ff !important;
+  outline-offset: 2px !important;
+  box-shadow: 0 0 0 6px rgba(0, 212, 255, 0.3), 0 0 12px rgba(0, 212, 255, 0.5) !important;
+  background-color: rgba(0, 212, 255, 0.08) !important;
+}
+
+/* Show aria-label as tooltip on focus in dark mode */
+[data-theme="dark"].accessibility-keyboard-navigation [aria-label]:focus::after {
+  background-color: #00d4ff;
+  color: #000000;
+  font-weight: 700;
+  box-shadow: 0 4px 16px rgba(0, 212, 255, 0.5);
+}
+
+/* Add a small arrow to the tooltip in dark mode */
+[data-theme="dark"].accessibility-keyboard-navigation [aria-label]:focus::before {
+  border-top-color: #00d4ff;
+}
+
+/* Active state for accessibility feature cards */
+.accessibility-feature-card.active {
+  background-color: #f2f1f9;
+  border-color: #5236ab;
+}
+
+.accessibility-feature-card.active .accessibility-feature-icon,
+.accessibility-feature-card.active .accessibility-feature-text {
+  color: #5236ab;
+}
+
+[data-theme="high-contrast"] .accessibility-feature-card.active {
+  background-color: #ffff00;
+  border-color: #ffff00;
+  color: #000000;
+}
+
+[data-theme="high-contrast"] .accessibility-feature-card.active .accessibility-feature-icon,
+[data-theme="high-contrast"] .accessibility-feature-card.active .accessibility-feature-text {
+  color: #000000;
+}
+
+/* Step indicators for multi-level features */
+.accessibility-steps {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.accessibility-step {
+  width: 24px;
+  height: 3px;
+  background-color: #d1d1d1;
+  border-radius: 2px;
+  transition: background-color 0.2s ease;
+}
+
+.accessibility-step.active {
+  background-color: #5236ab;
+}
+
+.accessibility-feature-card.active .accessibility-step {
+  background-color: #d1d1d1;
+}
+
+.accessibility-feature-card.active .accessibility-step.active {
+  background-color: #5236ab;
+}
+
+/* High contrast mode step indicators */
+[data-theme="high-contrast"] .accessibility-step {
+  background-color: transparent;
+  border: 2px solid #ffffff;
+}
+
+[data-theme="high-contrast"] .accessibility-step.active {
+  background-color: #000000;
+  border: 2px solid #ffffff;
+}
+
+[data-theme="high-contrast"] .accessibility-feature-card.active .accessibility-step {
+  background-color: #ffffff;
+  border: 2px solid #000000;
+}
+
+[data-theme="high-contrast"] .accessibility-feature-card.active .accessibility-step.active {
+  background-color: #000000;
+  border: 2px solid #000000;
+}
+
+/* Larger Cursor - 3.5x size with white arrow cursor design */
+.accessibility-larger-cursor * {
+  cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 56 56"><path fill="white" stroke="black" stroke-width="2.5" d="M6 6l16.51 39.59 5.87-17.24 17.24-5.87L6 6z"/></svg>') 0 0, auto !important;
+}
+
+.accessibility-larger-cursor button,
+.accessibility-larger-cursor a,
+.accessibility-larger-cursor [role="button"],
+.accessibility-larger-cursor .dx-button,
+.accessibility-larger-cursor .btn,
+.accessibility-larger-cursor i,
+.accessibility-larger-cursor svg,
+.accessibility-larger-cursor input,
+.accessibility-larger-cursor select,
+.accessibility-larger-cursor textarea {
+  cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="56" height="56" viewBox="0 0 56 56"><path fill="white" stroke="black" stroke-width="2.5" d="M6 6l16.51 39.59 5.87-17.24 17.24-5.87L6 6z"/></svg>') 0 0, auto !important;
+}

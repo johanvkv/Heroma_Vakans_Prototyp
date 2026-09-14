@@ -1,0 +1,476 @@
+@import "../../common/helpers";
+
+// ===========================================
+// Centralized Hex Color Variables (not in core variables)
+// ===========================================
+$color-white: #FFF;
+$color-black: #000;
+$color-dark-text: #333;
+$color-disabled-text: #a3a3a3;
+$color-disabled-input-bg: #EFEFEF;
+$color-readonly-text: #6B6B6B;
+$color-readonly-border: rgba(0, 0, 0, 0.17);
+$color-readonly-bg: rgba(255, 255, 255, 0.35);
+$color-disabled-border: #B8B8B8;
+$color-checkbox-border: #151515;
+$color-wizard-inactive: #dee2e6;
+$color-scheduler-border: #C0C0C0;
+$color-scheduler-title: #a21127;
+$color-highlight-link: #FAC000;
+$color-block-border: #e7eaeb;
+$color-divider: #F1F1F1;
+$color-stepper-inactive: #A3A3A3;
+$color-stepper-bg: #f4f5fb;
+$color-staffing-third-level: #f8f8fc;
+$color-staffing-active: #e6e3f3;
+$color-menu-item-hover: #ece9f6;
+$color-group-btn-bg: #E6E3F6;
+$color-protected-identity: #dd73b1;
+$color-carousel-nav: #a8a8a8;
+$color-badge-danger: #B00020;
+$color-tooltip-shadow: rgba(0, 0, 0, 0.4);
+
+:root {
+    // ===========================================
+    // Property Variables (Reusable CSS custom properties)
+    // ===========================================
+    // Page & Background Properties
+    --prop-page-bg: #{$cgi-white-300};
+    --prop-card-bg: #{$color-white};
+    --prop-widget-bg: #{$color-white};
+    --prop-alt-row-bg: #{$cgi-white-300};
+    --prop-light-bg: #{$cgi-white-200};
+    --prop-master-detail-bg: #{$cgi-white-200};
+    // Primary Color Properties
+    --prop-primary: #{$cgi-purple};
+    --prop-primary-dark: #{$cgi-purple-900};
+    --prop-primary-medium: #{$cgi-purple-700};
+    --prop-primary-hover: #{$cgi-purple-200};
+    --prop-primary-light: #{$cgi-purple-100};
+    --prop-primary-lightest: #{$cgi-purple-50};
+    --prop-primary-focus: #{$cgi-purple-300};
+    // Text Color Properties
+    --prop-text-default: #{$cgi-default};
+    --prop-text-white: #{$cgi-white};
+    --prop-text-dark: #{$color-black};
+    --prop-text-muted: #{$color-dark-text};
+    // Gray Color Properties
+    --prop-gray-lightest: #{$cgi-gray-50};
+    --prop-gray-light: #{$cgi-gray-100};
+    --prop-gray-medium: #{$cgi-gray-200};
+    --prop-gray-dark: #{$cgi-gray-300};
+    --prop-gray-muted: #{$cgi-gray-400};
+    --prop-gray-icon: #{$cgi-gray-800};
+    --prop-gray-text: #{$cgi-gray-900};
+    // Status Color Properties
+    --prop-success: #{$cgi-success-600};
+    --prop-warning: #{$cgi-warging};
+    --prop-warning-light: #{$cgi-warging-200};
+    --prop-error: #{$cgi-error};
+    --prop-danger-light: #{$cgi-red-200};
+    --prop-danger-text: #{$cgi-red-300};
+    // ===========================================
+    // Base Sizing & Typography
+    // ===========================================
+    --bs-card-border-radius: #{$border-radius};
+    --base-font-size: #{rfs-value(16px)};
+    --font-awesome: "Font Awesome 6 Pro";
+    // ===========================================
+    // Button Sizing
+    // ===========================================
+    --heroma-button-size: #{rfs-value(34px)};
+    --heroma-btn-padding-x: 0.475rem;
+    --heroma-btn-padding-y: 0.175rem;
+    --heroma-btn-sm-padding-y: 0.175rem;
+    --heroma-btn-font-size: 1rem;
+    --heroma-btn-font-weight: 500;
+    --heroma-btn-icon-font-weight: 500;
+    --heroma-btn-line-height: 1;
+    --heroma-toolbar-button-min-width: 3rem;
+    --bs-btn-padding-x: 0.575rem;
+    // ===========================================
+    // Input Sizing
+    // ===========================================
+    --heroma-input-size: 0;
+    --heroma-input-font-weight: 400;
+    --heroma-dx-input-height: calc(#{rfs-value(var(--heroma-button-size))} - #{rfs-value(2px)});
+    --heroma-bs-input-height: calc(#{rfs-value(var(--heroma-button-size))} - #{rfs-value(1px)});
+    // ===========================================
+    // Table & Layout Sizing
+    // ===========================================
+    --heroma-table-row-height: #{rfs-value(36px)};
+    --heroma-list-row-height-multiply: 1;
+    --heroma-zoom-level: 100;
+    // ===========================================
+    // Border Widths
+    // ===========================================
+    --border-width-0: 0px;
+    --border-width-1px: #{rfs-value(1px)};
+    --border-width-5px: #{rfs-value(5px)};
+    // ===========================================
+    // Form Icons
+    // ===========================================
+    --form-input-checked-bg-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath fill='none' stroke='%23#{str-slice(#{$cgi-white}, 2)}' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='m6 10 3 3 6-6'/%3E%3C/svg%3E");
+    --form-radio-checked-bg-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-4 -4 8 8'%3E%3Ccircle r='2' fill='%23#{str-slice(#{$cgi-white}, 2)}'/%3E%3C/svg%3E");
+}
+
+:where(html) {
+    // ===========================================
+    // Page & Card Backgrounds
+    // ===========================================
+    --page-bg: #{$cgi-white-300};
+    --card-bg: #{$color-white};
+    --header-bg: var(--card-bg);
+    --widget-bg: #{$color-white};
+    --menu-bg: var(--page-bg);
+    --menu-category-bg: #{$color-white};
+    --menu-submenu-container-bg-color: var(--page-bg);
+    --bg-light-background: #{$cgi-white-300};
+    --master-detail-bg: #{$cgi-white-200};
+    // ===========================================
+    // Primary & Secondary Colors
+    // ===========================================
+    --primary-color: #{$cgi-purple};
+    --primary-text-color: #{$cgi-white};
+    --text-primary: var(--primary-color);
+    --primary-hover: #{$cgi-purple-200};
+    --secondary-color: #{$cgi-purple-900};
+    --secondary-bg: #{$cgi-gray-50};
+    --secondary-hover: #{$cgi-purple-200};
+    --component-bg-color: var(--primary-color);
+    // ===========================================
+    // Logo & Gradient Colors
+    // ===========================================
+    --logo-bg-top: #{$cgi-purple-900};
+    --logo-bg-bottom: #{$cgi-purple};
+    --gradient-top: var(--secondary-color);
+    --gradient-bottom: var(--primary-color);
+    // ===========================================
+    // Text Colors
+    // ===========================================
+    --text-color: #{$cgi-default};
+    --default-text-color: #{$cgi-default};
+    --text-dark: #{$color-black};
+    --text-white-color: #{$cgi-white};
+    --text-mid-color: #{$cgi-gray-300};
+    --text-light-color: #{$cgi-gray-100};
+    --active-text-color: #{$cgi-purple};
+    --inactive-text-color: #{$color-readonly-text};
+    --invert-color: #{$cgi-white};
+    --h-text-color: var(--secondary-color);
+    --link-text-color: var(--secondary-color);
+    --a-link-text-color: var(--secondary-color);
+    --text-success-color: var(--primary-color);
+    // ===========================================
+    // Toolbar Colors
+    // ===========================================
+    --toolbar-text-color: #{$cgi-default};
+    --toolbar-text-hover-color: #{$cgi-gray-900};
+    // ===========================================
+    // Border Colors
+    // ===========================================
+    --border-color: #{$cgi-gray-50};
+    --border-color-default: #{$cgi-gray-50};
+    --border-color-highlighted: #{$cgi-default};
+    --bs-border-color: var(--border-color);
+    --secondary-border-color: #{$cgi-purple-100};
+    --light-border-color: #{$cgi-gray-100};
+    --block-border-color: #{$color-block-border};
+    --header-border: var(--border-color-default);
+    --form-field-border: var(--border-color);
+    --bg-border-color: var(--border-color);
+    // ===========================================
+    // Status Colors
+    // ===========================================
+    --success: #{$cgi-success-600};
+    --warning: #{$cgi-warging};
+    --critical: #{$cgi-error};
+    --critical-color: #{$cgi-error};
+    --critical-contrast: #{$cgi-white};
+    --search-highlight-color: #{$cgi-warging-200};
+    // ===========================================
+    // Disabled States
+    // ===========================================
+    --disabled-bg: #{$cgi-gray-50};
+    --disabled-color: #{$cgi-gray-300};
+    --disabled-text-color: #{$color-disabled-text};
+    --danger-bg-hover: #{$cgi-red-200};
+    // ===========================================
+    // Input Styles
+    // ===========================================
+    --input-bg: #{$cgi-white};
+    --input-border: #{$cgi-gray-200};
+    --input-color: #{$cgi-gray-900};
+    --input-placeholder-color: #{$cgi-gray-300};
+    --input-focus-bg: var(--primary-color);
+    --input-disabled-bg: #{$color-disabled-input-bg};
+    --input-disabled-border: #{$color-disabled-border};
+    --input-disabled-color: #{$color-readonly-text};
+    --input-readonly-bg: #{$color-readonly-bg};
+    --input-readonly-border: #{$color-readonly-border};
+    --input-readonly-color: #{$color-readonly-text};
+    --checkbox-border: #{$color-checkbox-border};
+    // ===========================================
+    // Button Styles
+    // ===========================================
+    --close-btn-bg: transparent;
+    --group-btn-bg: #{$color-group-btn-bg};
+    --group-btn-border-color: transprent;
+    --header-btn-border-width: #{rfs-value(0px)};
+    --header-btn-color: #{$color-white};
+    --header-secondary-color: var(--secondary-color);
+    // ===========================================
+    // Dropdown Styles
+    // ===========================================
+    --dropdown-bg: #{$cgi-white};
+    --dropdown-hover-bg: #{$cgi-purple-50};
+    --dropdown-button-bg: #{$cgi-white};
+    --dropdown-active-text-color: #{$cgi-default};
+    --bs-dropdown-link-active-bg: var(--secondary-color);
+    --bs-link-hover-color: var(--btn-primary-hover);
+    // ===========================================
+    // Row & Grid Styles
+    // ===========================================
+    --row-bg: #{$cgi-white};
+    --row-alt-bg: #{$cgi-white-300};
+    --row-active-bg: #{$cgi-purple-50};
+    --row-hover-bg: #{$cgi-purple-50};
+    --row-border-color: var(--border-color);
+    --alt-row-border-color: var(--border-color);
+    --grid-text-color: #{$cgi-default};
+    --grid-row-hover-bg: #{$cgi-purple-50};
+    --grid-row-hover-text-color: var(--text-color);
+    --grid-header-border: var(--primary-color);
+    --grid-footer-color: var(--secondary-color);
+    --grid-link-hover-color: var(--table-link-color);
+    --grid-pagenation-active-border: var(--secondary-color);
+    --grid-pagenation-active-bg: var(--row-alt-bg);
+    --grid-pagenation-active-color: #{$color-dark-text};
+    --bs-table-border-color: var(--border-color);
+    --dx-datagrid-column-header-text-color: var(--text-color);
+    --table-link-color: var(--primary-color);
+    // ===========================================
+    // Tab Styles
+    // ===========================================
+    --tab-bg: var(--card-bg);
+    --tab-active-bg: #{$cgi-white};
+    --tab-active-border: var(--primary-color);
+    --tab-text-active-color: var(--text-color);
+    --tab-disabled-bg: var(--disabled-bg);
+    --tab-disabled-color: var(--disabled-color);
+    --tab-hover-bg: #{$cgi-purple-100};
+    --tab-hover-color: #{$cgi-purple-900};
+    --tag-bg: var(--text-color);
+    // ===========================================
+    // Badge Styles
+    // ===========================================
+    --badge-bg: #{$cgi-purple-100};
+    --badge-text-color: #{$cgi-purple};
+    --badge-bg-gray: #{$color-stepper-bg};
+    --badge-danger-bg: #{$color-badge-danger};
+    // ===========================================
+    // Accordion Styles
+    // ===========================================
+    --accordion-bg: #{$cgi-purple-50};
+    --accordion-color: var(--secondary-color);
+    --accordion-icon-expand-color: var(--primary-color);
+    --accordion-expand-border-color: #{$color-disabled-input-bg};
+    // ===========================================
+    // Alert & Toast Styles
+    // ===========================================
+    --alert-bg: #{$cgi-white};
+    --alert-border: #{$cgi-white};
+    --alert-border-lt-color: var(--primary-color);
+    --alert-icon-content: "";
+    --alert-icon-background-content: "";
+    --alert-icon-color: var(--primary-color);
+    --alert-icon-background-color: var(--primary-color);
+    --alert-icon-background: #{$color-white};
+    --toast-info: var(--primary-color);
+    --toast-info-border: var(--primary-color);
+    --toast-success: var(--success);
+    --toast-success-border: var(--success);
+    --toast-warning: var(--warning);
+    --toast-warning-border: var(--warning);
+    --toast-error: var(--critical);
+    --toast-error-border: var(--critical);
+    // ===========================================
+    // Tooltip Styles
+    // ===========================================
+    --tooltip-bg: var(--text-color);
+    --tooltip-color: #{$color-white};
+    --aria-label-tooltip-box-shadow: #{$color-tooltip-shadow};
+    // ===========================================
+    // Card Styles
+    // ===========================================
+    --card-box-shadow: 0px 4px 35px 0px #{rgba($cgi-gray-200, .15)} !important;
+    --card-header-icon-background: var(--primary-color);
+    // ===========================================
+    // Wizard Styles
+    // ===========================================
+    --wizard-bg: #{$cgi-purple-50};
+    --wizard-active-step-bg: var(--primary-color);
+    --wizard-inactive-step-bg: #{$color-wizard-inactive};
+    --wizard-inactive-step-color: #{$color-dark-text};
+    // ===========================================
+    // Stepper Styles
+    // ===========================================
+    --stepper-bg: #{$cgi-white};
+    --stepper-color: #{$cgi-gray-200};
+    --stepper-active: var(--primary-color);
+    --stepper-active-border: var(--primary-color);
+    --stepper-active-color: #{$color-dark-text};
+    --stepper-active-icon-color: var(--primary-color);
+    --stepper-completed: var(--primary-color);
+    --stepper-completed-color: var(--primary-color);
+    --stepper-icon-completed: #{$cgi-white};
+    --stepper-text-color: #{$color-stepper-inactive};
+    --stepper-border-left-color: #{$color-stepper-bg};
+    // ===========================================
+    // Sidebar Styles
+    // ===========================================
+    --sidebar-xs-menu-bg: #{$color-white};
+    --sidebar-xs-menu-active-bg: var(--row-active-bg);
+    --sidebar-xs-menu-expand-border: var(--primary-color);
+    --sidebar-xs-menu-border-bottom-color: var(--border-color);
+    --sidebar-xs-submenu-bg: #{$cgi-purple-50};
+    --sidebar-xs-input-border-bottom: var(--border-color);
+    --sidebar-scrollbar-thumbbg: #{$cgi-purple-200};
+    --sidebar-right-menu-bg-color: #{$color-white};
+    --sidebar-right-menu-title-bg-color: #{$cgi-purple-50};
+    --sidebar-right-menu-title-text-color: var(--secondary-color);
+    --sidebar-menu-bg-selected-item: var(--row-active-bg);
+    --sidebar-menu-text-color-selected-item: var(--primary-color);
+    --sidebar-menu-text-color-item: var(--text-color);
+    --sidebar-menu-item-border-bottom-color: var(--border-color);
+    --sidebar-menu-divider-border-color: var(--light-border-color);
+    --sidebar-menu-dropdown-arrow-color: var(--primary-color);
+    --sidebar-menu-active-menu-strip-color: var(--primary-color);
+    --sidebar-menu-dropdown-selected-option-bg: #{$cgi-purple-50};
+    --sidebar-menu-dropdown-sticky-item-zindex: 1001;
+    --sidebar-dropdown-expanded-icon-color: var(--text-color);
+    // ===========================================
+    // Menu Styles
+    // ===========================================
+    --menu-border-color: #{$cgi-gray-100};
+    --menu-group-title-text-color: var(--text-color);
+    --menu-subitem-text-color: var(--text-color);
+    --menu-sub-title-hover-bg: var(--row-hover-bg);
+    --menu-search-result-title: #{$cgi-gray-200};
+    --menu-item-hover-color: #{$color-menu-item-hover};
+    --menu-category-item: #{$cgi-gray-400};
+    --menu-search-input-border: var(--grid-header-border);
+    --menu-search-input-color: var(--input-color);
+    // ===========================================
+    // Scrollbar Styles
+    // ===========================================
+    --scroll-bg: #{$cgi-gray-50};
+    --scrollbar-bg: var(--scroll-bg);
+    --scrollbar-thumb-bg: var(--primary-color);
+    --scrollbar-track-bg: var(--scrollbar-bg);
+    --scrollbar-thumb-hover: var(--primary-hover);
+    // ===========================================
+    // Switcher Styles
+    // ===========================================
+    --switcher-bg: #{$cgi-gray-200};
+    --switch-border: var(--input-border);
+    --switcher-icon-bg: #{$cgi-white};
+    --switcher-icon-color: #{$cgi-gray-800};
+    // ===========================================
+    // Scheduler Styles
+    // ===========================================
+    --scheduler-header-bg: var(--page-bg);
+    --scheduler-title-color: #{$color-scheduler-title};
+    --scheduler-border-color: #{$color-scheduler-border};
+    --scheduler-red-day-bg-color: #{$cgi-red-200};
+    --scheduler-red-day-title-color: #{$cgi-default};
+    --scheduler-tooltip-icon-color: #{$cgi-red-300};
+    --absence-text-color: #{$cgi-red-300};
+    // ===========================================
+    // Search Styles
+    // ===========================================
+    --search-result-delimiter-border: #{$cgi-gray-100};
+    --search-input-placeholer-color: var(--input-placeholder-color);
+    --global-search-list-color: var(--toolbar-text-color);
+    // ===========================================
+    // Person Selection Styles
+    // ===========================================
+    --person-selection-team-display-bg-color: #{$cgi-default};
+    --person-selection-team-display-text-color: #{$cgi-white};
+    --person-selection-container: var(--input-bg);
+    // ===========================================
+    // Carousel Styles
+    // ===========================================
+    --carousel-bg: #{$color-white};
+    --carousel-type-color: #{$color-dark-text};
+    --carousel-indicator-color: var(--primary-color);
+    --carousel-active-color: var(--primary-color);
+    --carousel-nav-btn-color: #{$color-carousel-nav};
+    --h-carousel-text-color: var(--secondary-color);
+    --h-carousel-hover-color: var(--secondary-hover);
+    // ===========================================
+    // Accessibility Tool Styles
+    // ===========================================
+    --active-accessibility-btn-bg-color: #{$cgi-purple-100};
+    --active-accessibility-btn-text-color: var(--h-text-color);
+    --ac-tool-default-button-bg-color: #{$cgi-white};
+    --ac-tool-default-button-text-color: var(--primary-color);
+    --ac-tool-default-button-icon-color: var(--primary-color);
+    --ac-tool-selected-btn-bg-color: var(--secondary-border-color);
+    --ac-tool-selected-btn-text-color: var(--primary-color);
+    --ac-tool-selected-icon-bg-color: var(--primary-color);
+    --ac-tool-selected-icon-text-color: #{$cgi-white};
+    --ac-tool-text-color: var(--primary-color);
+    --ac-tool-button-text-color: var(--primary-color);
+    --ac-tool-bg-hover-color: var(--row-hover-bg);
+    --ac-tool-hover-text-color: var(--text-color);
+    --ac-tool-border-color: var(--secondary-border-color);
+    --ac-tool-highligh-link-background: #{$color-highlight-link};
+    --ac-tool-enhanced-focus-outline-width: 6px;
+    --ac-tool-enhanced-focus-outline-color: var(--warning);
+    --ac-tool-enhanced-focus-shadow-color: var(--secondary-color);
+    --ac-tool-enhanced-links-text-color: #{$color-black};
+    // ===========================================
+    // Focus & Error Styles
+    // ===========================================
+    --default-focus-outline-color: var(--secondary-color);
+    --error-emoji-color: #{$cgi-purple-100};
+    --required-mark-color: #{$cgi-red-300};
+    // ===========================================
+    // Header Styles
+    // ===========================================
+    --vera-header-color: var(--secondary-color);
+    --info-header-bg-color: #{$color-white};
+    --info-header-text-color: #{$cgi-default};
+    --info-header-left-border-color: var(--primary-color);
+    // ===========================================
+    // Manage Teams Grid
+    // ===========================================
+    --manage-teams-grid-icon-full-permission: #{$green};
+    --manage-teams-grid-icon-partial-permission: #{$yellow-700};
+    // ===========================================
+    // Loading & Divider Styles
+    // ===========================================
+    --loading-placeholder-glow-custom-bg: #{$cgi-gray-200};
+    --divider-color: #{$color-divider};
+    --reciept-dashed-border: #{$cgi-gray-50};
+    // ===========================================
+    // Announcement & Identity Styles
+    // ===========================================
+    --announcement-overflow-background-color-1: #{$color-black};
+    --announcement-overflow-background-color-2: #{$color-white};
+    --protected-identity-border-color: #{$color-protected-identity};
+    // ===========================================
+    // Date Styles
+    // ===========================================
+    --date-color-today: #{$color-black};
+    // ===========================================
+    // Staffing Area Styles
+    // ===========================================
+    --staffing-accordion-third-level-bg: #{$color-staffing-third-level};
+    --staffing-accordion-active-header-bg: #{$color-staffing-active};
+    // ===========================================
+    // Miscellaneous
+    // ===========================================
+    --hide: visibel;
+}

@@ -1,0 +1,144 @@
+/* Icon Color Overrides - All icons should be #5236AB */
+
+/* Help menu item icons */
+.help-menu-item i {
+  color: #5236AB !important;
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  -webkit-text-fill-color: unset !important;
+  background-clip: unset !important;
+}
+
+/* Manual header icon */
+.manual-header-icon {
+  color: #5236AB !important;
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  -webkit-text-fill-color: unset !important;
+  background-clip: unset !important;
+}
+
+/* Manual placeholder image icon */
+.manual-placeholder-image i {
+  color: #5236AB !important;
+  background: none !important;
+  -webkit-background-clip: unset !important;
+  -webkit-text-fill-color: unset !important;
+  background-clip: unset !important;
+}
+
+/* ========== GRADIENT TO SOLID COLOR OVERRIDES ========== */
+
+/* Wizard Guide - Language selector active button */
+.wizard-lang-btn.active {
+  background: #5236AB !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+}
+
+/* Wizard Guide - Progress stepper active steps */
+.wizard-progress-step.active {
+  background: #5236AB !important;
+}
+
+/* Wizard Guide - Primary button */
+.btn-wizard-primary {
+  background: #5236AB !important;
+}
+
+/* Manual - Language selector active button */
+.manual-lang-btn.active {
+  background: #5236AB !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+}
+
+/* ========== MANUAL BUTTON OVERRIDES ========== */
+
+/* Delete button (trash can) for custom topics - outlined red */
+.manual-delete-btn {
+  background: transparent !important;
+  border: 1px solid #e31937 !important;
+  color: #e31937 !important;
+  border-radius: 0 !important;
+}
+
+[data-theme="dark"] .manual-delete-btn {
+  background: transparent !important;
+  border: 1px solid #e31937 !important;
+  color: #e31937 !important;
+  border-radius: 0 !important;
+}
+
+.manual-delete-btn:hover {
+  opacity: 1 !important;
+}
+
+.manual-delete-btn i {
+  color: #e31937 !important;
+}
+
+/* Hide/Show button (eye icons) - outlined purple */
+.manual-delete-btn:has(.fa-eye-slash),
+.manual-delete-btn:has(.fa-eye) {
+  background: transparent !important;
+  border: 1px solid #5236AB !important;
+  color: #5236AB !important;
+  border-radius: 0 !important;
+}
+
+[data-theme="dark"] .manual-delete-btn:has(.fa-eye-slash),
+[data-theme="dark"] .manual-delete-btn:has(.fa-eye) {
+  background: transparent !important;
+  border: 1px solid #5236AB !important;
+  color: #5236AB !important;
+  border-radius: 0 !important;
+}
+
+.manual-delete-btn:has(.fa-eye-slash) i,
+.manual-delete-btn:has(.fa-eye) i {
+  color: #5236AB !important;
+}
+
+[data-theme="dark"] .manual-delete-btn:has(.fa-eye-slash) i,
+[data-theme="dark"] .manual-delete-btn:has(.fa-eye) i {
+  color: #5236AB !important;
+}
+
+/* Delete buttons in edit text mode (image delete, etc.) - outlined red */
+.manual-image-delete-btn {
+  background: transparent !important;
+  border: 1px solid #e31937 !important;
+  color: #e31937 !important;
+  border-radius: 0 !important;
+}
+
+[data-theme="dark"] .manual-image-delete-btn {
+  background: transparent !important;
+  border: 1px solid #e31937 !important;
+  color: #e31937 !important;
+  border-radius: 0 !important;
+}
+
+.manual-image-delete-btn i {
+  color: #e31937 !important;
+}
+
+/* Block delete buttons - alert red outlined with white background */
+.manual-block-delete-btn {
+  background: #ffffff !important;
+  border: 1px solid #e31937 !important;
+  color: #e31937 !important;
+  border-radius: 0 !important;
+}
+
+[data-theme="dark"] .manual-block-delete-btn {
+  background: #ffffff !important;
+  border: 1px solid #e31937 !important;
+  color: #e31937 !important;
+  border-radius: 0 !important;
+}
+
+.manual-block-delete-btn i {
+  color: #e31937 !important;
+}
