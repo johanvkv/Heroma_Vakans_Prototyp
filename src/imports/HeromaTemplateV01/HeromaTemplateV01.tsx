@@ -1,5 +1,5 @@
 import svgPaths from "./svg-cekljahp54";
-import imgImageHeroma from "figma:asset/621997f545f4facad483cf2fe8ceed561b2bd70a.png";
+import imgImageHeroma from "../../assets/621997f545f4facad483cf2fe8ceed561b2bd70a.png";
 import { imgVector, imgVector1 } from "./svg-n1ypo";
 
 function PlaceholderForHeader() {

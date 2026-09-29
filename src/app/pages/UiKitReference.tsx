@@ -44,9 +44,9 @@ export const UiKitReference = () => {
       <div className="col-12">
         <Card title="Åtgärder">
           <div className="d-flex gap-2 flex-wrap">
-            <PrimaryButton icon="fa-regular fa-plus">Ny post</PrimaryButton>
-            <SecondaryButton icon="fa-regular fa-pen">Redigera</SecondaryButton>
-            <TertiaryButton icon="fa-regular fa-trash">Ta bort</TertiaryButton>
+            <PrimaryButton icon="fa-solid fa-plus">Ny post</PrimaryButton>
+            <SecondaryButton icon="fa-solid fa-pen">Redigera</SecondaryButton>
+            <TertiaryButton icon="fa-solid fa-trash">Ta bort</TertiaryButton>
           </div>
         </Card>
       </div>

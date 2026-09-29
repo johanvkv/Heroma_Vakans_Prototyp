@@ -81,7 +81,7 @@ export const SearchDropdown: React.FC<SearchDropdownProps> = ({
       {isOpen && filteredOptions.length > 0 && (
         <div className="search-dropdown">
           <div className="search-dropdown-scroll">
-            {Object.entries(groupedOptions).map(([section, sectionOptions]) => (
+            {(Object.entries(groupedOptions) as Array<[string, DropdownOption[]]>).map(([section, sectionOptions]) => (
               <div key={section}>
                 {section !== 'Other' && (
                   <div className="search-dropdown-item search-dropdown-section">

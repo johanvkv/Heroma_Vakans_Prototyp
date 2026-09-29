@@ -1,5 +1,5 @@
 import svgPaths from "./svg-anm145l9nr";
-import imgHttpsLottiefilesCom63521LoadingDots from "figma:asset/834ccf5d2c1595f7026d4cfc547a25c4651220b6.png";
+import imgHttpsLottiefilesCom63521LoadingDots from "../assets/834ccf5d2c1595f7026d4cfc547a25c4651220b6.png";
 
 function Layer() {
   return (

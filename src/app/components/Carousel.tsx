@@ -1,6 +1,6 @@
 import React from 'react';
 import Gallery from 'devextreme-react/gallery';
-import exampleImage from 'figma:asset/4037830dd23137a08b4f806eb50400b61146b95f.png';
+import exampleImage from '../../assets/4037830dd23137a08b4f806eb50400b61146b95f.png';
 
 interface CarouselSlide {
   id: number;
@@ -68,7 +68,7 @@ const renderSlide = (item: CarouselSlide) => {
 };
 
 export const Carousel = () => {
-  const galleryRef = React.useRef<Gallery>(null);
+  const galleryRef = React.useRef<any>(null);
   const [selectedIndex, setSelectedIndex] = React.useState(0);
 
   const handlePrevious = () => {

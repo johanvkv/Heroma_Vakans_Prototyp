@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import heromaLogo from 'figma:asset/621997f545f4facad483cf2fe8ceed561b2bd70a.png';
+import heromaLogo from '../../assets/621997f545f4facad483cf2fe8ceed561b2bd70a.png';
 import { MegaMenu } from './MegaMenu';
 import { AccessibilityPanel } from './AccessibilityPanel';
 import { UserProfilePanel } from './UserProfilePanel';
 import { FavouritesFlyout } from './FavouritesFlyout';
 import { NotificationsFlyout } from './NotificationsFlyout';
 import { RoleSelector } from './RoleSelector';
+import { CaseActivityModal } from './CaseActivityModal';
 
 export const Header = () => {
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -14,6 +15,7 @@ export const Header = () => {
   const [isUserProfileOpen, setIsUserProfileOpen] = useState(false);
   const [isFavouritesOpen, setIsFavouritesOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+  const [isCaseActivityOpen, setIsCaseActivityOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const favouritesButtonRef = useRef<HTMLButtonElement>(null);
   const notificationsButtonRef = useRef<HTMLButtonElement>(null);
@@ -46,6 +48,7 @@ export const Header = () => {
 
   return (
     <>
+      <CaseActivityModal isOpen={isCaseActivityOpen} onClose={() => setIsCaseActivityOpen(false)} />
       <MegaMenu 
         isOpen={isMegaMenuOpen} 
         onClose={() => {
@@ -147,6 +150,12 @@ export const Header = () => {
 
           <button className="nav-btn hide-mobile">
             <span>Meddelanden</span>
+          </button>
+
+          <div className="separator-vertical hide-mobile"></div>
+          <button className="nav-btn case-activity-header-btn" onClick={() => setIsCaseActivityOpen(true)} aria-label="Öppna ärendets händelser och kommunikation">
+            <i className="fa-solid fa-comments" />
+            <span className="hide-mobile">Ärende</span>
           </button>
 
           <div className="separator-vertical"></div>

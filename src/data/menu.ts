@@ -75,6 +75,7 @@ export interface MegaMenuItem {
   path?: string;
   hasNew?: boolean;
   isDivider?: boolean;
+  useSVG?: boolean;
 }
 
 /** Level-1 items for the MegaMenu sidebar. Labels are upper-cased as before. */
@@ -101,8 +102,8 @@ export interface MegaMenuSection {
 }
 
 /** Content sections keyed by primary id, for the MegaMenu main panel + search. */
-export function getMegaMenuContent(): Record<string, { sections: MegaMenuSection[] }> {
-  const out: Record<string, { sections: MegaMenuSection[] }> = {};
+export function getMegaMenuContent(): Record<string, { sections: MegaMenuSection[]; isPortalView?: boolean; portals?: Array<{ id: string; title: string; description: string; icon: string }> }> {
+  const out: Record<string, { sections: MegaMenuSection[]; isPortalView?: boolean; portals?: Array<{ id: string; title: string; description: string; icon: string }> }> = {};
   for (const entry of Object.values(menu)) {
     const sections = Object.entries(getSecondaries(entry)).map(([title, sec]) => ({
       title,

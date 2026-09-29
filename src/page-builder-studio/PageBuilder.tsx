@@ -545,7 +545,7 @@ const CardDropZone: React.FC<{
 }> = ({ cardId, children, addComponentToCard, removeComponentFromCard, updateComponentInCard, moveComponentInCard, addComponentToRowInCard, removeComponentFromRowInCard, tabsActiveStates, setActiveTab }) => {
   const [, drop] = useDrop(() => ({
     accept: 'COMPONENT_EXAMPLE',
-    drop: (item: { type: string; name: string; component: React.ReactElement; gridFeatures?: any }, monitor) => {
+    drop: (item: { type: string; name: string; component: React.ReactElement; gridFeatures?: any; inputFieldType?: string; inputFieldWidth?: number }, monitor) => {
       // Only handle if this is the direct target
       if (monitor.didDrop()) {
         return;
@@ -578,7 +578,7 @@ const CardDropZone: React.FC<{
         alertVariant,
         alertMessage: alertVariant ? `This is ${item.type.replace('alert-', '')} alert` : undefined,
         showAlertLink: false,
-        inputType: item.type === 'input-field' ? (item.inputFieldType || 'text') : undefined,
+        inputType: item.type === 'input-field' ? (item.inputFieldType || 'text') as DroppedComponent['inputType'] : undefined,
         inputWidth: item.type === 'input-field' ? (item.inputFieldWidth || 270) : undefined,
         sidebarContent: item.type === 'sidebar' ? {} : undefined,
         selectedMenuItem: item.type === 'sidebar' ? '2-2' : undefined,
@@ -1214,7 +1214,7 @@ const DroppedComponentItem: React.FC<{
     const StepDropZone: React.FC<{ stepId: string }> = ({ stepId }) => {
       const [{ isOver }, drop] = useDrop(() => ({
         accept: 'COMPONENT_EXAMPLE',
-        drop: (item: { type: string; name: string; component: React.ReactElement; gridFeatures?: any }, monitor) => {
+        drop: (item: { type: string; name: string; component: React.ReactElement; gridFeatures?: any; inputFieldType?: string; inputFieldWidth?: number }, monitor) => {
           if (monitor.didDrop()) return;
           const textContent = item.type.startsWith('text-')
             ? (extractTextContent(item.component) || getDefaultTextContent(item.type))
@@ -2291,7 +2291,7 @@ export const PageBuilder: React.FC = () => {
 
   const [, drop] = useDrop(() => ({
     accept: 'COMPONENT_EXAMPLE',
-    drop: (item: { type: string; name: string; component: React.ReactElement; gridFeatures?: any }, monitor) => {
+    drop: (item: { type: string; name: string; component: React.ReactElement; gridFeatures?: any; inputFieldType?: string; inputFieldWidth?: number }, monitor) => {
       // Only handle drop if it's not already handled by a nested target
       if (monitor.didDrop()) {
         return;
@@ -2334,7 +2334,7 @@ export const PageBuilder: React.FC = () => {
         alertVariant,
         alertMessage: alertVariant ? `This is ${item.type.replace('alert-', '')} alert` : undefined,
         showAlertLink: false,
-        inputType: item.type === 'input-field' ? (item.inputFieldType || 'text') : undefined,
+        inputType: item.type === 'input-field' ? (item.inputFieldType || 'text') as DroppedComponent['inputType'] : undefined,
       };
       setDroppedComponents([...droppedComponents, newComponent]);
     },

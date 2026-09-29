@@ -50,6 +50,13 @@
     "_overviewCards": [],
     "Tid & Bemanning": { "options": ["Schema", "Tidrapportering", "Bemanningsplanering"] }
   },
+  "Vikariehantering": {
+    "_id": "vikariehantering",
+    "_icon": "fa-user-clock",
+    "_path": "/vikariehantering/urvalstest",
+    "_new": true,
+    "_overviewCards": []
+  },
   "Page Builder Studio": {
     "_id": "components",
     "_icon": "fa-cube",

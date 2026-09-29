@@ -1,3 +1,4 @@
+import React from "react";
 import svgPaths from "./svg-rpk9tw5ytm";
 
 function Title() {
