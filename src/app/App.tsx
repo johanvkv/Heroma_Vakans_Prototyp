@@ -11,6 +11,7 @@ import config from 'devextreme/core/config';
 import { RouterProvider } from 'react-router';
 import { router } from './routes';
 import { RoleProvider } from './components/RoleContext';
+import { PrototypeLogin } from './components/PrototypeLogin';
 
 // Configure DevExtreme license
 config({
@@ -30,8 +31,10 @@ config({
  */
 export default function App() {
   return (
-    <RoleProvider>
-      <RouterProvider router={router} />
-    </RoleProvider>
+    <PrototypeLogin>
+      <RoleProvider>
+        <RouterProvider router={router} />
+      </RoleProvider>
+    </PrototypeLogin>
   );
 }
