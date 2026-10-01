@@ -25,11 +25,23 @@ type PeriodType   = 'dag' | 'arbetsvecka' | 'vecka' | 'manad' | 'period' | 'ar';
 type ViewType     = 'day-columns' | 'month-columns' | 'year-columns';
 type ColorScheme  = 'normal' | 'past' | 'absence' | 'vacant' | 'filled';
 
+const EMPLOYEE_COLUMN_WIDTH = 280;
+const VIEW_COLUMN_WIDTH: Record<ViewType, number> = {
+  'day-columns': 130,
+  'month-columns': 48,
+  'year-columns': 100,
+};
+
+function getScheduleTableMinWidth(viewType: ViewType, columnCount: number): number {
+  return EMPLOYEE_COLUMN_WIDTH + VIEW_COLUMN_WIDTH[viewType] * columnCount;
+}
+
 interface Shift            { type: ShiftType; start: string; end: string; }
 interface EmployeeGroup    { id: string; label: string; category: 'team'|'role'|'department'|'functional'; }
 interface OrganisationGroup { id: string; label: string; kind: 'clinic'|'department'|'team'; personIds: string[]; parentId?: string; }
 interface ViewColumn       { date: Date; header: string; subHeader?: string; isWeekend?: boolean; }
 interface ShiftFill        { personId: string; dateStr: string; fillType: 'substitute'|'extra'; person: { name: string; role: string }; }
+interface ScheduleEmployee { id: string; name: string; role: string; organisation: string; department: string; fmgGroup: string; }
 interface ResourceOrder {
   id: string;
   personId: string;
@@ -257,6 +269,7 @@ const ABSENCE_SHIFTS: Record<string,Shift> = {
 // schedule helpers (colour, vacancy handling and details) treat them as real absences.
 const RUNTIME_ABSENCE_SHIFTS: Record<string, Shift> = { ...ABSENCE_SHIFTS };
 const RUNTIME_ABSENCE_REASONS: Record<string, AbsenceReason> = {};
+const RUNTIME_SHIFT_OVERRIDES: Record<string, Shift> = {};
 
 // Specific pass info text per shift cell ("Vak", "Bil", etc.)
 const SHIFT_PASS_INFO: Record<string, string> = {
@@ -322,6 +335,14 @@ function getColumns(viewStart: Date, period: PeriodType): ViewColumn[] {
   }
   return [];
 }
+function getPeriodDates(viewStart: Date, period: PeriodType, columns: ViewColumn[]): Date[] {
+  if (period !== 'ar') return columns.map(column => column.date);
+  const start = yearStart(viewStart);
+  const nextYear = new Date(start.getFullYear() + 1, 0, 1);
+  const dates: Date[] = [];
+  for (let date = start; date < nextYear; date = addDays(date, 1)) dates.push(date);
+  return dates;
+}
 function getViewType(period: PeriodType): ViewType {
   if (period==='ar') return 'year-columns';
   if (period==='manad') return 'month-columns';
@@ -360,6 +381,11 @@ function getCellShift(personId: string, date: Date, passFilter: string): Shift|n
     const vs=RUNTIME_ABSENCE_SHIFTS[key];
     if (passFilter!=='alla'&&vs.type!==PASS_TO_SHIFT[passFilter]) return null;
     return vs;
+  }
+  if (RUNTIME_SHIFT_OVERRIDES[key]) {
+    const shift=RUNTIME_SHIFT_OVERRIDES[key];
+    if (passFilter!=='alla'&&shift.type!==PASS_TO_SHIFT[passFilter]) return null;
+    return shift;
   }
   return baseShift(personId, date, passFilter);
 }
@@ -426,6 +452,20 @@ const CARE_ROLES = [
   'Sjuksköterska', 'Undersköterska', 'Läkare', 'Sjuksköterska', 'Vårdadministratör',
   'Sjuksköterska', 'Undersköterska', 'Läkare', 'Medicinsk sekreterare', 'Fysioterapeut',
 ];
+
+const ROLE_COMPETENCIES: Record<string, string[]> = {
+  'Sjuksköterska': ['Läkemedel', 'HLR', 'Medicinsk omvårdnad'],
+  'Undersköterska': ['Omvårdnad', 'Förflyttning', 'Demens'],
+  'Läkare': ['Akut bedömning', 'Läkemedel', 'HLR'],
+  'Fysioterapeut': ['Rehabilitering', 'Förflyttning', 'Fallprevention'],
+  'Arbetsterapeut': ['Rehabilitering', 'Hjälpmedel', 'Aktivitetsbedömning'],
+  'Vårdadministratör': ['Patientadministration', 'Journalsystem', 'Vårddokumentation'],
+  'Medicinsk sekreterare': ['Patientadministration', 'Journalsystem', 'Medicinsk terminologi'],
+};
+
+function getEmployeeCompetencies(role: string): string[] {
+  return ROLE_COMPETENCIES[role] ?? ['Grundkompetens'];
+}
 
 // A small, stable pool of employees used by the prototype to illustrate pool staffing.
 const POOL_PERSON_INDICES = new Set([1, 6, 12, 17]);
@@ -646,6 +686,8 @@ function SubstitutePanel({
 
   const panelClass = `schema-sub-panel${isOpen ? ' schema-sub-panel-open' : ''}`;
   const fillLabel = 'Vikarier';
+  const viewColumnWidth = VIEW_COLUMN_WIDTH[viewType];
+  const tableMinWidth = getScheduleTableMinWidth(viewType, columns.length);
 
   const getSelectedIds = useCallback(() => {
     const inputs: HTMLInputElement[] = scrollRef.current
@@ -750,10 +792,13 @@ function SubstitutePanel({
 
       {/* Scrollable table — synced with main schedule */}
       <div ref={scrollRef} className="schema-sub-panel-body" style={tableInset ? { paddingLeft: tableInset } : undefined}>
-        <table className="schema-table schema-sub-table" style={tableWidth ? { width: tableWidth } : undefined}>
+        <table
+          className="schema-table schema-sub-table"
+          style={{ width: tableWidth || '100%', minWidth: tableMinWidth }}
+        >
           <colgroup>
-            <col style={{ width: `${100 / (columns.length + 1)}%` }} />
-            {columns.map((_, index) => <col key={index} style={{ width: `${100 / (columns.length + 1)}%` }} />)}
+            <col style={{ width: EMPLOYEE_COLUMN_WIDTH }} />
+            {columns.map((_, index) => <col key={index} style={{ width: viewColumnWidth }} />)}
           </colgroup>
           <thead>
             <tr>
@@ -1153,95 +1198,79 @@ function ResourceOrderDialog({ state, onConfirm, onCancel }: {
   return <ResourceOrderDialogInner state={state} onConfirm={onConfirm} onCancel={onCancel} />;
 }
 
-// ─── Shift detail dialog ──────────────────────────────────────────────────────
+// ─── Pass and person detail cards ────────────────────────────────────────────
 
 const SHIFT_LABELS: Record<ShiftType, string> = {
   morning: 'Morgonpass', day: 'Dagpass', evening: 'Kvällspass', night: 'Nattpass',
 };
 
-function ShiftDetailDialogInner({ state, onClose, onOpenSubPanel }: {
+function PassDetailCard({ state, onSaveTime, onPrimaryAction, onCreateOrder, onReportSick, onSimulate }: {
   state: DetailState;
-  onClose: () => void;
-  onOpenSubPanel: () => void;
+  onSaveTime: (start: string, end: string) => void;
+  onPrimaryAction?: () => void;
+  onCreateOrder: () => void;
+  onReportSick: () => void;
+  onSimulate: () => void;
 }) {
+  const [start, setStart] = useState(state.shift.start);
+  const [end, setEnd] = useState(state.shift.end);
+  useEffect(() => { setStart(state.shift.start); setEnd(state.shift.end); }, [state.shift.start, state.shift.end]);
   const isVacant = state.color === 'vacant';
   const isAbsent = state.color === 'absence';
   const isPast   = state.color === 'past';
   const akut     = isAkutShift(state.empId, state.dateStr) && isVacant;
+  const timeChanged = start !== state.shift.start || end !== state.shift.end;
+  const statusLabel = isVacant ? (akut ? 'Akut vakans' : 'Vakans') : isAbsent ? 'Frånvaro' : state.color === 'filled' ? 'Tillsatt' : isPast ? 'Historiskt pass' : 'Planerat';
+  const primaryLabel = isVacant ? 'Hitta vikarie' : isAbsent ? 'Gör till vakans' : state.color === 'normal' ? 'Boka extrapass' : null;
+  const primaryIcon = isVacant ? 'fa-user-plus' : isAbsent ? 'fa-user-clock' : 'fa-calendar-plus';
+
   return (
-    <Popup
-      visible={true}
-      onHiding={onClose}
-      title="Passdetaljer"
-      width={440}
-      height="auto"
-      showCloseButton={true}
-      dragEnabled={false}
-    >
-      <div className="schema-dialog-content">
-        <div className="schema-confirm-details">
-          <div className="schema-confirm-row">
-            <i className="fa-solid fa-user" />
-            <span>{state.empName}</span>
-            <span className="schema-sub-panel-context-sep"> · </span>
-            <span className="schema-detail-role">{state.empRole}</span>
-          </div>
-          <div className="schema-confirm-row">
-            <i className="fa-solid fa-calendar-days" />
-            <span>{fmtDay(parseDate(state.dateStr))}</span>
-          </div>
-          <div className="schema-confirm-row">
-            <i className="fa-solid fa-clock" />
-            <span>{state.shift.start}–{state.shift.end}</span>
-            <span className="schema-sub-panel-context-sep"> · </span>
-            <span>{SHIFT_LABELS[state.shift.type]}</span>
-            {getShiftPassInfo(state.empId, state.dateStr) && (
-              <>
-                <span className="schema-sub-panel-context-sep"> · </span>
-                <span className="schema-shift-info">{getShiftPassInfo(state.empId, state.dateStr)}</span>
-              </>
-            )}
-          </div>
-          {isVacant && (
-            <div className={`schema-confirm-row ${akut ? 'schema-detail-akut-row' : 'schema-detail-vacant-row'}`}>
-              <i className={`fa-solid ${akut ? 'fa-circle-exclamation' : 'fa-triangle-exclamation'}`} />
-              <span>{akut ? 'Akut vakans' : 'Vakant pass'}</span>
-            </div>
-          )}
-          {isAbsent && (
-            <div className="schema-confirm-row schema-detail-absence-row">
-              <i className="fa-solid fa-user-clock" />
-              <span>Frånvaro</span>
-            </div>
-          )}
-          {state.color === 'filled' && (
-            <div className="schema-confirm-row schema-detail-filled-row">
-              <i className="fa-solid fa-circle-check" />
-              <span>Tillsatt</span>
-            </div>
-          )}
-        </div>
-        <div className="schema-dialog-actions">
-          {!isPast && !isAbsent && (
-            <button className="btn-primary" onClick={onOpenSubPanel}>
-              <i className={`fa-solid ${isVacant ? 'fa-user-plus' : 'fa-calendar-plus'}`} />
-              {' '}{isVacant ? 'Hitta vikarie' : 'Boka extrapass'}
-            </button>
-          )}
-          <button className="btn-secondary" onClick={onClose}>Stäng</button>
-        </div>
-      </div>
-    </Popup>
+    <div className="order-detail-card pass-detail-card">
+      <div className="order-detail-type"><i className="fa-solid fa-calendar-day" /> Passdetaljer</div>
+      <h3>{state.empName}</h3>
+      <p className="order-detail-role">{state.empRole}</p>
+      <dl>
+        <div><dt>Datum</dt><dd>{fmtDay(parseDate(state.dateStr))}</dd></div>
+        <div><dt>Pass</dt><dd><div className="order-detail-time-editor"><label>Starttid<input type="time" value={start} onChange={event => setStart(event.currentTarget.value)} /></label><span>–</span><label>Sluttid<input type="time" value={end} onChange={event => setEnd(event.currentTarget.value)} /></label>{timeChanged && <button type="button" className="btn-secondary" onClick={() => onSaveTime(start, end)}>Spara tid</button>}</div></dd></div>
+        <div><dt>Passtyp</dt><dd>{SHIFT_LABELS[state.shift.type]}{getShiftPassInfo(state.empId, state.dateStr) ? ` · ${getShiftPassInfo(state.empId, state.dateStr)}` : ''}</dd></div>
+        <div><dt>Status</dt><dd><span className={`schema-detail-status schema-detail-status-${state.color}`}>{statusLabel}</span></dd></div>
+      </dl>
+      {!isPast && <div className="order-detail-actions">
+        {primaryLabel && onPrimaryAction && <button className="btn-primary" onClick={onPrimaryAction}><i className={`fa-solid ${primaryIcon}`} /> {primaryLabel}</button>}
+        <button className="btn-secondary" onClick={onCreateOrder}><i className="fa-solid fa-cart-shopping" /> Beställ resurs</button>
+        {!isAbsent && !isVacant && <button className="btn-secondary" onClick={onReportSick}><i className="fa-solid fa-calendar-xmark" /> Sjukanmäl</button>}
+        <button className="btn-secondary" onClick={onSimulate}><i className="fa-solid fa-flask" /> Simulera urval</button>
+      </div>}
+    </div>
   );
 }
 
-function ShiftDetailDialog({ state, onClose, onOpenSubPanel }: {
-  state: DetailState | null;
-  onClose: () => void;
-  onOpenSubPanel: () => void;
+function PersonDetailCard({ employee, competencies, shiftDates, onReportSick, onShowSchedule }: {
+  employee: ScheduleEmployee;
+  competencies: string[];
+  shiftDates: string[];
+  onReportSick: (dateStr: string) => void;
+  onShowSchedule: () => void;
 }) {
-  if (!state) return null;
-  return <ShiftDetailDialogInner state={state} onClose={onClose} onOpenSubPanel={onOpenSubPanel} />;
+  const [selectedDate, setSelectedDate] = useState(shiftDates[0] ?? '');
+  useEffect(() => { setSelectedDate(shiftDates[0] ?? ''); }, [employee.id, shiftDates]);
+  return (
+    <div className="order-detail-card person-detail-card">
+      <div className="order-detail-type"><i className="fa-solid fa-id-card" /> Persondetaljer</div>
+      <h3>{employee.name}</h3>
+      <p className="order-detail-role">{employee.role}</p>
+      <dl>
+        <div><dt>Organisation</dt><dd>{employee.organisation}</dd></div>
+        <div><dt>Anställningsgrupp</dt><dd>{employee.fmgGroup}</dd></div>
+        <div><dt>Kompetenser</dt><dd><div className="person-detail-competencies">{competencies.map(competency => <span key={competency}>{competency}</span>)}</div></dd></div>
+        <div><dt>Datum för sjukanmälan</dt><dd><select value={selectedDate} onChange={event => setSelectedDate(event.currentTarget.value)} disabled={shiftDates.length === 0}>{shiftDates.length > 0 ? shiftDates.map(dateStr => <option key={dateStr} value={dateStr}>{fmtDay(parseDate(dateStr))}</option>) : <option value="">Inget pass i aktuell period</option>}</select></dd></div>
+      </dl>
+      <div className="order-detail-actions">
+        <button className="btn-primary" disabled={!selectedDate} onClick={() => selectedDate && onReportSick(selectedDate)}><i className="fa-solid fa-calendar-xmark" /> Sjukanmäl</button>
+        <button className="btn-secondary" onClick={onShowSchedule}><i className="fa-solid fa-calendar-days" /> Visa i schema</button>
+      </div>
+    </div>
+  );
 }
 
 function getOrderContextActions(order: ResourceOrder): OrderContextAction[] {
@@ -1495,6 +1524,8 @@ export const Schema = () => {
   const [orderDetail, setOrderDetail] = useState<ResourceOrder | null>(null);
   const [orderAssignment, setOrderAssignment] = useState<ResourceOrder | null>(null);
   const [orderActivities, setOrderActivities] = useState<Record<string, CaseActivity[]>>({});
+  const [passActivities, setPassActivities] = useState<Record<string, CaseActivity[]>>({});
+  const [personActivities, setPersonActivities] = useState<Record<string, CaseActivity[]>>({});
 
   useEffect(() => {
     setOrderDetail(current => current ? resourceOrders.find(order => order.id === current.id) ?? current : current);
@@ -1506,14 +1537,28 @@ export const Schema = () => {
       [orderId]: [...(current[orderId] ?? []), { ...activity, id: Date.now() + Math.floor(Math.random() * 1000) }],
     }));
   }, []);
+  const addPassActivity = useCallback((passKey: string, activity: Omit<CaseActivity, 'id'>) => {
+    setPassActivities(current => ({
+      ...current,
+      [passKey]: [...(current[passKey] ?? []), { ...activity, id: Date.now() + Math.floor(Math.random() * 1000) }],
+    }));
+  }, []);
+  const addPersonActivity = useCallback((personId: string, activity: Omit<CaseActivity, 'id'>) => {
+    setPersonActivities(current => ({
+      ...current,
+      [personId]: [...(current[personId] ?? []), { ...activity, id: Date.now() + Math.floor(Math.random() * 1000) }],
+    }));
+  }, []);
   const [absenceDialogState, setAbsenceDialogState] = useState<AbsenceDialogState | null>(null);
 
   // ── Shift detail dialog ──
   const [detailState, setDetailState] = useState<DetailState | null>(null);
+  const [personDetailId, setPersonDetailId] = useState<string | null>(null);
 
   // ── Context menu ──
-  const [, setAbsenceVersion] = useState(0);
+  const [absenceVersion, setAbsenceVersion] = useState(0);
   const [contextActions, setContextActions] = useState<ContextAction[]>(() => getContextActions('vacant'));
+  const [personContextId, setPersonContextId] = useState<string | null>(null);
   const [organisationMenu, setOrganisationMenu] = useState<OrganisationGroup | null>(null);
   const [organisationSettings, setOrganisationSettings] = useState<OrganisationGroup | null>(null);
   const [minimumValues, setMinimumValues] = useState<Record<string, number>>({});
@@ -1589,7 +1634,7 @@ export const Schema = () => {
   }, []);
 
   // ── Employees ──
-  const employees = useMemo(() =>
+  const employees = useMemo<ScheduleEmployee[]>(() =>
     persons.map((p, index) => {
       const emp = getActiveEmployment(p.id) ?? p.employments[0];
       const departmentIndex = Math.floor(index / 10);
@@ -1614,6 +1659,55 @@ export const Schema = () => {
   const columns  = useMemo(() => getColumns(viewStart, period),  [viewStart, period]);
   const viewType = useMemo(() => getViewType(period),            [period]);
   const pLabel   = useMemo(() => periodLabel(viewStart, period), [viewStart, period]);
+  const viewColumnWidth = VIEW_COLUMN_WIDTH[viewType];
+  const scheduleTableMinWidth = getScheduleTableMinWidth(viewType, columns.length);
+
+  const personDetailEmployee = personDetailId
+    ? employees.find(employee => employee.id === personDetailId) ?? null
+    : null;
+  const personDetailShiftDates = useMemo(() => {
+    if (!personDetailEmployee) return [];
+    return getPeriodDates(viewStart, period, columns)
+      .filter(date => Boolean(getCellShift(personDetailEmployee.id, date, 'alla')))
+      .map(toDateStr);
+  }, [absenceVersion, columns, period, personDetailEmployee, viewStart]);
+  const passDetailKey = detailState ? `${detailState.empId}|${detailState.dateStr}` : '';
+  const passDetailActivities = useMemo<CaseActivity[]>(() => {
+    if (!detailState) return [];
+    const activities: CaseActivity[] = [{
+      id: -1,
+      type: 'system',
+      author: 'Systemet',
+      initials: 'S',
+      time: 'Schemalagt',
+      text: 'Passet finns i schemat',
+      detail: `${detailState.dateStr} · ${detailState.shift.start}–${detailState.shift.end}`,
+    }];
+    if (RUNTIME_ABSENCE_SHIFTS[passDetailKey]) {
+      activities.push({
+        id: -2,
+        type: 'status',
+        author: 'Systemet',
+        initials: 'S',
+        time: 'Aktuell status',
+        text: 'Frånvaro registrerad',
+        detail: RUNTIME_ABSENCE_REASONS[passDetailKey] ?? 'Frånvaro',
+      });
+    }
+    return [...activities, ...(passActivities[passDetailKey] ?? [])];
+  }, [detailState, passActivities, passDetailKey]);
+  const personDetailActivities = useMemo<CaseActivity[]>(() => {
+    if (!personDetailEmployee) return [];
+    return [{
+      id: -1,
+      type: 'system',
+      author: 'Systemet',
+      initials: 'S',
+      time: 'Aktuell uppgift',
+      text: 'Aktiv i schemat',
+      detail: `${personDetailEmployee.role} · ${personDetailEmployee.organisation}`,
+    }, ...(personActivities[personDetailEmployee.id] ?? [])];
+  }, [personActivities, personDetailEmployee]);
 
   const filteredEmployees = useMemo(() => {
     let list = employees;
@@ -1786,16 +1880,21 @@ export const Schema = () => {
           const belowMinimum = teamBelowMinimum(group, col);
           return (
             <td key={index} className={['schema-day-cell', 'schema-org-summary-cell', col.isWeekend ? 'schema-weekend-cell' : '', toDateStr(col.date) === TODAY_STR ? 'schema-today-col' : '', belowMinimum ? 'schema-org-under-minimum' : ''].filter(Boolean).join(' ')} title={belowMinimum ? 'Ett eller flera team ligger under minimibemanning' : undefined}>
-              <div className="schema-org-summary-bar" aria-label={`${summary.present} på plats, ${summary.absent} frånvarande, ${summary.pool} i pool`}>
-                <span className="schema-org-present-bar" style={{ width: summary.presentWidth }} />
-                <span className="schema-org-absent-bar" style={{ width: summary.absentWidth }} />
-                {group.kind === 'team' && <span className="schema-org-minimum-marker" style={{ left: `${minimumFor(group, selectedPass === 'alla' ? 'dag' : selectedPass) / Math.max(1, group.personIds.length) * 100}%` }} />}
-              </div>
-                <span className="schema-org-summary-numbers"><b>{summary.present} av {group.personIds.length}</b>
-                {summary.pool > 0 && <small className="schema-org-pool-count" aria-label={`${summary.pool} samverkanspass`}>
+              <div className="schema-org-summary-content" aria-label={`${summary.present} på plats, ${summary.absent} frånvarande, ${summary.pool} i pool`}>
+                <div className="schema-org-summary-bar">
+                  <span className="schema-org-present-bar" style={{ width: summary.presentWidth }} />
+                  <span className="schema-org-absent-bar" style={{ width: summary.absentWidth }} />
+                  {group.kind === 'team' && <span className="schema-org-minimum-marker" style={{ left: `${minimumFor(group, selectedPass === 'alla' ? 'dag' : selectedPass) / Math.max(1, group.personIds.length) * 100}%` }} />}
+                </div>
+                <span className="schema-org-summary-numbers"><b>{summary.present} av {group.personIds.length}</b></span>
+                <span
+                  className={`schema-org-pool-count${summary.pool === 0 ? ' schema-org-pool-count-empty' : ''}`}
+                  aria-label={summary.pool > 0 ? `${summary.pool} samverkanspass` : undefined}
+                  aria-hidden={summary.pool === 0 ? true : undefined}
+                >
                   {Array.from({ length: Math.min(summary.pool, 4) }, (_, dotIndex) => <i key={dotIndex} />)}
-                </small>}
-              </span>
+                </span>
+              </div>
             </td>
           );
         })}
@@ -1995,15 +2094,38 @@ export const Schema = () => {
 
   const handleCloseDetail = useCallback(() => setDetailState(null), []);
 
-  const handleDetailOpenSubPanel = useCallback(() => {
-    if (!detailState) return;
-    setDetailState(null);
-    if (detailState.color === 'vacant') {
-      handleOpenVacancyPanel(detailState.empId, detailState.dateStr);
-    } else if (detailState.color !== 'absence') {
-      handleOpenExtraPanel(detailState.empId, detailState.dateStr);
-    }
-  }, [detailState, handleOpenVacancyPanel, handleOpenExtraPanel]);
+  const openSicknessDialog = useCallback((personId: string, dateStr: string) => {
+    const employee = employees.find(emp => emp.id === personId);
+    const shift = getCellShift(personId, parseDate(dateStr), 'alla');
+    if (!employee || !shift) return;
+    setAbsenceDialogState({
+      personId,
+      personName: employee.name,
+      dateStr,
+      shift,
+      startDate: dateStr,
+      endDate: dateStr,
+      reason: 'Sjuk',
+    });
+  }, [employees]);
+
+  const handleUpdatePassTime = useCallback((start: string, end: string) => {
+    if (!detailState || !start || !end || (start === detailState.shift.start && end === detailState.shift.end)) return;
+    const key = `${detailState.empId}|${detailState.dateStr}`;
+    const previousShift = detailState.shift;
+    const updatedShift = { ...previousShift, start, end };
+    if (RUNTIME_ABSENCE_SHIFTS[key]) RUNTIME_ABSENCE_SHIFTS[key] = updatedShift;
+    else RUNTIME_SHIFT_OVERRIDES[key] = updatedShift;
+    setDetailState(current => current ? { ...current, shift: updatedShift } : current);
+    setResourceOrders(current => current.map(order => order.personId === detailState.empId && order.dateStr === detailState.dateStr
+      ? { ...order, shift: updatedShift }
+      : order));
+    addPassActivity(key, {
+      type: 'status', author: 'Du', initials: 'JV', time: 'Just nu', text: 'Passtid ändrades',
+      detail: `${previousShift.start}–${previousShift.end} → ${start}–${end}`,
+    });
+    setAbsenceVersion(version => version + 1);
+  }, [addPassActivity, detailState]);
 
   // ── Context-menu actions ──
   const handleOpenResourceOrderDialog = useCallback((target: NonNullable<typeof ctxRef.current>) => {
@@ -2059,6 +2181,75 @@ export const Schema = () => {
       detail: `${order.shift.start}–${order.shift.end} → ${start}–${end}`,
     });
   }, [resourceOrders, addOrderActivity]);
+
+  const handlePassPrimaryAction = useCallback(() => {
+    if (!detailState) return;
+    const key = `${detailState.empId}|${detailState.dateStr}`;
+    if (detailState.color === 'vacant') {
+      setDetailState(null);
+      handleOpenVacancyPanel(detailState.empId, detailState.dateStr);
+      return;
+    }
+    if (detailState.color === 'absence') {
+      setVacancyKeys(previous => previous.includes(key) ? previous : [...previous, key]);
+      setDetailState(current => current ? { ...current, color: 'vacant' } : current);
+      addPassActivity(key, {
+        type: 'status', author: 'Du', initials: 'JV', time: 'Just nu', text: 'Passet markerades som vakans',
+        detail: `${detailState.empName} · ${detailState.dateStr} · ${detailState.shift.start}–${detailState.shift.end}`,
+      });
+      return;
+    }
+    if (detailState.color === 'normal') {
+      setDetailState(null);
+      handleOpenExtraPanel(detailState.empId, detailState.dateStr);
+    }
+  }, [addPassActivity, detailState, handleOpenExtraPanel, handleOpenVacancyPanel]);
+
+  const handlePassCreateOrder = useCallback(() => {
+    if (!detailState) return;
+    handleOpenResourceOrderDialog({
+      personId: detailState.empId,
+      dateStr: detailState.dateStr,
+      type: detailState.color === 'normal' ? 'normal' : detailState.color === 'absence' ? 'absence' : 'vacant',
+    });
+    setDetailState(null);
+  }, [detailState, handleOpenResourceOrderDialog]);
+
+  const handlePassReportSick = useCallback(() => {
+    if (!detailState) return;
+    openSicknessDialog(detailState.empId, detailState.dateStr);
+    setDetailState(null);
+  }, [detailState, openSicknessDialog]);
+
+  const handlePassSimulate = useCallback(() => {
+    if (!detailState) return;
+    const employee = employees.find(emp => emp.id === detailState.empId);
+    if (!employee) return;
+    navigateTo('/vikariehantering/urvalstest', {
+      state: {
+        dateStr: detailState.dateStr,
+        shift: detailState.shift,
+        employeeName: employee.name,
+        employeeRole: employee.role,
+        workplace: employee.department,
+        passInfo: getShiftPassInfo(detailState.empId, detailState.dateStr),
+      },
+    });
+    setDetailState(null);
+  }, [detailState, employees, navigateTo]);
+
+  const handlePersonReportSick = useCallback((dateStr: string) => {
+    if (!personDetailEmployee) return;
+    openSicknessDialog(personDetailEmployee.id, dateStr);
+    setPersonDetailId(null);
+  }, [openSicknessDialog, personDetailEmployee]);
+
+  const handleShowPersonInSchedule = useCallback(() => {
+    if (!personDetailEmployee) return;
+    setTextFilter(personDetailEmployee.name);
+    setActiveView('schema');
+    setPersonDetailId(null);
+  }, [personDetailEmployee]);
 
   const handleAssignOrderSubstitute = useCallback((substitute: SubstituteCandidate) => {
     if (!orderAssignment) return;
@@ -2130,7 +2321,7 @@ export const Schema = () => {
 
   const handleCreateAbsence = useCallback(() => {
     if (!absenceDialogState) return;
-    const { personId, startDate, endDate, reason } = absenceDialogState;
+    const { personId, personName, startDate, endDate, reason } = absenceDialogState;
     if (endDate < startDate) return;
 
     const start = parseDate(startDate);
@@ -2142,13 +2333,24 @@ export const Schema = () => {
         const key = `${personId}|${dateStr}`;
         RUNTIME_ABSENCE_SHIFTS[key] = shift;
         RUNTIME_ABSENCE_REASONS[key] = reason;
+        delete RUNTIME_SHIFT_OVERRIDES[key];
         setFills(previous => previous.filter(fill => !(fill.personId === personId && fill.dateStr === dateStr)));
         setVacancyKeys(previous => previous.filter(vacancyKey => vacancyKey !== key));
+        const activity = {
+          type: 'status' as const,
+          author: 'Du',
+          initials: 'JV',
+          time: 'Just nu',
+          text: `${reason} registrerades`,
+          detail: `${personName} · ${dateStr} · ${shift.start}–${shift.end}`,
+        };
+        addPassActivity(key, activity);
+        addPersonActivity(personId, activity);
       }
     }
     setAbsenceDialogState(null);
     setAbsenceVersion(version => version + 1);
-  }, [absenceDialogState]);
+  }, [absenceDialogState, addPassActivity, addPersonActivity]);
 
   const handleContextAction = useCallback((event: { itemData?: ContextAction }) => {
     const target = ctxRef.current;
@@ -2158,6 +2360,12 @@ export const Schema = () => {
     if (action === 'make-vacancy') {
       const key = `${target.personId}|${target.dateStr}`;
       setVacancyKeys(previous => previous.includes(key) ? previous : [...previous, key]);
+      const employee = employees.find(emp => emp.id === target.personId);
+      const shift = getCellShift(target.personId, parseDate(target.dateStr), 'alla');
+      addPassActivity(key, {
+        type: 'status', author: 'Du', initials: 'JV', time: 'Just nu', text: 'Passet markerades som vakans',
+        detail: `${employee?.name ?? 'Medarbetare'} · ${target.dateStr}${shift ? ` · ${shift.start}–${shift.end}` : ''}`,
+      });
       return;
     }
 
@@ -2176,17 +2384,7 @@ export const Schema = () => {
     }
 
     if (action === 'create-absence') {
-      const employee = employees.find(emp => emp.id === target.personId);
-      const shift = getCellShift(target.personId, parseDate(target.dateStr), 'alla');
-      if (employee && shift) setAbsenceDialogState({
-        personId: target.personId,
-        personName: employee.name,
-        dateStr: target.dateStr,
-        shift,
-        startDate: target.dateStr,
-        endDate: target.dateStr,
-        reason: 'Sjuk',
-      });
+      openSicknessDialog(target.personId, target.dateStr);
       return;
     }
 
@@ -2220,7 +2418,21 @@ export const Schema = () => {
         getColorScheme(target.personId, target.dateStr, fills, vacancyKeys),
       );
     }
-  }, [employees, fills, handleOpenDetail, handleOpenExtraPanel, handleOpenVacancyPanel, handleOpenResourceOrderDialog, navigateTo, vacancyKeys]);
+  }, [addPassActivity, employees, fills, handleOpenDetail, handleOpenExtraPanel, handleOpenVacancyPanel, handleOpenResourceOrderDialog, navigateTo, openSicknessDialog, vacancyKeys]);
+
+  const handlePersonContextAction = useCallback((event: { itemData?: { id?: string } }) => {
+    if (!personContextId) return;
+    const action = event.itemData?.id;
+    if (action === 'show-person') {
+      setPersonDetailId(personContextId);
+      return;
+    }
+    if (action === 'report-sick') {
+      const firstShiftDate = getPeriodDates(viewStart, period, columns)
+        .find(date => Boolean(getCellShift(personContextId, date, 'alla')));
+      if (firstShiftDate) openSicknessDialog(personContextId, toDateStr(firstShiftDate));
+    }
+  }, [columns, openSicknessDialog, period, personContextId, viewStart]);
 
   // ── Handlers: drag / drop ──
   const handleDragStartSub = useCallback((e: React.DragEvent, subId: string) => {
@@ -2259,8 +2471,7 @@ export const Schema = () => {
     fills
       .filter(f => f.personId === empId)
       .map(f => {
-        const key = `${empId}|${f.dateStr}`;
-        const shift = RUNTIME_ABSENCE_SHIFTS[key] ?? baseShift(empId, parseDate(f.dateStr), 'alla');
+        const shift = getCellShift(empId, parseDate(f.dateStr), 'alla');
         if (!shift) return null;
         return { key:`${empId}-${f.dateStr}-${f.person.name}`, name:f.person.name, role:f.person.role, dateStr:f.dateStr, shift };
       })
@@ -2372,10 +2583,10 @@ export const Schema = () => {
           {/* Schedule table with an optional right-hand orders panel. */}
           <div className="schema-schedule-area">
           <div ref={mainWrapperRef} className="schema-table-wrapper">
-            <table className="schema-table">
+            <table className="schema-table" style={{ minWidth: scheduleTableMinWidth }}>
               <colgroup>
-                <col style={{ width: `${100 / (columns.length + 1)}%` }} />
-                {columns.map((_, index) => <col key={index} style={{ width: `${100 / (columns.length + 1)}%` }} />)}
+                <col style={{ width: EMPLOYEE_COLUMN_WIDTH }} />
+                {columns.map((_, index) => <col key={index} style={{ width: viewColumnWidth }} />)}
               </colgroup>
               <thead>
                 <tr>
@@ -2427,7 +2638,11 @@ export const Schema = () => {
                     <React.Fragment key={emp.id}>
                       {/* Employee row */}
                       <tr className="schema-table-row">
-                        <td className="schema-employee-cell schema-org-employee-cell">
+                        <td
+                          className="schema-employee-cell schema-org-employee-cell schema-person-context-cell"
+                          data-person-id={emp.id}
+                          onContextMenu={() => setPersonContextId(emp.id)}
+                        >
                           <span className="schema-employee-name">{hasPoolInView && <i className="schema-pool-dot" title="Samverkanspass i aktuell period" />} {emp.name}</span>
                           <span className="schema-employee-role">{emp.role}</span>
                           <span className="schema-employee-dept">{emp.organisation}</span>
@@ -2612,6 +2827,14 @@ export const Schema = () => {
               }
             }}
           />
+          <ContextMenu
+            target=".schema-person-context-cell"
+            dataSource={[
+              { id: 'show-person', text: 'Visa persondetaljer', icon: 'id-card' },
+              { id: 'report-sick', text: 'Sjukanmäl', icon: 'calendar-xmark', beginGroup: true },
+            ]}
+            onItemClick={handlePersonContextAction}
+          />
 
           <Popup
             visible={Boolean(absenceDialogState)}
@@ -2756,6 +2979,7 @@ export const Schema = () => {
         <CaseActivityModal
           isOpen={Boolean(orderDetail)}
           onClose={() => setOrderDetail(null)}
+          contextKey={orderDetail?.id}
           kicker={orderDetail ? `Beställning ${orderDetail.id}` : 'Beställning'}
           title={orderDetail ? `${orderDetail.personName} – ${orderDetail.resourceType === 'vikarie' ? 'vikarie' : 'extrapass'}` : 'Beställning'}
           description={orderDetail ? `${orderDetail.dateStr} · ${orderDetail.shift.start}–${orderDetail.shift.end}` : ''}
@@ -2763,13 +2987,50 @@ export const Schema = () => {
           includeDefaultActivities={false}
           details={orderDetail ? <OrderDetailCard order={orderDetail} onChooseSubstitute={handleOpenOrderSubstitutePanel} onAction={handleOrderAction} onSaveTime={handleUpdateOrderTime} /> : null}
           onSelectCandidates={orderDetail ? handleSelectOrderCandidates : undefined}
+          onPostMessage={orderDetail ? activity => addOrderActivity(orderDetail.id, activity) : undefined}
         />
 
-        {/* Shift detail dialog */}
-        <ShiftDetailDialog
-          state={detailState}
+        <CaseActivityModal
+          isOpen={Boolean(detailState)}
           onClose={handleCloseDetail}
-          onOpenSubPanel={handleDetailOpenSubPanel}
+          contextKey={passDetailKey}
+          kicker={detailState ? `Pass ${detailState.dateStr}` : 'Pass'}
+          title={detailState ? `${detailState.empName} – passdetaljer` : 'Passdetaljer'}
+          description={detailState ? `${detailState.dateStr} · ${detailState.shift.start}–${detailState.shift.end}` : ''}
+          activities={passDetailActivities}
+          includeDefaultActivities={false}
+          details={detailState ? (
+            <PassDetailCard
+              state={detailState}
+              onSaveTime={handleUpdatePassTime}
+              onPrimaryAction={handlePassPrimaryAction}
+              onCreateOrder={handlePassCreateOrder}
+              onReportSick={handlePassReportSick}
+              onSimulate={handlePassSimulate}
+            />
+          ) : null}
+          onPostMessage={detailState ? activity => addPassActivity(passDetailKey, activity) : undefined}
+        />
+
+        <CaseActivityModal
+          isOpen={Boolean(personDetailEmployee)}
+          onClose={() => setPersonDetailId(null)}
+          contextKey={personDetailEmployee?.id}
+          kicker="Medarbetare"
+          title={personDetailEmployee ? `${personDetailEmployee.name} – persondetaljer` : 'Persondetaljer'}
+          description={personDetailEmployee ? `${personDetailEmployee.role} · ${personDetailEmployee.department}` : ''}
+          activities={personDetailActivities}
+          includeDefaultActivities={false}
+          details={personDetailEmployee ? (
+            <PersonDetailCard
+              employee={personDetailEmployee}
+              competencies={getEmployeeCompetencies(personDetailEmployee.role)}
+              shiftDates={personDetailShiftDates}
+              onReportSick={handlePersonReportSick}
+              onShowSchedule={handleShowPersonInSchedule}
+            />
+          ) : null}
+          onPostMessage={personDetailEmployee ? activity => addPersonActivity(personDetailEmployee.id, activity) : undefined}
         />
 
       </div>

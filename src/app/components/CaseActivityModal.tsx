@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 type ActivityType = 'message' | 'status' | 'assignment' | 'system';
 type FilterType = 'all' | ActivityType;
@@ -19,6 +19,7 @@ const filters: { id: FilterType; label: string; icon: string }[] = [
 interface CaseActivityModalProps {
   isOpen: boolean;
   onClose: () => void;
+  contextKey?: string;
   kicker?: string;
   title?: string;
   description?: string;
@@ -26,12 +27,14 @@ interface CaseActivityModalProps {
   activities?: CaseActivity[];
   includeDefaultActivities?: boolean;
   onSelectCandidates?: (candidateIds: string[]) => void;
+  onPostMessage?: (activity: Omit<CaseActivity, 'id'>) => void;
 }
-export const CaseActivityModal: React.FC<CaseActivityModalProps> = ({ isOpen, onClose, kicker = 'Ärende 2025-0614', title = 'Händelser och kommunikation', description = 'All aktivitet i ärendet samlad på ett ställe', details, activities = [], includeDefaultActivities = true, onSelectCandidates }) => {
+export const CaseActivityModal: React.FC<CaseActivityModalProps> = ({ isOpen, onClose, contextKey, kicker = 'Ärende 2025-0614', title = 'Händelser och kommunikation', description = 'All aktivitet i ärendet samlad på ett ställe', details, activities = [], includeDefaultActivities = true, onSelectCandidates, onPostMessage }) => {
   const [activeFilter, setActiveFilter] = useState<FilterType>('all'); const [message, setMessage] = useState(''); const [isPersonal, setIsPersonal] = useState(false); const [recipient, setRecipient] = useState(''); const [postedActivities, setPostedActivities] = useState<CaseActivity[]>([]); const [questionAnswer, setQuestionAnswer] = useState<string | null>(null); const [expandedResponseIds, setExpandedResponseIds] = useState<number[]>([]); const [selectedResponseIds, setSelectedResponseIds] = useState<Record<number, string[]>>({});
+  useEffect(() => { setActiveFilter('all'); setMessage(''); setIsPersonal(false); setRecipient(''); setPostedActivities([]); setQuestionAnswer(null); setExpandedResponseIds([]); setSelectedResponseIds({}); }, [contextKey]);
   const visibleActivities = useMemo(() => [...(includeDefaultActivities ? defaultActivities : []), ...activities, ...postedActivities].filter((activity) => activeFilter === 'all' || activity.type === activeFilter), [activeFilter, activities, includeDefaultActivities, postedActivities]);
   if (!isOpen) return null;
-  const postMessage = () => { const trimmedMessage = message.trim(); if (!trimmedMessage) return; setPostedActivities((current) => [...current, { id: Date.now(), type: 'message', author: 'Du', initials: 'JV', time: 'Just nu', text: trimmedMessage, isCurrentUser: true, recipient: isPersonal ? recipient : undefined }]); setMessage(''); setIsPersonal(false); setRecipient(''); };
+  const postMessage = () => { const trimmedMessage = message.trim(); if (!trimmedMessage) return; const activity: Omit<CaseActivity, 'id'> = { type: 'message', author: 'Du', initials: 'JV', time: 'Just nu', text: trimmedMessage, isCurrentUser: true, recipient: isPersonal ? recipient : undefined }; if (onPostMessage) onPostMessage(activity); else setPostedActivities((current) => [...current, { ...activity, id: Date.now() }]); setMessage(''); setIsPersonal(false); setRecipient(''); };
   return <div className="case-activity-overlay" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}>
     <section className="case-activity-modal" role="dialog" aria-modal="true" aria-labelledby="case-activity-title">
       <header className="case-activity-header"><div><div className="case-activity-kicker"><i className="fa-solid fa-hashtag" /> {kicker}</div><h2 id="case-activity-title">{title}</h2><p>{description}</p></div><button className="case-activity-close" onClick={onClose} aria-label="Stäng dialogen"><i className="fa-solid fa-xmark" /></button></header>
