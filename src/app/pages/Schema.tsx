@@ -67,6 +67,8 @@ interface ResourceOrderInvite {
 }
 interface SubstituteCandidate { id: string; name: string; role: string; category: string; }
 interface SubAvailability  { startH: number; startM: number; endH: number; endM: number; }
+type SubstituteAvailabilityOverrides = Record<string, SubAvailability | null>;
+type SubstituteAbsences = Record<string, AbsenceReason>;
 interface SubstituteDetails {
   phone: string;
   email: string;
@@ -111,6 +113,7 @@ interface ResourceOrderDialogState {
   shift: Shift;
   resourceType: 'vikarie' | 'extrapass';
 }
+interface SubstituteDetailState { substituteId: string; dateStr: string; }
 type AbsenceReason = 'Sjuk' | 'VAB' | 'Tjänstledig' | 'Semester';
 interface AbsenceDialogState {
   personId: string;
@@ -137,6 +140,9 @@ const TODAY_STR = '2026-09-03';
 type ContextTargetType = 'absence' | 'vacant' | 'normal';
 type ContextActionId = 'find-substitute' | 'make-vacancy' | 'primary' | 'order-resource' | 'show-details' | 'simulate' | 'create-absence';
 type OrganisationActionId = 'open' | 'close' | 'settings';
+type SubstituteContextActionId = 'show-details' | 'edit-availability' | 'mark-unavailable' | 'restore-availability' | 'report-sick' | 'clear-sickness' | 'send-request';
+interface SubstituteContextAction { id: SubstituteContextActionId; text: string; icon: string; beginGroup?: boolean; }
+interface SubstituteContextTarget { substituteId: string; dateStr: string; }
 
 interface ContextAction {
   id: ContextActionId;
@@ -491,22 +497,61 @@ function genSubAvailability(subId: string, date: Date): SubAvailability|null {
     endM:   ((dv*11)%4)*15,
   };
 }
+function substituteAvailabilityKey(subId: string, dateStr: string): string {
+  return `${subId}|${dateStr}`;
+}
+function getSubAvailability(
+  subId: string,
+  date: Date,
+  overrides: SubstituteAvailabilityOverrides = {},
+  absences: SubstituteAbsences = {},
+): SubAvailability | null {
+  const key = substituteAvailabilityKey(subId, toDateStr(date));
+  if (absences[key]) return null;
+  if (Object.prototype.hasOwnProperty.call(overrides, key)) return overrides[key];
+  return genSubAvailability(subId, date);
+}
+function normalizeFilterValues(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map(item => typeof item === 'string' ? item : (item as { id?: unknown })?.id)
+    .filter((item): item is string => typeof item === 'string');
+}
+function isSubstituteBooked(subId: string, dateStr: string): boolean {
+  return (SUB_BOOKED_SHIFTS[subId] ?? []).some(booking => booking.dateStr === dateStr);
+}
 function subAvailPct(avail: SubAvailability, shift: Shift): number {
   const [sH,sM]=shift.start.split(':').map(Number);
   const [eH,eM]=shift.end.split(':').map(Number);
-  const shiftStart=sH*60+sM, shiftEnd=eH*60+eM, dur=shiftEnd-shiftStart;
+  const shiftStart=sH*60+sM;
+  const shiftEnd=(eH*60+eM) <= shiftStart ? eH*60+eM+1440 : eH*60+eM;
+  const dur=shiftEnd-shiftStart;
   if (dur<=0) return 0;
-  const aStart=avail.startH*60+avail.startM, aEnd=avail.endH*60+avail.endM;
+  const aStart=avail.startH*60+avail.startM;
+  const aEnd=(avail.endH*60+avail.endM) <= aStart ? avail.endH*60+avail.endM+1440 : avail.endH*60+avail.endM;
   return Math.round(Math.max(0,Math.min(aEnd,shiftEnd)-Math.max(aStart,shiftStart))/dur*100);
 }
-function getAvailableSubs(shift: Shift, date: Date, flexibilityHours = 1): SubstituteCandidate[] {
+function subAvailabilityDurationPct(avail: SubAvailability): number {
+  const start=avail.startH*60+avail.startM;
+  const rawEnd=avail.endH*60+avail.endM;
+  const end=rawEnd <= start ? rawEnd+1440 : rawEnd;
+  return Math.round((end-start)/1440*100);
+}
+function getAvailableSubs(
+  shift: Shift,
+  date: Date,
+  flexibilityHours = 1,
+  overrides: SubstituteAvailabilityOverrides = {},
+  absences: SubstituteAbsences = {},
+): SubstituteCandidate[] {
   const [sH,sM]=shift.start.split(':').map(Number);
   const [eH,eM]=shift.end.split(':').map(Number);
   const shiftStart=sH*60+sM;
   const shiftEnd=(eH*60+eM) <= shiftStart ? eH*60+eM+1440 : eH*60+eM;
   const requiredMinutes=Math.max(0, shiftEnd-shiftStart-flexibilityHours*60);
   return SUBSTITUTE_CANDIDATES.filter(sub => {
-    const a=genSubAvailability(sub.id, date);
+    if (isSubstituteBooked(sub.id, toDateStr(date))) return false;
+    const a=getSubAvailability(sub.id, date, overrides, absences);
     if (!a) return false;
     const availableStart=a.startH*60+a.startM;
     const availableEnd=a.endH*60+a.endM <= availableStart ? a.endH*60+a.endM+1440 : a.endH*60+a.endM;
@@ -524,8 +569,14 @@ function fmtAvailTime(a: SubAvailability): string {
 }
 
 // Higher score = more suitable. Factors: availability overlap %, remaining ATL capacity, no conflict.
-function suitabilityScore(subId: string, date: Date, shift: Shift): number {
-  const avail   = genSubAvailability(subId, date);
+function suitabilityScore(
+  subId: string,
+  date: Date,
+  shift: Shift,
+  overrides: SubstituteAvailabilityOverrides = {},
+  absences: SubstituteAbsences = {},
+): number {
+  const avail   = getSubAvailability(subId, date, overrides, absences);
   const pct     = avail ? subAvailPct(avail, shift) : 0;
   const details = SUB_DETAILS[subId];
   const atlCap  = details ? (details.maxAtlHours - details.atlHours) / details.maxAtlHours : 0;
@@ -613,6 +664,13 @@ interface SubstitutePanelProps {
   viewType: ViewType;
   onClose: () => void;
   onSendRequest: (selectedIds: string[]) => void;
+  onOpenDetails: (substituteId: string, dateStr: string) => void;
+  onSetAvailability: (substituteId: string, dateStr: string, availability: SubAvailability | null) => void;
+  onRestoreAvailability: (substituteId: string, dateStr: string) => void;
+  onReportSick: (substituteId: string, dateStr: string) => void;
+  onClearSickness: (substituteId: string, dateStr: string) => void;
+  availabilityOverrides: SubstituteAvailabilityOverrides;
+  absences: SubstituteAbsences;
   onDragStart: (e: React.DragEvent, subId: string) => void;
   scrollRef: React.RefObject<HTMLDivElement>;
   tableWidth: number;
@@ -621,7 +679,8 @@ interface SubstitutePanelProps {
 
 function SubstitutePanel({
   isOpen, browseAll, state, columns, viewType,
-  onClose, onSendRequest,
+  onClose, onSendRequest, onOpenDetails, onSetAvailability, onRestoreAvailability, onReportSick, onClearSickness,
+  availabilityOverrides, absences,
   onDragStart, scrollRef, tableWidth, tableInset,
 }: SubstitutePanelProps) {
   const [filterRoles, setFilterRoles] = useState<string[]>([]);
@@ -630,16 +689,41 @@ function SubstitutePanel({
   const [filterPass,  setFilterPass]  = useState('alla');
   const [timeFlexibility, setTimeFlexibility] = useState(1);
   const [expandedSubId, setExpandedSubId] = useState<string | null>(null);
+  const [selectedSubIds, setSelectedSubIds] = useState<string[]>([]);
+  const [contextTarget, setContextTarget] = useState<SubstituteContextTarget | null>(null);
+  const [contextActions, setContextActions] = useState<SubstituteContextAction[]>([]);
+  const [contextMenuPosition, setContextMenuPosition] = useState<{ x: number; y: number } | null>(null);
+
+  useEffect(() => {
+    if (!contextMenuPosition) return;
+    const closeMenu = () => setContextMenuPosition(null);
+    document.addEventListener('mousedown', closeMenu);
+    window.addEventListener('scroll', closeMenu, true);
+    return () => {
+      document.removeEventListener('mousedown', closeMenu);
+      window.removeEventListener('scroll', closeMenu, true);
+    };
+  }, [contextMenuPosition]);
+
+  useEffect(() => {
+    setFilterRoles([]);
+    setFilterCategories([]);
+    setFilterCompetencies([]);
+    setFilterPass('alla');
+    setTimeFlexibility(1);
+    setSelectedSubIds([]);
+    setExpandedSubId(null);
+  }, [browseAll, state?.dateStr, state?.personId]);
 
   const toggleExpand = useCallback((id: string) => {
     setExpandedSubId(prev => prev === id ? null : id);
   }, []);
 
   const browseShift: Shift | null = useMemo(() => {
-    if (!browseAll || filterPass === 'alla') return null;
+    if (filterPass === 'alla') return browseAll ? null : state?.shift ?? null;
     const t = PASS_TO_SHIFT[filterPass];
     return { type: t, ...SHIFT_DEFS[t] };
-  }, [browseAll, filterPass]);
+  }, [browseAll, filterPass, state?.shift]);
 
   const availSubs = useMemo(() => {
     const matchesFilters = (sub: SubstituteCandidate) => {
@@ -656,47 +740,109 @@ function SubstitutePanel({
       list = SUBSTITUTE_CANDIDATES.filter(sub => {
         if (!matchesFilters(sub)) return false;
         if (browseShift) {
-          const refDate = columns[0]?.date ?? new Date(TODAY_STR);
-          const avail = genSubAvailability(sub.id, refDate);
-          if (!avail || subAvailPct(avail, browseShift) === 0) return false;
+          const hasMatchingAvailability = columns.some(column => {
+            const dateStr = toDateStr(column.date);
+            if (isSubstituteBooked(sub.id, dateStr)) return false;
+            const avail = getSubAvailability(sub.id, column.date, availabilityOverrides, absences);
+            return Boolean(avail && subAvailPct(avail, browseShift) > 0);
+          });
+          if (!hasMatchingAvailability) return false;
         }
         return true;
       });
-      // Sort: if a shift filter is active use suitability, otherwise alphabetical
       if (browseShift) {
-        const refDate = columns[0]?.date ?? new Date(TODAY_STR);
-        list = [...list].sort((a, b) =>
-          suitabilityScore(b.id, refDate, browseShift) - suitabilityScore(a.id, refDate, browseShift)
-        );
+        list = [...list].sort((a, b) => {
+          const bestScore = (substituteId: string) => Math.max(...columns.map(column =>
+            suitabilityScore(substituteId, column.date, browseShift, availabilityOverrides, absences)
+          ));
+          return bestScore(b.id) - bestScore(a.id);
+        });
       } else {
         list = [...list].sort((a, b) => a.name.localeCompare(b.name, 'sv'));
       }
     } else {
-      list = state ? getAvailableSubs(state.shift, parseDate(state.dateStr), timeFlexibility).filter(matchesFilters) : [];
-      // Sort by suitability against the specific shift
-      if (state) {
+      list = state && browseShift
+        ? getAvailableSubs(browseShift, parseDate(state.dateStr), timeFlexibility, availabilityOverrides, absences).filter(matchesFilters)
+        : [];
+      if (state && browseShift) {
         const date = parseDate(state.dateStr);
         list = [...list].sort((a, b) =>
-          suitabilityScore(b.id, date, state.shift) - suitabilityScore(a.id, date, state.shift)
+          suitabilityScore(b.id, date, browseShift, availabilityOverrides, absences)
+          - suitabilityScore(a.id, date, browseShift, availabilityOverrides, absences)
         );
       }
     }
     return list;
-  }, [browseAll, filterRoles, filterCategories, filterCompetencies, filterPass, browseShift, columns, state, timeFlexibility]);
+  }, [absences, availabilityOverrides, browseAll, filterRoles, filterCategories, filterCompetencies, browseShift, columns, state, timeFlexibility]);
 
   const panelClass = `schema-sub-panel${isOpen ? ' schema-sub-panel-open' : ''}`;
   const fillLabel = 'Vikarier';
   const viewColumnWidth = VIEW_COLUMN_WIDTH[viewType];
   const tableMinWidth = getScheduleTableMinWidth(viewType, columns.length);
 
-  const getSelectedIds = useCallback(() => {
-    const inputs: HTMLInputElement[] = scrollRef.current
-      ? Array.from(scrollRef.current.querySelectorAll<HTMLInputElement>('.schema-sub-checkbox:checked'))
-      : [];
-    return inputs
-      .map(input => input.dataset.subId)
-      .filter((id): id is string => Boolean(id));
-  }, [scrollRef]);
+  useEffect(() => {
+    const visibleIds = new Set(availSubs.map(substitute => substitute.id));
+    setSelectedSubIds(current => current.filter(id => visibleIds.has(id)));
+  }, [availSubs]);
+
+  const defaultContextDate = state?.dateStr
+    ?? toDateStr(columns.find(column => toDateStr(column.date) >= TODAY_STR)?.date ?? columns[0]?.date ?? new Date(TODAY_STR));
+
+  const openPersonContext = useCallback((event: React.MouseEvent, substituteId: string) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const dateStr = defaultContextDate;
+    const key = substituteAvailabilityKey(substituteId, dateStr);
+    setContextTarget({ substituteId, dateStr });
+    setContextActions([
+      { id: 'show-details', text: 'Visa vikarieuppgifter', icon: 'id-card' },
+      { id: 'edit-availability', text: 'Ändra tillgänglighet', icon: 'clock', beginGroup: true },
+      absences[key]
+        ? { id: 'clear-sickness', text: 'Ta bort sjukanmälan', icon: 'calendar-check' }
+        : { id: 'report-sick', text: 'Sjukanmäl', icon: 'calendar-xmark' },
+      { id: 'send-request', text: 'Skicka förfrågan', icon: 'paper-plane', beginGroup: true },
+    ]);
+    setContextMenuPosition({ x: event.clientX, y: event.clientY });
+  }, [absences, defaultContextDate]);
+
+  const openAvailabilityContext = useCallback((event: React.MouseEvent, substituteId: string, dateStr: string, isPast: boolean, isBooked: boolean) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const key = substituteAvailabilityKey(substituteId, dateStr);
+    const hasOverride = Object.prototype.hasOwnProperty.call(availabilityOverrides, key);
+    const isAbsent = Boolean(absences[key]);
+    const actions: SubstituteContextAction[] = [
+      { id: 'show-details', text: 'Visa vikarieuppgifter', icon: 'id-card' },
+    ];
+    if (!isPast) {
+      if (!isBooked && !isAbsent) {
+        actions.push({ id: 'edit-availability', text: 'Ändra tillgänglighet', icon: 'clock', beginGroup: true });
+        actions.push({ id: 'mark-unavailable', text: 'Markera ej tillgänglig', icon: 'ban' });
+        if (hasOverride) actions.push({ id: 'restore-availability', text: 'Återställ till grundtillgänglighet', icon: 'rotate-left' });
+      }
+      actions.push(isAbsent
+        ? { id: 'clear-sickness', text: 'Ta bort sjukanmälan', icon: 'calendar-check', beginGroup: true }
+        : { id: 'report-sick', text: 'Sjukanmäl', icon: 'calendar-xmark', beginGroup: true });
+    }
+    setContextTarget({ substituteId, dateStr });
+    setContextActions(actions);
+    setContextMenuPosition({ x: event.clientX, y: event.clientY });
+  }, [absences, availabilityOverrides]);
+
+  const handleContextAction = useCallback((event: { itemData?: SubstituteContextAction }) => {
+    if (!contextTarget || !event.itemData) return;
+    setContextMenuPosition(null);
+    const { substituteId, dateStr } = contextTarget;
+    switch (event.itemData.id) {
+      case 'show-details':
+      case 'edit-availability': onOpenDetails(substituteId, dateStr); break;
+      case 'mark-unavailable': onSetAvailability(substituteId, dateStr, null); break;
+      case 'restore-availability': onRestoreAvailability(substituteId, dateStr); break;
+      case 'report-sick': onReportSick(substituteId, dateStr); break;
+      case 'clear-sickness': onClearSickness(substituteId, dateStr); break;
+      case 'send-request': onSendRequest([substituteId]); break;
+    }
+  }, [contextTarget, onClearSickness, onOpenDetails, onReportSick, onRestoreAvailability, onSendRequest, onSetAvailability]);
 
   return (
     <div className={panelClass} role="region" aria-label={fillLabel}>
@@ -723,7 +869,8 @@ function SubstitutePanel({
       <div className="schema-sub-send-bar">
         <button
           className="btn-primary schema-sub-send-btn"
-          onClick={() => onSendRequest(getSelectedIds())}
+          disabled={selectedSubIds.length === 0}
+          onClick={() => onSendRequest(selectedSubIds)}
         >
           <i className="fa-solid fa-paper-plane" />
           Skicka förfrågan
@@ -734,9 +881,11 @@ function SubstitutePanel({
             displayExpr="label"
             valueExpr="id"
             value={filterRoles}
-            onValueChanged={e => setFilterRoles(e.value ?? [])}
+            onValueChanged={e => setFilterRoles(normalizeFilterValues(e.value))}
             placeholder="Alla roller..."
             showSelectionControls={true}
+            showClearButton={true}
+            applyValueMode="instantly"
             multiline={false}
             stylingMode="outlined"
             width={210}
@@ -746,10 +895,12 @@ function SubstitutePanel({
             displayExpr="label"
             valueExpr="id"
             value={filterCategories}
-            onValueChanged={e => setFilterCategories(e.value ?? [])}
+            onValueChanged={e => setFilterCategories(normalizeFilterValues(e.value))}
             placeholder="Filtrera på typ..."
             hint="Typ"
             showSelectionControls={true}
+            showClearButton={true}
+            applyValueMode="instantly"
             multiline={false}
             stylingMode="outlined"
             width={190}
@@ -759,7 +910,8 @@ function SubstitutePanel({
             displayExpr="label"
             valueExpr="id"
             value={filterPass}
-            onValueChanged={e => setFilterPass(e.value)}
+            onValueChanged={e => setFilterPass(e.value ?? 'alla')}
+            showClearButton={false}
             width={145}
             stylingMode="outlined"
           />
@@ -768,9 +920,11 @@ function SubstitutePanel({
             displayExpr="label"
             valueExpr="id"
             value={filterCompetencies}
-            onValueChanged={e => setFilterCompetencies(e.value ?? [])}
+            onValueChanged={e => setFilterCompetencies(normalizeFilterValues(e.value))}
             placeholder="Alla kompetenser..."
             showSelectionControls={true}
+            showClearButton={true}
+            applyValueMode="instantly"
             multiline={false}
             stylingMode="outlined"
             width={230}
@@ -781,10 +935,19 @@ function SubstitutePanel({
               displayExpr="label"
               valueExpr="id"
               value={timeFlexibility}
-              onValueChanged={e => setTimeFlexibility(Number(e.value))}
+              onValueChanged={e => setTimeFlexibility(Number(e.value ?? 1))}
               width={205}
               stylingMode="outlined"
             />
+          )}
+          {(filterRoles.length > 0 || filterCategories.length > 0 || filterCompetencies.length > 0 || filterPass !== 'alla' || timeFlexibility !== 1) && (
+            <button type="button" className="btn-secondary schema-sub-filter-reset" onClick={() => {
+              setFilterRoles([]);
+              setFilterCategories([]);
+              setFilterCompetencies([]);
+              setFilterPass('alla');
+              setTimeFlexibility(1);
+            }}><i className="fa-solid fa-rotate-left" /> Rensa filter</button>
           )}
         </div>
         <span className="schema-sub-send-hint">Markera vikarier i listan nedan</span>
@@ -809,10 +972,10 @@ function SubstitutePanel({
                       type="checkbox"
                       className="schema-sub-all-checkbox"
                       aria-label="Markera alla vikarier"
+                      checked={availSubs.length > 0 && availSubs.every(substitute => selectedSubIds.includes(substitute.id))}
                       onChange={e => {
                         const checked = e.currentTarget.checked;
-                        scrollRef.current?.querySelectorAll<HTMLInputElement>('.schema-sub-checkbox')
-                          .forEach(input => { input.checked = checked; });
+                        setSelectedSubIds(checked ? availSubs.map(substitute => substitute.id) : []);
                       }}
                     />
                   );
@@ -871,7 +1034,10 @@ function SubstitutePanel({
                       onDragStart={e => onDragStart(e, sub.id)}
                     >
                       <td
-                        className={['schema-employee-cell', 'schema-sub-sticky-col', isExpanded ? 'schema-sub-sticky-expanded' : ''].filter(Boolean).join(' ')}
+                        className={['schema-employee-cell', 'schema-sub-sticky-col', 'schema-sub-person-context', isExpanded ? 'schema-sub-sticky-expanded' : ''].filter(Boolean).join(' ')}
+                        data-substitute-id={sub.id}
+                        onContextMenu={event => openPersonContext(event, sub.id)}
+                        onDoubleClick={() => onOpenDetails(sub.id, defaultContextDate)}
                       >
                         <div className="schema-sub-name-cell">
                           <input
@@ -879,6 +1045,10 @@ function SubstitutePanel({
                             data-sub-id={sub.id}
                             className="schema-sub-checkbox"
                             aria-label={`Välj ${sub.name}`}
+                            checked={selectedSubIds.includes(sub.id)}
+                            onChange={() => setSelectedSubIds(current => current.includes(sub.id)
+                              ? current.filter(id => id !== sub.id)
+                              : [...current, sub.id])}
                           />
                           <button
                             className="schema-sub-chevron"
@@ -900,17 +1070,26 @@ function SubstitutePanel({
                         const ds       = toDateStr(col.date);
                         const isPast   = ds < TODAY_STR;
                         const booked   = bookedShifts.find(b => b.dateStr === ds);
-                        const avail    = !booked ? genSubAvailability(sub.id, col.date) : null;
-                        const refShift = browseAll ? browseShift : (state?.shift ?? null);
+                        const availabilityKey = substituteAvailabilityKey(sub.id, ds);
+                        const absenceReason = absences[availabilityKey];
+                        const avail    = !booked && !absenceReason
+                          ? getSubAvailability(sub.id, col.date, availabilityOverrides, absences)
+                          : null;
                         const isTarget = !browseAll && state && ds === state.dateStr;
 
                         // 24 h proportional bar helpers
                         const bar24 = (startH: number, startM: number, endH: number, endM: number, cls: string) => {
-                          const left  = (startH * 60 + startM) / 1440 * 100;
-                          const width = ((endH * 60 + endM) - (startH * 60 + startM)) / 1440 * 100;
+                          const startMinutes = startH * 60 + startM;
+                          const endMinutes = endH * 60 + endM;
+                          const left  = startMinutes / 1440 * 100;
+                          const crossesMidnight = endMinutes <= startMinutes;
+                          const width = (endMinutes - startMinutes) / 1440 * 100;
                           return (
                             <div className="schema-sub-bar24-wrap">
-                              <div className={`schema-sub-bar24-fill ${cls}`} style={{ left: `${left}%`, width: `${Math.max(width, 1)}%` }} />
+                              {crossesMidnight ? <>
+                                <div className={`schema-sub-bar24-fill ${cls}`} style={{ left: `${left}%`, width: `${100-left}%` }} />
+                                <div className={`schema-sub-bar24-fill ${cls}`} style={{ left: 0, width: `${Math.max(endMinutes/1440*100, 1)}%` }} />
+                              </> : <div className={`schema-sub-bar24-fill ${cls}`} style={{ left: `${left}%`, width: `${Math.max(width, 1)}%` }} />}
                             </div>
                           );
                         };
@@ -924,8 +1103,19 @@ function SubstitutePanel({
                             col.isWeekend ? 'schema-weekend-cell' : '',
                             isTarget ? 'schema-sub-target-col' : '',
                             isPast ? 'schema-sub-past-cell' : '',
+                            absenceReason ? 'schema-sub-sick-cell' : '',
+                            'schema-sub-availability-context',
                           ].filter(Boolean).join(' ')}>
-                            {booked ? (
+                            <div
+                              className="schema-sub-availability-hitarea"
+                              data-substitute-id={sub.id}
+                              data-date-str={ds}
+                              onContextMenu={event => openAvailabilityContext(event, sub.id, ds, isPast, Boolean(booked))}
+                              onDoubleClick={() => onOpenDetails(sub.id, ds)}
+                            >
+                            {absenceReason ? (
+                              <span className="schema-sub-sick-label"><i className="fa-solid fa-calendar-xmark" /> {absenceReason}</span>
+                            ) : booked ? (
                               <>
                                 {viewType !== 'year-columns' && (() => {
                                   const [bsH, bsM] = booked.start.split(':').map(Number);
@@ -939,7 +1129,7 @@ function SubstitutePanel({
                             ) : avail ? (
                               viewType === 'year-columns' ? (
                                 <span className={`schema-sub-avail-time${isPast ? ' schema-sub-avail-time-past' : ''}`}>
-                                  {Math.round((avail.endH * 60 + avail.endM - avail.startH * 60 - avail.startM) / 1440 * 100)}%
+                                  {subAvailabilityDurationPct(avail)}%
                                 </span>
                               ) : (
                                 <>
@@ -952,8 +1142,9 @@ function SubstitutePanel({
                                 </>
                               )
                             ) : (
-                              <span className="schema-sub-avail-empty">—</span>
+                              <span className="schema-sub-avail-empty">Ej tillgänglig</span>
                             )}
+                            </div>
                           </td>
                         );
                       })}
@@ -1029,6 +1220,21 @@ function SubstitutePanel({
           </tbody>
         </table>
       </div>
+      {contextMenuPosition && (
+        <div
+          className="schema-sub-context-menu"
+          role="menu"
+          style={{ left: contextMenuPosition.x, top: contextMenuPosition.y }}
+          onMouseDown={event => event.stopPropagation()}
+          onContextMenu={event => event.preventDefault()}
+        >
+          {contextActions.map(action => (
+            <button key={action.id} type="button" className={action.beginGroup ? 'schema-sub-context-menu-separator' : ''} onClick={() => handleContextAction({ itemData: action })} role="menuitem">
+              <i className={`fa-solid fa-${action.icon}`} /> {action.text}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -1268,6 +1474,70 @@ function PersonDetailCard({ employee, competencies, shiftDates, onReportSick, on
       <div className="order-detail-actions">
         <button className="btn-primary" disabled={!selectedDate} onClick={() => selectedDate && onReportSick(selectedDate)}><i className="fa-solid fa-calendar-xmark" /> Sjukanmäl</button>
         <button className="btn-secondary" onClick={onShowSchedule}><i className="fa-solid fa-calendar-days" /> Visa i schema</button>
+      </div>
+    </div>
+  );
+}
+
+function SubstituteDetailCard({ substitute, details, dateStr, dateOptions, availability, hasAvailabilityOverride, booking, absenceReason, onSelectDate, onSaveAvailability, onMarkUnavailable, onRestoreAvailability, onReportSick, onClearSickness, onSendRequest }: {
+  substitute: SubstituteCandidate;
+  details: SubstituteDetails;
+  dateStr: string;
+  dateOptions: string[];
+  availability: SubAvailability | null;
+  hasAvailabilityOverride: boolean;
+  booking?: SubBookedShift;
+  absenceReason?: AbsenceReason;
+  onSelectDate: (dateStr: string) => void;
+  onSaveAvailability: (availability: SubAvailability) => void;
+  onMarkUnavailable: () => void;
+  onRestoreAvailability: () => void;
+  onReportSick: () => void;
+  onClearSickness: () => void;
+  onSendRequest: () => void;
+}) {
+  const formatTime = (hours: number, minutes: number) => `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  const [start, setStart] = useState(availability ? formatTime(availability.startH, availability.startM) : '08:00');
+  const [end, setEnd] = useState(availability ? formatTime(availability.endH, availability.endM) : '17:00');
+  useEffect(() => {
+    setStart(availability ? formatTime(availability.startH, availability.startM) : '08:00');
+    setEnd(availability ? formatTime(availability.endH, availability.endM) : '17:00');
+  }, [availability, dateStr]);
+  const availabilityLabel = absenceReason
+    ? absenceReason
+    : booking
+      ? `Bokad ${booking.start}–${booking.end}`
+      : availability
+        ? `Tillgänglig ${fmtAvailTime(availability)}`
+        : 'Ej tillgänglig';
+  const canEdit = dateStr >= TODAY_STR && !booking && !absenceReason;
+  const saveAvailability = () => {
+    const [startH, startM] = start.split(':').map(Number);
+    const [endH, endM] = end.split(':').map(Number);
+    if ([startH, startM, endH, endM].some(Number.isNaN)) return;
+    onSaveAvailability({ startH, startM, endH, endM });
+  };
+
+  return (
+    <div className="order-detail-card person-detail-card substitute-detail-card">
+      <div className="order-detail-type"><i className="fa-solid fa-user-nurse" /> Vikarieuppgifter</div>
+      <h3>{substitute.name}</h3>
+      <p className="order-detail-role">{substitute.role} · {substitute.category}</p>
+      <dl>
+        <div><dt>Kontakt</dt><dd><a href={`tel:${details.phone.replace(/\s/g, '')}`}>{details.phone}</a><br /><a href={`mailto:${details.email}`}>{details.email}</a></dd></div>
+        <div><dt>ATL</dt><dd>{details.atlHours} av {details.maxAtlHours} timmar</dd></div>
+        <div><dt>Kompetenser</dt><dd><div className="person-detail-competencies">{details.competencies.map(competency => <span key={competency}>{competency}</span>)}</div></dd></div>
+        <div><dt>Datum</dt><dd><select value={dateStr} onChange={event => onSelectDate(event.currentTarget.value)}>{dateOptions.map(option => <option key={option} value={option}>{fmtDay(parseDate(option))}</option>)}</select></dd></div>
+        <div><dt>Status</dt><dd><span className={`schema-detail-status ${absenceReason ? 'schema-detail-status-absence' : booking ? 'schema-detail-status-filled' : availability ? 'schema-detail-status-normal' : ''}`}>{availabilityLabel}</span></dd></div>
+        <div><dt>Tillgänglighet</dt><dd><div className="order-detail-time-editor"><label>Från<input type="time" value={start} disabled={!canEdit} onChange={event => setStart(event.currentTarget.value)} /></label><span>–</span><label>Till<input type="time" value={end} disabled={!canEdit} onChange={event => setEnd(event.currentTarget.value)} /></label>{canEdit && <button type="button" className="btn-secondary" onClick={saveAvailability}>Spara</button>}</div></dd></div>
+      </dl>
+      <div className="order-detail-actions">
+        <button className="btn-primary" onClick={onSendRequest}><i className="fa-solid fa-paper-plane" /> Skicka förfrågan</button>
+        {canEdit && availability && <button className="btn-secondary" onClick={onMarkUnavailable}><i className="fa-solid fa-ban" /> Markera ej tillgänglig</button>}
+        {canEdit && hasAvailabilityOverride && <button className="btn-secondary" onClick={onRestoreAvailability}><i className="fa-solid fa-rotate-left" /> Återställ tillgänglighet</button>}
+        {dateStr >= TODAY_STR && (absenceReason
+          ? <button className="btn-secondary" onClick={onClearSickness}><i className="fa-solid fa-calendar-check" /> Ta bort sjukanmälan</button>
+          : <button className="btn-secondary" onClick={onReportSick}><i className="fa-solid fa-calendar-xmark" /> Sjukanmäl</button>)}
       </div>
     </div>
   );
@@ -1513,6 +1783,10 @@ export const Schema = () => {
   // ── Sub panel ──
   const [subPanelState,   setSubPanelState]   = useState<SubPanelState | null>(null);
   const [subPanelOpen,    setSubPanelOpen]    = useState(false);
+  const [substituteAvailabilityOverrides, setSubstituteAvailabilityOverrides] = useState<SubstituteAvailabilityOverrides>({});
+  const [substituteAbsences, setSubstituteAbsences] = useState<SubstituteAbsences>({});
+  const [substituteDetailState, setSubstituteDetailState] = useState<SubstituteDetailState | null>(null);
+  const [returnToSubstitutePanel, setReturnToSubstitutePanel] = useState(false);
 
   // ── Vikarie panel ──
   const [subPanelBrowseAll, setSubPanelBrowseAll] = useState(false);
@@ -1526,6 +1800,7 @@ export const Schema = () => {
   const [orderActivities, setOrderActivities] = useState<Record<string, CaseActivity[]>>({});
   const [passActivities, setPassActivities] = useState<Record<string, CaseActivity[]>>({});
   const [personActivities, setPersonActivities] = useState<Record<string, CaseActivity[]>>({});
+  const [substituteActivities, setSubstituteActivities] = useState<Record<string, CaseActivity[]>>({});
 
   useEffect(() => {
     setOrderDetail(current => current ? resourceOrders.find(order => order.id === current.id) ?? current : current);
@@ -1547,6 +1822,12 @@ export const Schema = () => {
     setPersonActivities(current => ({
       ...current,
       [personId]: [...(current[personId] ?? []), { ...activity, id: Date.now() + Math.floor(Math.random() * 1000) }],
+    }));
+  }, []);
+  const addSubstituteActivity = useCallback((substituteId: string, activity: Omit<CaseActivity, 'id'>) => {
+    setSubstituteActivities(current => ({
+      ...current,
+      [substituteId]: [...(current[substituteId] ?? []), { ...activity, id: Date.now() + Math.floor(Math.random() * 1000) }],
     }));
   }, []);
   const [absenceDialogState, setAbsenceDialogState] = useState<AbsenceDialogState | null>(null);
@@ -1708,6 +1989,38 @@ export const Schema = () => {
       detail: `${personDetailEmployee.role} · ${personDetailEmployee.organisation}`,
     }, ...(personActivities[personDetailEmployee.id] ?? [])];
   }, [personActivities, personDetailEmployee]);
+  const substituteDetail = substituteDetailState
+    ? SUBSTITUTE_CANDIDATES.find(substitute => substitute.id === substituteDetailState.substituteId) ?? null
+    : null;
+  const substituteDetailInfo = substituteDetail ? SUB_DETAILS[substituteDetail.id] : null;
+  const substituteDetailDates = useMemo(() => {
+    const visibleDates = columns.map(column => toDateStr(column.date));
+    if (substituteDetailState?.dateStr && !visibleDates.includes(substituteDetailState.dateStr)) {
+      return [substituteDetailState.dateStr, ...visibleDates];
+    }
+    return visibleDates.length > 0 ? visibleDates : [TODAY_STR];
+  }, [columns, substituteDetailState?.dateStr]);
+  const substituteDetailKey = substituteDetailState
+    ? substituteAvailabilityKey(substituteDetailState.substituteId, substituteDetailState.dateStr)
+    : '';
+  const substituteDetailAvailability = substituteDetailState
+    ? getSubAvailability(substituteDetailState.substituteId, parseDate(substituteDetailState.dateStr), substituteAvailabilityOverrides, substituteAbsences)
+    : null;
+  const substituteDetailBooking = substituteDetailState
+    ? (SUB_BOOKED_SHIFTS[substituteDetailState.substituteId] ?? []).find(booking => booking.dateStr === substituteDetailState.dateStr)
+    : undefined;
+  const substituteDetailActivities = useMemo<CaseActivity[]>(() => {
+    if (!substituteDetail || !substituteDetailInfo) return [];
+    return [{
+      id: -1,
+      type: 'system',
+      author: 'Systemet',
+      initials: 'S',
+      time: 'Aktuell uppgift',
+      text: 'Tillgänglig som vikarie',
+      detail: `${substituteDetail.role} · ${substituteDetail.category} · ATL ${substituteDetailInfo.atlHours}/${substituteDetailInfo.maxAtlHours} h`,
+    }, ...(substituteActivities[substituteDetail.id] ?? [])];
+  }, [substituteActivities, substituteDetail, substituteDetailInfo]);
 
   const filteredEmployees = useMemo(() => {
     let list = employees;
@@ -1981,6 +2294,62 @@ export const Schema = () => {
     setSubPanelOpen(true);
   }, []);
 
+  const handleOpenSubstituteDetails = useCallback((substituteId: string, dateStr: string) => {
+    setReturnToSubstitutePanel(subPanelOpen);
+    setSubPanelOpen(false);
+    setSubstituteDetailState({ substituteId, dateStr });
+  }, [subPanelOpen]);
+
+  const handleCloseSubstituteDetails = useCallback(() => {
+    setSubstituteDetailState(null);
+    if (returnToSubstitutePanel) setSubPanelOpen(true);
+    setReturnToSubstitutePanel(false);
+  }, [returnToSubstitutePanel]);
+
+  const handleSetSubstituteAvailability = useCallback((substituteId: string, dateStr: string, availability: SubAvailability | null) => {
+    const key = substituteAvailabilityKey(substituteId, dateStr);
+    const substitute = SUBSTITUTE_CANDIDATES.find(item => item.id === substituteId);
+    setSubstituteAvailabilityOverrides(current => ({ ...current, [key]: availability }));
+    addSubstituteActivity(substituteId, {
+      type: 'status', author: 'Du', initials: 'JV', time: 'Just nu',
+      text: availability ? 'Tillgänglighet ändrades' : 'Markerad som ej tillgänglig',
+      detail: availability ? `${dateStr} · ${fmtAvailTime(availability)}` : `${dateStr} · ${substitute?.name ?? 'Vikarie'}`,
+    });
+  }, [addSubstituteActivity]);
+
+  const handleRestoreSubstituteAvailability = useCallback((substituteId: string, dateStr: string) => {
+    const key = substituteAvailabilityKey(substituteId, dateStr);
+    setSubstituteAvailabilityOverrides(current => {
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+    addSubstituteActivity(substituteId, {
+      type: 'status', author: 'Du', initials: 'JV', time: 'Just nu', text: 'Tillgänglighet återställd',
+      detail: `${dateStr} · Grundtillgängligheten används igen`,
+    });
+  }, [addSubstituteActivity]);
+
+  const handleReportSubstituteSick = useCallback((substituteId: string, dateStr: string) => {
+    const key = substituteAvailabilityKey(substituteId, dateStr);
+    setSubstituteAbsences(current => ({ ...current, [key]: 'Sjuk' }));
+    addSubstituteActivity(substituteId, {
+      type: 'status', author: 'Du', initials: 'JV', time: 'Just nu', text: 'Sjukanmälan registrerades', detail: dateStr,
+    });
+  }, [addSubstituteActivity]);
+
+  const handleClearSubstituteSickness = useCallback((substituteId: string, dateStr: string) => {
+    const key = substituteAvailabilityKey(substituteId, dateStr);
+    setSubstituteAbsences(current => {
+      const next = { ...current };
+      delete next[key];
+      return next;
+    });
+    addSubstituteActivity(substituteId, {
+      type: 'status', author: 'Du', initials: 'JV', time: 'Just nu', text: 'Sjukanmälan togs bort', detail: dateStr,
+    });
+  }, [addSubstituteActivity]);
+
   const handleOpenOrderSubstitutePanel = useCallback((order: ResourceOrder) => {
     setOrderAssignment(order);
     setSubPanelState({
@@ -2007,10 +2376,18 @@ export const Schema = () => {
     if (subs.length === 0) return;
     if (!subPanelState) {
       setOpenRequestState({ substitutes: subs, dateStr: toDateStr(columns[0]?.date ?? new Date(TODAY_STR)), shift: { type: 'day', ...SHIFT_DEFS.day }, role: subs[0]?.role ?? SUBSTITUTE_ROLES[0]?.id ?? '', unit: SUBSTITUTE_UNITS[0].label });
+      setSubPanelOpen(false);
       return;
     }
     openConfirm(subs, subPanelState.personId, subPanelState.dateStr, subPanelState.shift, subPanelState.fillType);
+    setSubPanelOpen(false);
   }, [subPanelState, openConfirm, columns]);
+
+  const handleSendSubstituteRequest = useCallback((substituteId: string) => {
+    setSubstituteDetailState(null);
+    setReturnToSubstitutePanel(false);
+    handleSendRequest([substituteId]);
+  }, [handleSendRequest]);
 
   const handleConfirmOpenRequest = useCallback((dateStr: string, shift: Shift, role: string, unit: string) => {
     if (!openRequestState) return;
@@ -2951,6 +3328,13 @@ export const Schema = () => {
           viewType={viewType}
           onClose={handleCloseSubPanel}
           onSendRequest={handleSendRequest}
+          onOpenDetails={handleOpenSubstituteDetails}
+          onSetAvailability={handleSetSubstituteAvailability}
+          onRestoreAvailability={handleRestoreSubstituteAvailability}
+          onReportSick={handleReportSubstituteSick}
+          onClearSickness={handleClearSubstituteSickness}
+          availabilityOverrides={substituteAvailabilityOverrides}
+          absences={substituteAbsences}
           onDragStart={handleDragStartSub}
           scrollRef={subScrollRef}
           tableWidth={subTableLayout.width}
@@ -3031,6 +3415,37 @@ export const Schema = () => {
             />
           ) : null}
           onPostMessage={personDetailEmployee ? activity => addPersonActivity(personDetailEmployee.id, activity) : undefined}
+        />
+
+        <CaseActivityModal
+          isOpen={Boolean(substituteDetail && substituteDetailInfo && substituteDetailState)}
+          onClose={handleCloseSubstituteDetails}
+          contextKey={substituteDetail ? `${substituteDetail.id}|${substituteDetailState?.dateStr ?? ''}` : undefined}
+          kicker="Vikarie"
+          title={substituteDetail ? `${substituteDetail.name} – vikarieuppgifter` : 'Vikarieuppgifter'}
+          description={substituteDetailState ? `${substituteDetailState.dateStr} · tillgänglighet och händelser` : ''}
+          activities={substituteDetailActivities}
+          includeDefaultActivities={false}
+          details={substituteDetail && substituteDetailInfo && substituteDetailState ? (
+            <SubstituteDetailCard
+              substitute={substituteDetail}
+              details={substituteDetailInfo}
+              dateStr={substituteDetailState.dateStr}
+              dateOptions={substituteDetailDates}
+              availability={substituteDetailAvailability}
+              hasAvailabilityOverride={Object.prototype.hasOwnProperty.call(substituteAvailabilityOverrides, substituteDetailKey)}
+              booking={substituteDetailBooking}
+              absenceReason={substituteAbsences[substituteDetailKey]}
+              onSelectDate={dateStr => setSubstituteDetailState(current => current ? { ...current, dateStr } : current)}
+              onSaveAvailability={availability => handleSetSubstituteAvailability(substituteDetail.id, substituteDetailState.dateStr, availability)}
+              onMarkUnavailable={() => handleSetSubstituteAvailability(substituteDetail.id, substituteDetailState.dateStr, null)}
+              onRestoreAvailability={() => handleRestoreSubstituteAvailability(substituteDetail.id, substituteDetailState.dateStr)}
+              onReportSick={() => handleReportSubstituteSick(substituteDetail.id, substituteDetailState.dateStr)}
+              onClearSickness={() => handleClearSubstituteSickness(substituteDetail.id, substituteDetailState.dateStr)}
+              onSendRequest={() => handleSendSubstituteRequest(substituteDetail.id)}
+            />
+          ) : null}
+          onPostMessage={substituteDetail ? activity => addSubstituteActivity(substituteDetail.id, activity) : undefined}
         />
 
       </div>
