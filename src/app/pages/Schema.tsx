@@ -517,6 +517,9 @@ function normalizeFilterValues(value: unknown): string[] {
     .map(item => typeof item === 'string' ? item : (item as { id?: unknown })?.id)
     .filter((item): item is string => typeof item === 'string');
 }
+function preserveStringArrayWhenUnchanged(current: string[], next: string[]): string[] {
+  return current.length === next.length && current.every((value, index) => value === next[index]) ? current : next;
+}
 function isSubstituteBooked(subId: string, dateStr: string): boolean {
   return (SUB_BOOKED_SHIFTS[subId] ?? []).some(booking => booking.dateStr === dateStr);
 }
@@ -881,7 +884,7 @@ function SubstitutePanel({
             displayExpr="label"
             valueExpr="id"
             value={filterRoles}
-            onValueChanged={e => setFilterRoles(normalizeFilterValues(e.value))}
+            onValueChanged={e => setFilterRoles(current => preserveStringArrayWhenUnchanged(current, normalizeFilterValues(e.value)))}
             placeholder="Alla roller..."
             showSelectionControls={true}
             showClearButton={true}
@@ -895,7 +898,7 @@ function SubstitutePanel({
             displayExpr="label"
             valueExpr="id"
             value={filterCategories}
-            onValueChanged={e => setFilterCategories(normalizeFilterValues(e.value))}
+            onValueChanged={e => setFilterCategories(current => preserveStringArrayWhenUnchanged(current, normalizeFilterValues(e.value)))}
             placeholder="Filtrera på typ..."
             hint="Typ"
             showSelectionControls={true}
@@ -920,7 +923,7 @@ function SubstitutePanel({
             displayExpr="label"
             valueExpr="id"
             value={filterCompetencies}
-            onValueChanged={e => setFilterCompetencies(normalizeFilterValues(e.value))}
+            onValueChanged={e => setFilterCompetencies(current => preserveStringArrayWhenUnchanged(current, normalizeFilterValues(e.value)))}
             placeholder="Alla kompetenser..."
             showSelectionControls={true}
             showClearButton={true}
