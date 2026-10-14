@@ -50,6 +50,13 @@
     "_overviewCards": [],
     "Tid & Bemanning": { "options": ["Schema", "Tidrapportering", "Bemanningsplanering"] }
   },
+  "Schema prototyp": {
+    "_id": "schema-prototyp",
+    "_icon": "fa-calendar-days",
+    "_path": "/tid/schema-prototyp",
+    "_new": true,
+    "_overviewCards": []
+  },
   "Vikariehantering": {
     "_id": "vikariehantering",
     "_icon": "fa-user-clock",
