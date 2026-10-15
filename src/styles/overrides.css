@@ -10633,9 +10633,8 @@ input.schema-sub-checkbox:checked::after {
 }
 .schema-org-coverage-present,
 .schema-org-coverage-target { color: #2672b8; }
-.schema-org-coverage-target-missing { color: #c62828; }
-.schema-org-coverage-target::before,
-.schema-org-coverage-target-missing::before { content: '/'; margin-right: 4px; color: #8c8793; }
+.schema-org-coverage-present-missing { color: #c62828; }
+.schema-org-coverage-target::before { content: '/'; margin-right: 4px; color: #8c8793; }
 .schema-org-coverage-label {
   color: #77717f;
   font-size: 9px;
@@ -10679,7 +10678,7 @@ input.schema-sub-checkbox:checked::after {
 .schema-org-summary-numbers b { font-weight: 700; }
 .schema-org-past-cell .schema-org-coverage-present,
 .schema-org-past-cell .schema-org-coverage-target,
-.schema-org-past-cell .schema-org-coverage-target-missing {
+.schema-org-past-cell .schema-org-coverage-present-missing {
   color: #858585;
 }
 .schema-org-pool-count {

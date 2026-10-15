@@ -2441,8 +2441,8 @@ export const Schema = ({
               {useAlternativeOrganisationVisualization ? (
                 <div className="schema-org-coverage-content" aria-label={`${summary.present} på plats, ${summary.absent} frånvarande, ${summary.pool} i pool`}>
                   <div className="schema-org-coverage-numbers" aria-label={`${summary.present} av ${group.personIds.length} på plats`}>
-                    <span className="schema-org-coverage-present">{summary.present}</span>
-                    <span className={summary.present < group.personIds.length ? 'schema-org-coverage-target-missing' : 'schema-org-coverage-target'}>{group.personIds.length}</span>
+                    <span className={summary.present < group.personIds.length ? 'schema-org-coverage-present-missing' : 'schema-org-coverage-present'}>{summary.present}</span>
+                    <span className="schema-org-coverage-target">{group.personIds.length}</span>
                   </div>
                   <span className="schema-org-coverage-label">på plats / börvärde</span>
                 </div>
