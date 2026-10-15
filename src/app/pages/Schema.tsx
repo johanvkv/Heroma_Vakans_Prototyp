@@ -56,6 +56,21 @@ interface ResourceOrder {
   invitedSubstitutes: ResourceOrderInvite[];
   acceptedSubstituteId?: string;
 }
+type ResourceNeedStatus = 'Öppet' | 'Tillsatt' | 'Borttaget';
+interface ResourceNeed {
+  id: string;
+  personId: string;
+  personName: string;
+  role: string;
+  dateStr: string;
+  shift: Shift;
+  reason?: AbsenceReason;
+  source: 'frånvaro' | 'pass';
+  status: ResourceNeedStatus;
+  createdBy: string;
+  handledBy: string;
+  assignedSubstituteId?: string;
+}
 type ResourceOrderStatus = 'Beställd' | 'Under behandling' | 'Förfrågan skickad' | 'Tillsatt' | 'Avbruten';
 type ResourceResponseStatus = 'Avvaktar' | 'Tillgänglig' | 'Kan inte';
 interface ResourceOrderInvite {
@@ -132,6 +147,8 @@ interface OrderContextAction {
   substituteId?: string;
   beginGroup?: boolean;
 }
+type ResourceNeedActionId = 'remove' | 'assign' | 'order';
+interface ResourceNeedAction { id: ResourceNeedActionId; text: string; icon: string; }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -151,12 +168,12 @@ interface ContextAction {
   beginGroup?: boolean;
 }
 
-function getContextActions(type: ContextTargetType): ContextAction[] {
+function getContextActions(type: ContextTargetType, resourceNeedMode = false): ContextAction[] {
   if (type === 'absence') {
     return [
       { id: 'find-substitute', text: 'Hitta vikarie', icon: 'user' },
       { id: 'order-resource', text: 'Beställ resurs', icon: 'cart-shopping' },
-      { id: 'make-vacancy', text: 'Gör till vakans', icon: 'user-clock' },
+      { id: 'make-vacancy', text: resourceNeedMode ? 'Skapa resursbehov' : 'Gör till vakans', icon: 'user-clock' },
       { id: 'simulate', text: 'Simulera', icon: 'flask', beginGroup: true },
       { id: 'show-details', text: 'Visa frånvarodetaljer', icon: 'circle-info', beginGroup: true },
     ];
@@ -164,7 +181,7 @@ function getContextActions(type: ContextTargetType): ContextAction[] {
   return [
     {
       id: 'primary',
-      text: type === 'vacant' ? 'Hitta vikarie' : 'Boka extrapass',
+      text: resourceNeedMode ? 'Skapa resursbehov' : type === 'vacant' ? 'Hitta vikarie' : 'Boka extrapass',
       icon: type === 'vacant' ? 'user' : 'plus',
     },
     { id: 'order-resource', text: 'Beställ resurs', icon: 'cart-shopping' },
@@ -274,7 +291,12 @@ const ABSENCE_SHIFTS: Record<string,Shift> = {
 // Runtime-created absences are kept alongside the seeded examples so all existing
 // schedule helpers (colour, vacancy handling and details) treat them as real absences.
 const RUNTIME_ABSENCE_SHIFTS: Record<string, Shift> = { ...ABSENCE_SHIFTS };
-const RUNTIME_ABSENCE_REASONS: Record<string, AbsenceReason> = {};
+const RUNTIME_ABSENCE_REASONS: Record<string, AbsenceReason> = {
+  [`${_pid0}|${TODAY_STR}`]: 'Sjuk',
+  [`${_pid1}|2026-09-04`]: 'VAB',
+  [`${_pid2}|2026-09-05`]: 'Sjuk',
+  [`${_pid4}|${TODAY_STR}`]: 'Semester',
+};
 const RUNTIME_SHIFT_OVERRIDES: Record<string, Shift> = {};
 
 // Specific pass info text per shift cell ("Vak", "Bil", etc.)
@@ -589,7 +611,7 @@ function suitabilityScore(
 
 // ─── Shift cell sub-components ────────────────────────────────────────────────
 
-function ShiftDayCell({ shift, color, passInfo, isAkut, orderedBy }: { shift: Shift; color: ColorScheme; passInfo?: string; isAkut?: boolean; orderedBy?: string }) {
+function ShiftDayCell({ shift, color, passInfo, isAkut, orderedBy, resourceNeedMode = false }: { shift: Shift; color: ColorScheme; passInfo?: string; isAkut?: boolean; orderedBy?: string; resourceNeedMode?: boolean }) {
   const cap  = `schema-col-${color}-cap`;
   const main = `schema-col-${color}-main`;
   return (
@@ -616,14 +638,14 @@ function ShiftDayCell({ shift, color, passInfo, isAkut, orderedBy }: { shift: Sh
           <span className="schema-akut-badge">Akut</span>
         )}
         {color === 'absence' && <span className="schema-absence-badge"><i className="fa-solid fa-user-clock" /> Frånvaro</span>}
-        {color === 'vacant' && <span className="schema-vacancy-badge"><i className="fa-solid fa-user-plus" /> Vakans</span>}
+        {color === 'vacant' && <span className="schema-vacancy-badge"><i className="fa-solid fa-user-plus" /> {resourceNeedMode ? 'Resursbehov' : 'Vakans'}</span>}
         {orderedBy && <span className="schema-order-badge" title={`Beställd av ${orderedBy}`}><i className="fa-solid fa-cart-shopping" /><span className="schema-order-badge-text">Beställd av {orderedBy}</span></span>}
       </div>
     </div>
   );
 }
 
-function ShiftMonthCell({ shift, color, passInfo, isAkut, orderedBy }: { shift: Shift; color: ColorScheme; passInfo?: string; isAkut?: boolean; orderedBy?: string }) {
+function ShiftMonthCell({ shift, color, passInfo, isAkut, orderedBy, resourceNeedMode = false }: { shift: Shift; color: ColorScheme; passInfo?: string; isAkut?: boolean; orderedBy?: string; resourceNeedMode?: boolean }) {
   const cap  = `schema-col-${color}-cap`;
   const main = `schema-col-${color}-main`;
   return (
@@ -650,7 +672,7 @@ function ShiftMonthCell({ shift, color, passInfo, isAkut, orderedBy }: { shift: 
           <span className="schema-akut-badge schema-akut-badge-month">Akut</span>
         )}
         {color === 'absence' && <span className="schema-absence-badge schema-absence-badge-month" title="Frånvaro"><i className="fa-solid fa-user-clock" /></span>}
-        {color === 'vacant' && <span className="schema-vacancy-badge schema-vacancy-badge-month" title="Vakans"><i className="fa-solid fa-user-plus" /></span>}
+        {color === 'vacant' && <span className="schema-vacancy-badge schema-vacancy-badge-month" title={resourceNeedMode ? 'Resursbehov' : 'Vakans'}><i className="fa-solid fa-user-plus" /></span>}
         {orderedBy && <span className="schema-order-badge schema-order-badge-month" title={`Beställd av ${orderedBy}`}><i className="fa-solid fa-cart-shopping" /><span className="schema-order-badge-text">Beställd av {orderedBy}</span></span>}
       </div>
     </div>
@@ -1413,13 +1435,15 @@ const SHIFT_LABELS: Record<ShiftType, string> = {
   morning: 'Morgonpass', day: 'Dagpass', evening: 'Kvällspass', night: 'Nattpass',
 };
 
-function PassDetailCard({ state, onSaveTime, onPrimaryAction, onCreateOrder, onReportSick, onSimulate }: {
+function PassDetailCard({ state, onSaveTime, onPrimaryAction, onCreateOrder, onCreateResourceNeed, onReportSick, onSimulate, resourceNeedMode = false }: {
   state: DetailState;
   onSaveTime: (start: string, end: string) => void;
   onPrimaryAction?: () => void;
   onCreateOrder: () => void;
+  onCreateResourceNeed?: () => void;
   onReportSick: () => void;
   onSimulate: () => void;
+  resourceNeedMode?: boolean;
 }) {
   const [start, setStart] = useState(state.shift.start);
   const [end, setEnd] = useState(state.shift.end);
@@ -1429,7 +1453,7 @@ function PassDetailCard({ state, onSaveTime, onPrimaryAction, onCreateOrder, onR
   const isPast   = state.color === 'past';
   const akut     = isAkutShift(state.empId, state.dateStr) && isVacant;
   const timeChanged = start !== state.shift.start || end !== state.shift.end;
-  const statusLabel = isVacant ? (akut ? 'Akut vakans' : 'Vakans') : isAbsent ? 'Frånvaro' : state.color === 'filled' ? 'Tillsatt' : isPast ? 'Historiskt pass' : 'Planerat';
+  const statusLabel = isVacant ? (resourceNeedMode ? 'Resursbehov' : (akut ? 'Akut vakans' : 'Vakans')) : isAbsent ? 'Frånvaro' : state.color === 'filled' ? 'Tillsatt' : isPast ? 'Historiskt pass' : 'Planerat';
   const primaryLabel = isVacant ? 'Hitta vikarie' : isAbsent ? 'Gör till vakans' : state.color === 'normal' ? 'Boka extrapass' : null;
   const primaryIcon = isVacant ? 'fa-user-plus' : isAbsent ? 'fa-user-clock' : 'fa-calendar-plus';
 
@@ -1445,7 +1469,8 @@ function PassDetailCard({ state, onSaveTime, onPrimaryAction, onCreateOrder, onR
         <div><dt>Status</dt><dd><span className={`schema-detail-status schema-detail-status-${state.color}`}>{statusLabel}</span></dd></div>
       </dl>
       {!isPast && <div className="order-detail-actions">
-        {primaryLabel && onPrimaryAction && <button className="btn-primary" onClick={onPrimaryAction}><i className={`fa-solid ${primaryIcon}`} /> {primaryLabel}</button>}
+        {resourceNeedMode && onCreateResourceNeed && !isVacant && !isAbsent && <button className="btn-primary" onClick={onCreateResourceNeed}><i className="fa-solid fa-user-clock" /> Skapa resursbehov</button>}
+        {!resourceNeedMode && primaryLabel && onPrimaryAction && <button className="btn-primary" onClick={onPrimaryAction}><i className={`fa-solid ${primaryIcon}`} /> {primaryLabel}</button>}
         <button className="btn-secondary" onClick={onCreateOrder}><i className="fa-solid fa-cart-shopping" /> Beställ resurs</button>
         {!isAbsent && !isVacant && <button className="btn-secondary" onClick={onReportSick}><i className="fa-solid fa-calendar-xmark" /> Sjukanmäl</button>}
         <button className="btn-secondary" onClick={onSimulate}><i className="fa-solid fa-flask" /> Simulera urval</button>
@@ -1758,18 +1783,124 @@ function OrderDetailCard({ order, onChooseSubstitute, onAction, onSaveTime }: {
   );
 }
 
+function getResourceNeedActions(need: ResourceNeed): ResourceNeedAction[] {
+  if (need.status === 'Borttaget') return [];
+  return [
+    ...(need.status !== 'Tillsatt' ? [{ id: 'assign' as const, text: 'Tillsätt', icon: 'user-check' }] : []),
+    { id: 'order' as const, text: 'Beställ', icon: 'cart-shopping' },
+    { id: 'remove' as const, text: 'Ta bort resursbehov', icon: 'ban' },
+  ];
+}
+
+function ResourceNeedsList({ needs, onClose, onOpenDetails, onAction, onDropPass }: {
+  needs: ResourceNeed[];
+  onClose: () => void;
+  onOpenDetails: (need: ResourceNeed) => void;
+  onAction: (needId: string, action: ResourceNeedAction) => void;
+  onDropPass: (event: React.DragEvent<HTMLDivElement>) => void;
+}) {
+  const [contextNeedId, setContextNeedId] = useState<string | null>(null);
+  const [contextActions, setContextActions] = useState<ResourceNeedAction[]>([]);
+  const activeNeeds = needs.filter(need => need.status !== 'Borttaget');
+  return (
+    <div
+      className="schema-orders-list schema-resource-needs-list"
+      aria-live="polite"
+      onDragOver={event => { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; }}
+      onDrop={onDropPass}
+    >
+      <div className="schema-orders-list-header">
+        <div>
+          <h2>Resursbehov</h2>
+          <p>Frånvaro och pass där ersättning behöver tillsättas.</p>
+        </div>
+        <div className="schema-orders-header-actions">
+          <span className="schema-orders-count">{activeNeeds.length}</span>
+          <button className="schema-orders-close" onClick={onClose} aria-label="Stäng resursbehov"><i className="fa-solid fa-xmark" /></button>
+        </div>
+      </div>
+      <div className="schema-resource-needs-drop-hint"><i className="fa-solid fa-hand-pointer" /> Dra ett pass hit för att skapa ett resursbehov</div>
+      {activeNeeds.length === 0 ? (
+        <div className="schema-orders-empty"><i className="fa-solid fa-user-clock" /><span>Inga resursbehov att visa.</span></div>
+      ) : (
+        <table className="schema-orders-table">
+          <thead><tr><th>Datum</th><th>Medarbetare</th><th>Orsak</th><th>Status</th><th>Pass</th></tr></thead>
+          <tbody>
+            {activeNeeds.map(need => (
+              <tr
+                key={need.id}
+                className="schema-order-row schema-resource-need-row"
+                onDoubleClick={() => onOpenDetails(need)}
+                onContextMenu={event => {
+                  event.preventDefault();
+                  setContextNeedId(need.id);
+                  setContextActions(getResourceNeedActions(need));
+                }}
+                title="Dubbelklicka för detaljer eller högerklicka för åtgärder"
+              >
+                <td>{need.dateStr}</td>
+                <td><strong>{need.personName}</strong><span className="schema-order-person-role">{need.role}</span></td>
+                <td>{need.reason ?? 'Pass'}</td>
+                <td><span className={`schema-order-status schema-resource-need-status-${need.status === 'Tillsatt' ? 'filled' : 'open'}`}>{need.status}</span></td>
+                <td>{need.shift.start}–{need.shift.end}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+      <ContextMenu
+        target=".schema-resource-need-row"
+        dataSource={contextActions}
+        onItemClick={event => {
+          if (contextNeedId && event.itemData) onAction(contextNeedId, event.itemData as ResourceNeedAction);
+        }}
+      />
+    </div>
+  );
+}
+
+function ResourceNeedDetailCard({ need, onAction }: {
+  need: ResourceNeed;
+  onAction: (needId: string, action: ResourceNeedAction) => void;
+}) {
+  return (
+    <div className="order-detail-card">
+      <div className="order-detail-type"><i className="fa-solid fa-user-clock" /> Resursbehov</div>
+      <h3>{need.personName}</h3>
+      <p className="order-detail-role">{need.role}</p>
+      <dl>
+        <div><dt>Datum</dt><dd>{need.dateStr}</dd></div>
+        <div><dt>Pass</dt><dd>{need.shift.start}–{need.shift.end}</dd></div>
+        <div><dt>Orsak</dt><dd>{need.reason ?? 'Skapat från pass'}</dd></div>
+        <div><dt>Status</dt><dd><span className={`schema-order-status schema-resource-need-status-${need.status === 'Tillsatt' ? 'filled' : 'open'}`}>{need.status}</span></dd></div>
+        <div><dt>Skapat av</dt><dd>{need.createdBy}</dd></div>
+        <div><dt>Hanteras av</dt><dd>{need.handledBy}</dd></div>
+      </dl>
+      <div className="order-detail-actions">
+        {getResourceNeedActions(need).map(action => (
+          <button key={action.id} className={action.id === 'assign' ? 'btn-primary' : 'btn-secondary'} onClick={() => onAction(need.id, action)}>
+            <i className={`fa-solid fa-${action.icon}`} /> {action.text}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 
 interface SchemaProps {
   breadcrumbSectionLabel?: string;
   hideMinimumStaffing?: boolean;
   useAlternativeOrganisationVisualization?: boolean;
+  resourceNeedPrototype?: boolean;
 }
 
 export const Schema = ({
   breadcrumbSectionLabel = 'Tid & Bemanning',
   hideMinimumStaffing = false,
   useAlternativeOrganisationVisualization = false,
+  resourceNeedPrototype = false,
 }: SchemaProps) => {
   const navigateTo = useNavigate();
   const breadcrumbItems: BreadcrumbItem[] = [
@@ -1785,12 +1916,18 @@ export const Schema = ({
   const [period,         setPeriod]         = useState<PeriodType>('vecka');
   const [showVacancies,  setShowVacancies]  = useState(false);
   const [showOrders,     setShowOrders]     = useState(false);
+  const [showResourceNeeds, setShowResourceNeeds] = useState(false);
   const [activeView,     setActiveView]     = useState<'schema' | 'orders'>('schema');
   const [viewStart, setViewStart] = useState<Date>(() => monWeekStart(new Date(TODAY_STR)));
 
   // ── Fills ──
   const [fills, setFills] = useState<ShiftFill[]>(INITIAL_FILLS);
   const [resourceOrders, setResourceOrders] = useState<ResourceOrder[]>([]);
+  const [resourceNeeds, setResourceNeeds] = useState<ResourceNeed[]>([]);
+  const [resourceNeedDetail, setResourceNeedDetail] = useState<ResourceNeed | null>(null);
+  const [resourceNeedActivities, setResourceNeedActivities] = useState<Record<string, CaseActivity[]>>({});
+  const [resourceNeedAssignmentId, setResourceNeedAssignmentId] = useState<string | null>(null);
+  const [resourceNeedOrderTargetId, setResourceNeedOrderTargetId] = useState<string | null>(null);
   const [vacancyKeys, setVacancyKeys] = useState<string[]>([]);
 
   // ── Sub panel ──
@@ -1818,11 +1955,20 @@ export const Schema = ({
   useEffect(() => {
     setOrderDetail(current => current ? resourceOrders.find(order => order.id === current.id) ?? current : current);
   }, [resourceOrders]);
+  useEffect(() => {
+    setResourceNeedDetail(current => current ? resourceNeeds.find(need => need.id === current.id) ?? current : current);
+  }, [resourceNeeds]);
 
   const addOrderActivity = useCallback((orderId: string, activity: Omit<CaseActivity, 'id'>) => {
     setOrderActivities(current => ({
       ...current,
       [orderId]: [...(current[orderId] ?? []), { ...activity, id: Date.now() + Math.floor(Math.random() * 1000) }],
+    }));
+  }, []);
+  const addResourceNeedActivity = useCallback((needId: string, activity: Omit<CaseActivity, 'id'>) => {
+    setResourceNeedActivities(current => ({
+      ...current,
+      [needId]: [...(current[needId] ?? []), { ...activity, id: Date.now() + Math.floor(Math.random() * 1000) }],
     }));
   }, []);
   const addPassActivity = useCallback((passKey: string, activity: Omit<CaseActivity, 'id'>) => {
@@ -1851,7 +1997,7 @@ export const Schema = ({
 
   // ── Context menu ──
   const [absenceVersion, setAbsenceVersion] = useState(0);
-  const [contextActions, setContextActions] = useState<ContextAction[]>(() => getContextActions('vacant'));
+  const [contextActions, setContextActions] = useState<ContextAction[]>(() => getContextActions('vacant', resourceNeedPrototype));
   const [personContextId, setPersonContextId] = useState<string | null>(null);
   const [organisationMenu, setOrganisationMenu] = useState<OrganisationGroup | null>(null);
   const [organisationSettings, setOrganisationSettings] = useState<OrganisationGroup | null>(null);
@@ -1918,14 +2064,14 @@ export const Schema = ({
           dateStr:  el.dataset.dateStr!,
           type:     el.dataset.ctxType as ContextTargetType,
         };
-        setContextActions(getContextActions(ctxRef.current.type));
+        setContextActions(getContextActions(ctxRef.current.type, resourceNeedPrototype));
       } else {
         ctxRef.current = null;
       }
     };
     document.addEventListener('contextmenu', onCtx, true);
     return () => document.removeEventListener('contextmenu', onCtx, true);
-  }, []);
+  }, [resourceNeedPrototype]);
 
   // ── Employees ──
   const employees = useMemo<ScheduleEmployee[]>(() =>
@@ -1949,6 +2095,39 @@ export const Schema = ({
       };
     }),
   []);
+
+  useEffect(() => {
+    if (!resourceNeedPrototype) return;
+    const seededNeedKeys = Object.entries(RUNTIME_ABSENCE_REASONS)
+      .filter(([, reason]) => reason === 'Sjuk')
+      .map(([key]) => key);
+    setVacancyKeys(current => Array.from(new Set([...current, ...seededNeedKeys])));
+    setResourceNeeds(current => {
+      if (current.length > 0) return current;
+      return Object.entries(RUNTIME_ABSENCE_REASONS)
+        .filter(([, reason]) => reason === 'Sjuk')
+        .map(([key, reason]) => {
+          const [personId, dateStr] = key.split('|');
+          const employee = employees.find(item => item.id === personId);
+          const shift = getCellShift(personId, parseDate(dateStr), 'alla');
+          if (!employee || !shift) return null;
+          return {
+            id: `resource-need-${key}`,
+            personId,
+            personName: employee.name,
+            role: employee.role,
+            dateStr,
+            shift,
+            reason,
+            source: 'frånvaro' as const,
+            status: 'Öppet' as const,
+            createdBy: 'Systemet',
+            handledBy: 'Lena Sjöberg',
+          };
+        })
+        .filter(Boolean) as ResourceNeed[];
+    });
+  }, [employees, resourceNeedPrototype]);
 
   const columns  = useMemo(() => getColumns(viewStart, period),  [viewStart, period]);
   const viewType = useMemo(() => getViewType(period),            [period]);
@@ -2057,13 +2236,18 @@ export const Schema = ({
       list = list.filter(emp =>
         columns.some(col => {
           const ds = toDateStr(col.date);
+          if (resourceNeedPrototype) {
+            return Boolean(RUNTIME_ABSENCE_SHIFTS[`${emp.id}|${ds}`]) || resourceNeeds.some(need =>
+              need.personId === emp.id && need.dateStr === ds && need.status !== 'Borttaget',
+            );
+          }
           return vacancyKeys.includes(`${emp.id}|${ds}`) &&
             !fills.some(f => f.personId === emp.id && f.dateStr === ds);
         })
       );
     }
     return list;
-  }, [employees, selectedGroups, textFilter, showVacancies, columns, fills, vacancyKeys]);
+  }, [employees, selectedGroups, textFilter, showVacancies, columns, fills, vacancyKeys, resourceNeedPrototype, resourceNeeds]);
 
   const positiveResponseCount = resourceOrders.reduce((count, order) => {
     if (order.status === 'Tillsatt' || order.status === 'Avbruten') return count;
@@ -2204,11 +2388,12 @@ export const Schema = ({
         {columns.map((col, index) => {
           const summary = renderPresenceCell(group.personIds, col);
           const belowMinimum = !hideMinimumStaffing && teamBelowMinimum(group, col);
+          const pastOrganisationCell = resourceNeedPrototype && toDateStr(col.date) < TODAY_STR;
           const coverageTotal = Math.max(1, summary.present + summary.absent);
           const presentRatio = summary.present / coverageTotal * 100;
           const absentRatio = (summary.present + summary.absent) / coverageTotal * 100;
           return (
-            <td key={index} className={['schema-day-cell', 'schema-org-summary-cell', col.isWeekend ? 'schema-weekend-cell' : '', toDateStr(col.date) === TODAY_STR ? 'schema-today-col' : '', belowMinimum ? 'schema-org-under-minimum' : ''].filter(Boolean).join(' ')} title={belowMinimum ? 'Ett eller flera team ligger under minimibemanning' : undefined}>
+            <td key={index} className={['schema-day-cell', 'schema-org-summary-cell', col.isWeekend ? 'schema-weekend-cell' : '', toDateStr(col.date) === TODAY_STR ? 'schema-today-col' : '', pastOrganisationCell ? 'schema-org-past-cell' : '', belowMinimum ? 'schema-org-under-minimum' : ''].filter(Boolean).join(' ')} title={belowMinimum ? 'Ett eller flera team ligger under minimibemanning' : undefined}>
               {useAlternativeOrganisationVisualization ? (
                 <div className="schema-org-coverage-content" aria-label={`${summary.present} på plats, ${summary.absent} frånvarande, ${summary.pool} i pool`}>
                   <div
@@ -2293,6 +2478,37 @@ export const Schema = ({
   };
 
   // ── Handlers: sub panel ──
+  const createResourceNeed = useCallback((personId: string, dateStr: string, shift: Shift, reason?: AbsenceReason, source: 'frånvaro' | 'pass' = 'pass') => {
+    if (!resourceNeedPrototype) return;
+    const employee = employees.find(item => item.id === personId);
+    if (!employee) return;
+    const id = `resource-need-${personId}-${dateStr}`;
+    setResourceNeeds(current => {
+      const existing = current.find(need => need.id === id);
+      if (existing?.status === 'Öppet' || existing?.status === 'Tillsatt') return current;
+      const next = current.filter(need => need.id !== id);
+      return [...next, {
+        id,
+        personId,
+        personName: employee.name,
+        role: employee.role,
+        dateStr,
+        shift,
+        reason,
+        source,
+        status: 'Öppet' as const,
+        createdBy: 'Du',
+        handledBy: 'Lena Sjöberg',
+      }];
+    });
+    setVacancyKeys(previous => previous.includes(`${personId}|${dateStr}`) ? previous : [...previous, `${personId}|${dateStr}`]);
+    addResourceNeedActivity(id, {
+      type: 'status', author: 'Du', initials: 'JV', time: 'Just nu',
+      text: 'Resursbehov skapades',
+      detail: `${employee.name} · ${dateStr} · ${shift.start}–${shift.end}${reason ? ` · ${reason}` : ''}`,
+    });
+  }, [addResourceNeedActivity, employees, resourceNeedPrototype]);
+
   const handleOpenVacancyPanel = useCallback((personId: string, dateStr: string) => {
     const emp   = employees.find(e => e.id === personId);
     const shift = RUNTIME_ABSENCE_SHIFTS[`${personId}|${dateStr}`];
@@ -2393,6 +2609,32 @@ export const Schema = ({
     setSubPanelOpen(true);
   }, []);
 
+  const handleOpenResourceNeedAssignment = useCallback((need: ResourceNeed) => {
+    setResourceNeedAssignmentId(need.id);
+    setSubPanelState({
+      personId: need.personId,
+      dateStr: need.dateStr,
+      shift: need.shift,
+      fillType: 'substitute',
+      targetPersonName: need.personName,
+      targetUnit: need.role,
+    });
+    setSubPanelBrowseAll(false);
+    setSubPanelOpen(true);
+  }, []);
+
+  const handleCreateResourceOrderForNeed = useCallback((need: ResourceNeed) => {
+    setResourceNeedOrderTargetId(need.id);
+    setResourceOrderDialogState({
+      personId: need.personId,
+      personName: need.personName,
+      role: need.role,
+      dateStr: need.dateStr,
+      shift: need.shift,
+      resourceType: 'vikarie',
+    });
+  }, []);
+
   // ── Handlers: assign ──
   const openConfirm = useCallback((subs: SubstituteCandidate[], personId: string, dateStr: string, shift: Shift, fillType: 'substitute'|'extra') => {
     const employee = employees.find(item => item.id === personId);
@@ -2427,6 +2669,32 @@ export const Schema = ({
 
   const handleConfirm = useCallback((_msg: string) => {
     if (!confirmState) return;
+    if (resourceNeedAssignmentId) {
+      const need = resourceNeeds.find(item => item.id === resourceNeedAssignmentId);
+      if (!need) return;
+      const selectedNames = confirmState.substitutes.map(sub => sub.name).join(' · ');
+      setFills(previous => [
+        ...previous.filter(fill => !(fill.personId === need.personId && fill.dateStr === need.dateStr)),
+        ...confirmState.substitutes.map(sub => ({
+          personId: need.personId,
+          dateStr: need.dateStr,
+          fillType: 'substitute' as const,
+          person: { name: sub.name, role: sub.role },
+        })),
+      ]);
+      setResourceNeeds(previous => previous.map(item => item.id === need.id
+        ? { ...item, status: 'Tillsatt' as const, assignedSubstituteId: confirmState.substitutes[0]?.id }
+        : item));
+      addResourceNeedActivity(need.id, {
+        type: 'assignment', author: 'Du', initials: 'JV', time: 'Just nu',
+        text: confirmState.substitutes.length === 1 ? 'Resursbehov tillsattes' : 'Resursbehov tillsattes med flera vikarier',
+        detail: `${selectedNames} · ${need.shift.start}–${need.shift.end}`,
+      });
+      setResourceNeedAssignmentId(null);
+      setConfirmState(null);
+      setSubPanelOpen(false);
+      return;
+    }
     if (orderAssignment) {
       const selectedNames = confirmState.substitutes.map(sub => sub.name).join(' · ');
       setFills(previous => [
@@ -2461,7 +2729,7 @@ export const Schema = ({
     });
     setConfirmState(null);
     setSubPanelOpen(false);
-  }, [confirmState, orderAssignment, addOrderActivity]);
+  }, [addOrderActivity, addResourceNeedActivity, confirmState, orderAssignment, resourceNeedAssignmentId, resourceNeeds]);
 
   const handleCancelConfirm = useCallback(() => setConfirmState(null), []);
 
@@ -2552,6 +2820,31 @@ export const Schema = ({
   const handleConfirmResourceOrder = useCallback((orderedShift: Shift, _msg: string) => {
     if (!resourceOrderDialogState) return;
     const { personId, personName, role, dateStr, resourceType } = resourceOrderDialogState;
+    if (resourceNeedOrderTargetId) {
+      const need = resourceNeeds.find(item => item.id === resourceNeedOrderTargetId);
+      if (!need) return;
+      const id = `resource-order-${need.id}`;
+      setResourceOrders(previous => previous.some(order => order.id === id) ? previous : [...previous, {
+        id,
+        personId: need.personId,
+        personName: need.personName,
+        role: need.role,
+        dateStr: need.dateStr,
+        shift: orderedShift,
+        resourceType: 'vikarie',
+        status: 'Beställd',
+        orderedBy: 'Maja Andersson',
+        handledBy: 'Lena Sjöberg',
+        invitedSubstitutes: [],
+      }]);
+      addResourceNeedActivity(need.id, {
+        type: 'status', author: 'Du', initials: 'JV', time: 'Just nu',
+        text: 'Resurs beställd', detail: `${need.personName} · ${need.dateStr} · ${orderedShift.start}–${orderedShift.end}`,
+      });
+      setResourceNeedOrderTargetId(null);
+      setResourceOrderDialogState(null);
+      return;
+    }
     const id = `${personId}-${dateStr}-${resourceType}`;
     setResourceOrders(previous => {
       if (previous.some(order => order.id === id)) return previous;
@@ -2574,7 +2867,7 @@ export const Schema = ({
       text: 'Beställningen skapades', detail: `${personName} · ${dateStr} · ${orderedShift.start}–${orderedShift.end}`,
     });
     setResourceOrderDialogState(null);
-  }, [resourceOrderDialogState, addOrderActivity]);
+  }, [addOrderActivity, addResourceNeedActivity, resourceNeedOrderTargetId, resourceNeedPrototype, resourceNeeds, resourceOrderDialogState]);
 
   const handleCancelResourceOrder = useCallback(() => setResourceOrderDialogState(null), []);
 
@@ -2610,6 +2903,12 @@ export const Schema = ({
       handleOpenExtraPanel(detailState.empId, detailState.dateStr);
     }
   }, [addPassActivity, detailState, handleOpenExtraPanel, handleOpenVacancyPanel]);
+
+  const handlePassCreateResourceNeed = useCallback(() => {
+    if (!detailState || !resourceNeedPrototype) return;
+    createResourceNeed(detailState.empId, detailState.dateStr, detailState.shift, undefined, 'pass');
+    setDetailState(null);
+  }, [createResourceNeed, detailState, resourceNeedPrototype]);
 
   const handlePassCreateOrder = useCallback(() => {
     if (!detailState) return;
@@ -2725,6 +3024,26 @@ export const Schema = ({
     }
   }, [resourceOrders, addOrderActivity]);
 
+  const handleResourceNeedAction = useCallback((needId: string, action: ResourceNeedAction) => {
+    const need = resourceNeeds.find(item => item.id === needId);
+    if (!need) return;
+    if (action.id === 'remove') {
+      setResourceNeeds(previous => previous.map(item => item.id === needId ? { ...item, status: 'Borttaget' as const } : item));
+      setVacancyKeys(previous => previous.filter(key => key !== `${need.personId}|${need.dateStr}`));
+      addResourceNeedActivity(needId, {
+        type: 'status', author: 'Du', initials: 'JV', time: 'Just nu',
+        text: 'Resursbehovet togs bort', detail: `${need.personName} · ${need.dateStr}`,
+      });
+      if (resourceNeedDetail?.id === needId) setResourceNeedDetail(null);
+      return;
+    }
+    if (action.id === 'assign') {
+      handleOpenResourceNeedAssignment(need);
+      return;
+    }
+    if (action.id === 'order') handleCreateResourceOrderForNeed(need);
+  }, [addResourceNeedActivity, handleCreateResourceOrderForNeed, handleOpenResourceNeedAssignment, resourceNeedDetail, resourceNeeds]);
+
   const handleCreateAbsence = useCallback(() => {
     if (!absenceDialogState) return;
     const { personId, personName, startDate, endDate, reason } = absenceDialogState;
@@ -2752,11 +3071,14 @@ export const Schema = ({
         };
         addPassActivity(key, activity);
         addPersonActivity(personId, activity);
+        if (resourceNeedPrototype && reason === 'Sjuk') {
+          createResourceNeed(personId, dateStr, shift, reason, 'frånvaro');
+        }
       }
     }
     setAbsenceDialogState(null);
     setAbsenceVersion(version => version + 1);
-  }, [absenceDialogState, addPassActivity, addPersonActivity]);
+  }, [absenceDialogState, addPassActivity, addPersonActivity, createResourceNeed, resourceNeedPrototype]);
 
   const handleContextAction = useCallback((event: { itemData?: ContextAction }) => {
     const target = ctxRef.current;
@@ -2765,6 +3087,12 @@ export const Schema = ({
 
     if (action === 'make-vacancy') {
       const key = `${target.personId}|${target.dateStr}`;
+      const targetShift = getCellShift(target.personId, parseDate(target.dateStr), 'alla');
+      if (resourceNeedPrototype && targetShift) {
+        if (RUNTIME_ABSENCE_SHIFTS[key] && RUNTIME_ABSENCE_REASONS[key] !== 'Sjuk') return;
+        createResourceNeed(target.personId, target.dateStr, targetShift, RUNTIME_ABSENCE_REASONS[key], RUNTIME_ABSENCE_SHIFTS[key] ? 'frånvaro' : 'pass');
+        return;
+      }
       setVacancyKeys(previous => previous.includes(key) ? previous : [...previous, key]);
       const employee = employees.find(emp => emp.id === target.personId);
       const shift = getCellShift(target.personId, parseDate(target.dateStr), 'alla');
@@ -2780,6 +3108,11 @@ export const Schema = ({
       return;
     }
     if (action === 'primary') {
+      if (resourceNeedPrototype) {
+        const shift = getCellShift(target.personId, parseDate(target.dateStr), 'alla');
+        if (shift) createResourceNeed(target.personId, target.dateStr, shift, undefined, 'pass');
+        return;
+      }
       if (target.type === 'vacant') handleOpenVacancyPanel(target.personId, target.dateStr);
       else handleOpenExtraPanel(target.personId, target.dateStr);
       return;
@@ -2824,7 +3157,7 @@ export const Schema = ({
         getColorScheme(target.personId, target.dateStr, fills, vacancyKeys),
       );
     }
-  }, [addPassActivity, employees, fills, handleOpenDetail, handleOpenExtraPanel, handleOpenVacancyPanel, handleOpenResourceOrderDialog, navigateTo, openSicknessDialog, vacancyKeys]);
+  }, [addPassActivity, createResourceNeed, employees, fills, handleOpenDetail, handleOpenExtraPanel, handleOpenVacancyPanel, handleOpenResourceOrderDialog, navigateTo, openSicknessDialog, resourceNeedPrototype, vacancyKeys]);
 
   const handlePersonContextAction = useCallback((event: { itemData?: { id?: string } }) => {
     if (!personContextId) return;
@@ -2871,6 +3204,23 @@ export const Schema = ({
     const fillType = vacancyKeys.includes(`${personId}|${dateStr}`) ? 'substitute' : 'extra';
     openConfirm(selected, personId, dateStr, shift, fillType);
   }, [subPanelOpen, openConfirm, vacancyKeys]);
+
+  const handleSchedulePassDragStart = useCallback((event: React.DragEvent, personId: string, dateStr: string, shift: Shift) => {
+    if (!resourceNeedPrototype) return;
+    event.dataTransfer.setData('resourceNeedPass', JSON.stringify({ personId, dateStr, shift }));
+    event.dataTransfer.effectAllowed = 'copy';
+  }, [resourceNeedPrototype]);
+
+  const handleResourceNeedDrop = useCallback((event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    if (!resourceNeedPrototype) return;
+    try {
+      const target = JSON.parse(event.dataTransfer.getData('resourceNeedPass')) as { personId?: string; dateStr?: string; shift?: Shift };
+      if (target.personId && target.dateStr && target.shift) createResourceNeed(target.personId, target.dateStr, target.shift, undefined, 'pass');
+    } catch {
+      // Ignore drops from other draggable elements.
+    }
+  }, [createResourceNeed, resourceNeedPrototype]);
 
   // ── Sub rows (substitutes / extra staff) ──
   const getSubRows = useCallback((empId: string) =>
@@ -2955,12 +3305,24 @@ export const Schema = ({
 
           {/* Checkboxes */}
           <div className="schema-filter-checks">
-            <CheckBox value={showVacancies} onValueChanged={e => setShowVacancies(e.value)} text="Visa bara vakanser" />
+            <CheckBox value={showVacancies} onValueChanged={e => setShowVacancies(e.value)} text={resourceNeedPrototype ? 'Visa frånvaro och resursbehov' : 'Visa bara vakanser'} />
+            {resourceNeedPrototype && (
+              <div className="schema-orders-toggle">
+                <CheckBox value={showResourceNeeds} onValueChanged={e => {
+                  const visible = Boolean(e.value);
+                  setShowResourceNeeds(visible);
+                  if (visible) setShowOrders(false);
+                }} text="Visa resursbehov" />
+                <span className="schema-orders-count schema-resource-needs-count">{resourceNeeds.filter(need => need.status !== 'Borttaget').length}</span>
+              </div>
+            )}
             <div className="schema-orders-toggle">
               <CheckBox
                 value={showOrders}
                 onValueChanged={e => {
-                  setShowOrders(Boolean(e.value));
+                  const visible = Boolean(e.value);
+                  setShowOrders(visible);
+                  if (visible && resourceNeedPrototype) setShowResourceNeeds(false);
                 }}
                 text="Visa beställningar"
               />
@@ -3120,6 +3482,8 @@ export const Schema = ({
                                 {shift && (
                                   <div
                                     className={['schema-ctx-wrapper', ctxType ? `schema-ctx-${ctxType}` : '', subPanelOpen ? 'schema-drop-target' : ''].filter(Boolean).join(' ')}
+                                    draggable={resourceNeedPrototype}
+                                    onDragStart={event => handleSchedulePassDragStart(event, emp.id, ds, shift)}
                                     data-person-id={ctxType ? emp.id : undefined}
                                     data-date-str={ctxType  ? ds     : undefined}
                                     data-ctx-type={ctxType  ? ctxType : undefined}
@@ -3127,7 +3491,7 @@ export const Schema = ({
                                     onDragOver={handleCellDragOver}
                                     onDrop={e => handleCellDrop(e, emp.id, ds, shift)}
                                   >
-                                    <ShiftMonthCell shift={shift} color={color} passInfo={passInfo} isAkut={akut} orderedBy={resourceOrder?.orderedBy} />
+                                    <ShiftMonthCell shift={shift} color={color} passInfo={passInfo} isAkut={akut} orderedBy={resourceOrder?.orderedBy} resourceNeedMode={resourceNeedPrototype} />
                                   </div>
                                 )}
                               </td>
@@ -3150,6 +3514,8 @@ export const Schema = ({
                               {shift && (
                                 <div
                                   className={['schema-ctx-wrapper', ctxType ? `schema-ctx-${ctxType}` : '', subPanelOpen ? 'schema-drop-target' : ''].filter(Boolean).join(' ')}
+                                  draggable={resourceNeedPrototype}
+                                  onDragStart={event => handleSchedulePassDragStart(event, emp.id, ds, shift)}
                                   data-person-id={ctxType ? emp.id  : undefined}
                                   data-date-str={ctxType  ? ds      : undefined}
                                   data-ctx-type={ctxType  ? ctxType : undefined}
@@ -3157,7 +3523,7 @@ export const Schema = ({
                                   onDragOver={handleCellDragOver}
                                   onDrop={e => handleCellDrop(e, emp.id, ds, shift)}
                                 >
-                                  <ShiftDayCell shift={shift} color={color} passInfo={passInfo} isAkut={akut} orderedBy={resourceOrder?.orderedBy} />
+                                  <ShiftDayCell shift={shift} color={color} passInfo={passInfo} isAkut={akut} orderedBy={resourceOrder?.orderedBy} resourceNeedMode={resourceNeedPrototype} />
                                 </div>
                               )}
                             </td>
@@ -3202,6 +3568,7 @@ export const Schema = ({
             </table>
           </div>
           {showOrders && <ResourceOrdersList orders={resourceOrders} onClose={() => setShowOrders(false)} onAction={handleOrderAction} onOpenDetails={setOrderDetail} onChooseSubstitute={handleOpenOrderSubstitutePanel} onShowSubstitutes={handleOpenAllSubstitutes} />}
+          {resourceNeedPrototype && showResourceNeeds && <ResourceNeedsList needs={resourceNeeds} onClose={() => setShowResourceNeeds(false)} onOpenDetails={setResourceNeedDetail} onAction={handleResourceNeedAction} onDropPass={handleResourceNeedDrop} />}
           </div>
 
           </>}
@@ -3418,13 +3785,28 @@ export const Schema = ({
             <PassDetailCard
               state={detailState}
               onSaveTime={handleUpdatePassTime}
-              onPrimaryAction={handlePassPrimaryAction}
+              onPrimaryAction={resourceNeedPrototype ? undefined : handlePassPrimaryAction}
               onCreateOrder={handlePassCreateOrder}
+              onCreateResourceNeed={handlePassCreateResourceNeed}
               onReportSick={handlePassReportSick}
               onSimulate={handlePassSimulate}
+              resourceNeedMode={resourceNeedPrototype}
             />
           ) : null}
           onPostMessage={detailState ? activity => addPassActivity(passDetailKey, activity) : undefined}
+        />
+
+        <CaseActivityModal
+          isOpen={Boolean(resourceNeedDetail)}
+          onClose={() => setResourceNeedDetail(null)}
+          contextKey={resourceNeedDetail?.id}
+          kicker="Resursbehov"
+          title={resourceNeedDetail ? `${resourceNeedDetail.personName} – resursbehov` : 'Resursbehov'}
+          description={resourceNeedDetail ? `${resourceNeedDetail.dateStr} · ${resourceNeedDetail.shift.start}–${resourceNeedDetail.shift.end}` : ''}
+          activities={resourceNeedDetail ? resourceNeedActivities[resourceNeedDetail.id] ?? [] : []}
+          includeDefaultActivities={false}
+          details={resourceNeedDetail ? <ResourceNeedDetailCard need={resourceNeedDetail} onAction={handleResourceNeedAction} /> : null}
+          onPostMessage={resourceNeedDetail ? activity => addResourceNeedActivity(resourceNeedDetail.id, activity) : undefined}
         />
 
         <CaseActivityModal

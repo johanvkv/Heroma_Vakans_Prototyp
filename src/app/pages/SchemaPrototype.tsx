@@ -12,5 +12,6 @@ export const SchemaPrototype = () => (
     breadcrumbSectionLabel="Tid & Bemanning Ny"
     hideMinimumStaffing
     useAlternativeOrganisationVisualization
+    resourceNeedPrototype
   />
 );
