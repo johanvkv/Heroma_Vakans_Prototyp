@@ -10954,6 +10954,14 @@ input.schema-sub-checkbox:checked::after {
 .schema-resource-needs-count { margin-left: 6px; }
 .schema-resource-need-row td:nth-child(2) strong,
 .schema-resource-need-row td:nth-child(2) span { display: block; }
+.schema-resource-needs-bulk-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 16px 18px;
+  border-top: 1px solid var(--border);
+}
+.schema-resource-needs-bulk-actions button:disabled { cursor: not-allowed; opacity: .5; }
 .schema-order-expand {
   width: 22px;
   margin-right: 4px;

@@ -273,6 +273,11 @@ const _pid2 = persons[2]?.id ?? '';
 const _pid3 = persons[3]?.id ?? '';
 const _pid4 = persons[4]?.id ?? '';
 const _pid5 = persons[5]?.id ?? '';
+const _pid10 = persons[10]?.id ?? '';
+const _pid12 = persons[12]?.id ?? '';
+const _pid14 = persons[14]?.id ?? '';
+const _pid16 = persons[16]?.id ?? '';
+const _pid18 = persons[18]?.id ?? '';
 
 const ABSENCE_SHIFTS: Record<string,Shift> = {
   [`${_pid0}|${TODAY_STR}`]: { type:'day',     start:'08:00', end:'17:00' },
@@ -286,6 +291,11 @@ const ABSENCE_SHIFTS: Record<string,Shift> = {
   [`${_pid4}|2026-09-06`]:   { type:'day',     start:'08:00', end:'17:00' },
   [`${_pid5}|2026-09-04`]:   { type:'night',   start:'22:00', end:'06:00' },
   [`${_pid5}|2026-09-06`]:   { type:'morning', start:'06:45', end:'15:00' },
+  [`${_pid10}|2026-09-10`]:  { type:'day',     start:'08:00', end:'17:00' },
+  [`${_pid12}|2026-09-11`]:  { type:'evening', start:'14:30', end:'22:30' },
+  [`${_pid14}|2026-09-15`]:  { type:'morning', start:'06:45', end:'15:00' },
+  [`${_pid16}|2026-09-17`]:  { type:'day',     start:'08:00', end:'17:00' },
+  [`${_pid18}|2026-09-22`]:  { type:'night',   start:'22:00', end:'06:00' },
 };
 
 // Runtime-created absences are kept alongside the seeded examples so all existing
@@ -296,6 +306,11 @@ const RUNTIME_ABSENCE_REASONS: Record<string, AbsenceReason> = {
   [`${_pid1}|2026-09-04`]: 'VAB',
   [`${_pid2}|2026-09-05`]: 'Sjuk',
   [`${_pid4}|${TODAY_STR}`]: 'Semester',
+  [`${_pid10}|2026-09-10`]: 'Sjuk',
+  [`${_pid12}|2026-09-11`]: 'Sjuk',
+  [`${_pid14}|2026-09-15`]: 'Sjuk',
+  [`${_pid16}|2026-09-17`]: 'Sjuk',
+  [`${_pid18}|2026-09-22`]: 'Sjuk',
 };
 const RUNTIME_SHIFT_OVERRIDES: Record<string, Shift> = {};
 
@@ -1793,12 +1808,14 @@ function getResourceNeedActions(need: ResourceNeed): ResourceNeedAction[] {
   ];
 }
 
-function ResourceNeedsList({ needs, onClose, onOpenDetails, onAction, onDropPass }: {
+function ResourceNeedsList({ needs, onClose, onOpenDetails, onAction, onDropPass, onOrderAll, onAssignAll }: {
   needs: ResourceNeed[];
   onClose: () => void;
   onOpenDetails: (need: ResourceNeed) => void;
   onAction: (needId: string, action: ResourceNeedAction) => void;
   onDropPass: (event: React.DragEvent<HTMLDivElement>) => void;
+  onOrderAll: () => void;
+  onAssignAll: () => void;
 }) {
   const [contextNeedId, setContextNeedId] = useState<string | null>(null);
   const [contextActions, setContextActions] = useState<ResourceNeedAction[]>([]);
@@ -1849,6 +1866,14 @@ function ResourceNeedsList({ needs, onClose, onOpenDetails, onAction, onDropPass
           </tbody>
         </table>
       )}
+      <div className="schema-resource-needs-bulk-actions">
+        <button className="btn-secondary" disabled={activeNeeds.every(need => need.status !== 'Öppet')} onClick={onOrderAll}>
+          <i className="fa-solid fa-cart-shopping" /> Beställ alla
+        </button>
+        <button className="btn-primary" disabled={activeNeeds.every(need => need.status !== 'Öppet')} onClick={onAssignAll}>
+          <i className="fa-solid fa-robot" /> Tillsätt alla
+        </button>
+      </div>
       <ContextMenu
         target=".schema-resource-need-row"
         dataSource={contextActions}
@@ -3050,6 +3075,60 @@ export const Schema = ({
     if (action.id === 'order') handleCreateResourceOrderForNeed(need);
   }, [addResourceNeedActivity, handleCreateResourceOrderForNeed, handleOpenResourceNeedAssignment, resourceNeedDetail, resourceNeeds]);
 
+  const handleOrderAllResourceNeeds = useCallback(() => {
+    const openNeeds = resourceNeeds.filter(need => need.status === 'Öppet');
+    if (openNeeds.length === 0) return;
+    setResourceOrders(previous => {
+      const existingIds = new Set(previous.map(order => order.id));
+      const newOrders = openNeeds
+        .map(need => ({
+          id: `resource-order-${need.id}`,
+          personId: need.personId,
+          personName: need.personName,
+          role: need.role,
+          dateStr: need.dateStr,
+          shift: need.shift,
+          resourceType: 'vikarie' as const,
+          status: 'Beställd' as const,
+          orderedBy: 'Maja Andersson',
+          handledBy: 'Lena Sjöberg',
+          invitedSubstitutes: [],
+        }))
+        .filter(order => !existingIds.has(order.id));
+      return [...previous, ...newOrders];
+    });
+    openNeeds.forEach(need => addResourceNeedActivity(need.id, {
+      type: 'status', author: 'Du', initials: 'JV', time: 'Just nu',
+      text: 'Resurs beställd', detail: `${need.personName} · ${need.dateStr} · ${need.shift.start}–${need.shift.end}`,
+    }));
+  }, [addResourceNeedActivity, resourceNeeds]);
+
+  const handleAssignAllResourceNeeds = useCallback(() => {
+    const openNeeds = resourceNeeds.filter(need => need.status === 'Öppet');
+    if (openNeeds.length === 0) return;
+    const assignments = openNeeds.map((need, index) => ({
+      need,
+      substitute: SUBSTITUTE_CANDIDATES[index % SUBSTITUTE_CANDIDATES.length],
+    }));
+    setFills(previous => [
+      ...previous.filter(fill => !assignments.some(({ need }) => fill.personId === need.personId && fill.dateStr === need.dateStr)),
+      ...assignments.map(({ need, substitute }) => ({
+        personId: need.personId,
+        dateStr: need.dateStr,
+        fillType: 'substitute' as const,
+        person: { name: substitute.name, role: substitute.role },
+      })),
+    ]);
+    setResourceNeeds(previous => previous.map(need => {
+      const assignment = assignments.find(item => item.need.id === need.id);
+      return assignment ? { ...need, status: 'Tillsatt' as const, assignedSubstituteId: assignment.substitute.id } : need;
+    }));
+    assignments.forEach(({ need, substitute }) => addResourceNeedActivity(need.id, {
+      type: 'assignment', author: 'Systemet', initials: 'AI', time: 'Just nu',
+      text: 'Resursbehov tillsattes automatiskt', detail: `${substitute.name} · ${substitute.role}`,
+    }));
+  }, [addResourceNeedActivity, resourceNeeds]);
+
   const handleCreateAbsence = useCallback(() => {
     if (!absenceDialogState) return;
     const { personId, personName, startDate, endDate, reason } = absenceDialogState;
@@ -3259,7 +3338,7 @@ export const Schema = ({
             </div>
           ) : activeView === 'resource-needs' ? (
             <div className="schema-orders-page-view">
-              <ResourceNeedsList needs={resourceNeeds} onClose={() => setActiveView('schema')} onOpenDetails={setResourceNeedDetail} onAction={handleResourceNeedAction} onDropPass={handleResourceNeedDrop} />
+              <ResourceNeedsList needs={resourceNeeds} onClose={() => setActiveView('schema')} onOpenDetails={setResourceNeedDetail} onAction={handleResourceNeedAction} onDropPass={handleResourceNeedDrop} onOrderAll={handleOrderAllResourceNeeds} onAssignAll={handleAssignAllResourceNeeds} />
             </div>
           ) : <>
 
@@ -3579,7 +3658,7 @@ export const Schema = ({
             </table>
           </div>
           {showOrders && <ResourceOrdersList orders={resourceOrders} onClose={() => setShowOrders(false)} onAction={handleOrderAction} onOpenDetails={setOrderDetail} onChooseSubstitute={handleOpenOrderSubstitutePanel} onShowSubstitutes={handleOpenAllSubstitutes} />}
-          {resourceNeedPrototype && showResourceNeeds && <ResourceNeedsList needs={resourceNeeds} onClose={() => setShowResourceNeeds(false)} onOpenDetails={setResourceNeedDetail} onAction={handleResourceNeedAction} onDropPass={handleResourceNeedDrop} />}
+          {resourceNeedPrototype && showResourceNeeds && <ResourceNeedsList needs={resourceNeeds} onClose={() => setShowResourceNeeds(false)} onOpenDetails={setResourceNeedDetail} onAction={handleResourceNeedAction} onDropPass={handleResourceNeedDrop} onOrderAll={handleOrderAllResourceNeeds} onAssignAll={handleAssignAllResourceNeeds} />}
           </div>
 
           </>}
