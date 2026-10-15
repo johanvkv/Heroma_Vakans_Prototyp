@@ -96,7 +96,7 @@ export const VikarieUrvalTest = () => {
   const groupCount = (group: PriorityGroup) => filteredCandidates.filter((candidate) => candidate.priorityGroup === group).length;
   const breadcrumbItems: BreadcrumbItem[] = [
     { label: 'Heroma', href: '/' },
-    { label: 'Vikariehantering' },
+    { label: 'Testa urval' },
     { label: 'Urvalstest', isActive: true },
   ];
 

@@ -5,4 +5,8 @@
  * schedule route. React creates a separate component instance, so all local
  * filters, dialogs and schedule changes are isolated from the original page.
  */
-export { Schema as SchemaPrototype } from './Schema';
+import { Schema } from './Schema';
+
+export const SchemaPrototype = () => (
+  <Schema breadcrumbSectionLabel="Tid & Bemanning Ny" />
+);

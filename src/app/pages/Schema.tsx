@@ -1760,11 +1760,15 @@ function OrderDetailCard({ order, onChooseSubstitute, onAction, onSaveTime }: {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export const Schema = () => {
+interface SchemaProps {
+  breadcrumbSectionLabel?: string;
+}
+
+export const Schema = ({ breadcrumbSectionLabel = 'Tid & Bemanning' }: SchemaProps) => {
   const navigateTo = useNavigate();
   const breadcrumbItems: BreadcrumbItem[] = [
     { label: 'Heroma', href: '/' },
-    { label: 'Tid & Bemanning' },
+    { label: breadcrumbSectionLabel },
     { label: 'Schema', isActive: true },
   ];
 
