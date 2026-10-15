@@ -147,7 +147,7 @@ interface OrderContextAction {
   substituteId?: string;
   beginGroup?: boolean;
 }
-type ResourceNeedActionId = 'remove' | 'assign' | 'order';
+type ResourceNeedActionId = 'open' | 'remove' | 'assign' | 'order';
 interface ResourceNeedAction { id: ResourceNeedActionId; text: string; icon: string; }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -1469,7 +1469,7 @@ function PassDetailCard({ state, onSaveTime, onPrimaryAction, onCreateOrder, onC
         <div><dt>Status</dt><dd><span className={`schema-detail-status schema-detail-status-${state.color}`}>{statusLabel}</span></dd></div>
       </dl>
       {!isPast && <div className="order-detail-actions">
-        {resourceNeedMode && onCreateResourceNeed && !isVacant && !isAbsent && <button className="btn-primary" onClick={onCreateResourceNeed}><i className="fa-solid fa-user-clock" /> Skapa resursbehov</button>}
+        {resourceNeedMode && onCreateResourceNeed && state.color === 'normal' && <button className="btn-primary" onClick={onCreateResourceNeed}><i className="fa-solid fa-user-clock" /> Skapa resursbehov</button>}
         {!resourceNeedMode && primaryLabel && onPrimaryAction && <button className="btn-primary" onClick={onPrimaryAction}><i className={`fa-solid ${primaryIcon}`} /> {primaryLabel}</button>}
         <button className="btn-secondary" onClick={onCreateOrder}><i className="fa-solid fa-cart-shopping" /> Beställ resurs</button>
         {!isAbsent && !isVacant && <button className="btn-secondary" onClick={onReportSick}><i className="fa-solid fa-calendar-xmark" /> Sjukanmäl</button>}
@@ -1786,6 +1786,7 @@ function OrderDetailCard({ order, onChooseSubstitute, onAction, onSaveTime }: {
 function getResourceNeedActions(need: ResourceNeed): ResourceNeedAction[] {
   if (need.status === 'Borttaget') return [];
   return [
+    { id: 'open' as const, text: 'Öppna', icon: 'arrow-up-right-from-square' },
     ...(need.status !== 'Tillsatt' ? [{ id: 'assign' as const, text: 'Tillsätt', icon: 'user-check' }] : []),
     { id: 'order' as const, text: 'Beställ', icon: 'cart-shopping' },
     { id: 'remove' as const, text: 'Ta bort resursbehov', icon: 'ban' },
@@ -1917,7 +1918,7 @@ export const Schema = ({
   const [showVacancies,  setShowVacancies]  = useState(false);
   const [showOrders,     setShowOrders]     = useState(false);
   const [showResourceNeeds, setShowResourceNeeds] = useState(false);
-  const [activeView,     setActiveView]     = useState<'schema' | 'orders'>('schema');
+  const [activeView,     setActiveView]     = useState<'schema' | 'orders' | 'resource-needs'>('schema');
   const [viewStart, setViewStart] = useState<Date>(() => monWeekStart(new Date(TODAY_STR)));
 
   // ── Fills ──
@@ -3028,6 +3029,10 @@ export const Schema = ({
   const handleResourceNeedAction = useCallback((needId: string, action: ResourceNeedAction) => {
     const need = resourceNeeds.find(item => item.id === needId);
     if (!need) return;
+    if (action.id === 'open') {
+      setResourceNeedDetail(need);
+      return;
+    }
     if (action.id === 'remove') {
       setResourceNeeds(previous => previous.map(item => item.id === needId ? { ...item, status: 'Borttaget' as const } : item));
       setVacancyKeys(previous => previous.filter(key => key !== `${need.personId}|${need.dateStr}`));
@@ -3238,18 +3243,23 @@ export const Schema = ({
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <PageLayout title={activeView === 'schema' ? 'Schema' : 'Beställningar'} breadcrumbItems={breadcrumbItems}>
+    <PageLayout title={activeView === 'schema' ? 'Schema' : activeView === 'orders' ? 'Beställningar' : 'Resursbehov'} breadcrumbItems={breadcrumbItems}>
       <div className="col-12">
         <div className={`schema-page-wrapper${subPanelOpen ? ' schema-page-has-panel' : ''}`}>
 
           <div className="schema-view-switcher" role="tablist" aria-label="Välj vy">
             <button className={activeView === 'schema' ? 'active' : ''} onClick={() => setActiveView('schema')}><i className="fa-solid fa-calendar-days" /> Schema</button>
             <button className={activeView === 'orders' ? 'active' : ''} onClick={() => setActiveView('orders')}><i className="fa-solid fa-cart-shopping" /> Beställningar <span>{resourceOrders.length}</span></button>
+            {resourceNeedPrototype && <button className={activeView === 'resource-needs' ? 'active' : ''} onClick={() => setActiveView('resource-needs')}><i className="fa-solid fa-user-clock" /> Resursbehov <span>{resourceNeeds.filter(need => need.status !== 'Borttaget').length}</span></button>}
           </div>
 
           {activeView === 'orders' ? (
             <div className="schema-orders-page-view">
               <ResourceOrdersList orders={resourceOrders} onClose={() => setActiveView('schema')} onAction={handleOrderAction} onOpenDetails={setOrderDetail} onChooseSubstitute={handleOpenOrderSubstitutePanel} onShowSubstitutes={handleOpenAllSubstitutes} />
+            </div>
+          ) : activeView === 'resource-needs' ? (
+            <div className="schema-orders-page-view">
+              <ResourceNeedsList needs={resourceNeeds} onClose={() => setActiveView('schema')} onOpenDetails={setResourceNeedDetail} onAction={handleResourceNeedAction} onDropPass={handleResourceNeedDrop} />
             </div>
           ) : <>
 

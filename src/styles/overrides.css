@@ -10918,6 +10918,25 @@ input.schema-sub-checkbox:checked::after {
 .schema-order-row { cursor: context-menu; }
 .schema-order-row:hover td { background: #f5f1fe; }
 .schema-resource-needs-list { outline: 2px dashed transparent; outline-offset: -8px; }
+.schema-schedule-area:has(> .schema-resource-needs-list) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 430px);
+  align-items: start;
+  gap: 16px;
+}
+.schema-schedule-area:has(> .schema-resource-needs-list) > .schema-table-wrapper {
+  min-width: 0;
+}
+.schema-schedule-area > .schema-resource-needs-list {
+  position: relative;
+  top: auto;
+  right: auto;
+  bottom: auto;
+  width: auto;
+  max-height: calc(100vh - 260px);
+  overflow: auto;
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.12);
+}
 .schema-resource-needs-list:has(.schema-resource-need-row) { outline-color: transparent; }
 .schema-resource-needs-list:hover { outline-color: #b9a8e8; }
 .schema-resource-needs-drop-hint {
