@@ -2392,13 +2392,14 @@ export const Schema = ({
           const coverageTotal = Math.max(1, summary.present + summary.absent);
           const presentRatio = summary.present / coverageTotal * 100;
           const absentRatio = (summary.present + summary.absent) / coverageTotal * 100;
+          const presentCoverageColor = pastOrganisationCell ? '#858585' : '#31a875';
           return (
             <td key={index} className={['schema-day-cell', 'schema-org-summary-cell', col.isWeekend ? 'schema-weekend-cell' : '', toDateStr(col.date) === TODAY_STR ? 'schema-today-col' : '', pastOrganisationCell ? 'schema-org-past-cell' : '', belowMinimum ? 'schema-org-under-minimum' : ''].filter(Boolean).join(' ')} title={belowMinimum ? 'Ett eller flera team ligger under minimibemanning' : undefined}>
               {useAlternativeOrganisationVisualization ? (
                 <div className="schema-org-coverage-content" aria-label={`${summary.present} på plats, ${summary.absent} frånvarande, ${summary.pool} i pool`}>
                   <div
                     className="schema-org-coverage-ring"
-                    style={{ background: `conic-gradient(#31a875 0 ${presentRatio}%, #d66b73 ${presentRatio}% ${absentRatio}%, #e6e6e6 ${absentRatio}% 100%)` }}
+                    style={{ background: `conic-gradient(${presentCoverageColor} 0 ${presentRatio}%, #d66b73 ${presentRatio}% ${absentRatio}%, #e6e6e6 ${absentRatio}% 100%)` }}
                   >
                     <span>{summary.present}</span>
                   </div>
