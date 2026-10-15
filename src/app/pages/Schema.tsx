@@ -1762,9 +1762,15 @@ function OrderDetailCard({ order, onChooseSubstitute, onAction, onSaveTime }: {
 
 interface SchemaProps {
   breadcrumbSectionLabel?: string;
+  hideMinimumStaffing?: boolean;
+  useAlternativeOrganisationVisualization?: boolean;
 }
 
-export const Schema = ({ breadcrumbSectionLabel = 'Tid & Bemanning' }: SchemaProps) => {
+export const Schema = ({
+  breadcrumbSectionLabel = 'Tid & Bemanning',
+  hideMinimumStaffing = false,
+  useAlternativeOrganisationVisualization = false,
+}: SchemaProps) => {
   const navigateTo = useNavigate();
   const breadcrumbItems: BreadcrumbItem[] = [
     { label: 'Heroma', href: '/' },
@@ -2197,24 +2203,40 @@ export const Schema = ({ breadcrumbSectionLabel = 'Tid & Bemanning' }: SchemaPro
         </td>
         {columns.map((col, index) => {
           const summary = renderPresenceCell(group.personIds, col);
-          const belowMinimum = teamBelowMinimum(group, col);
+          const belowMinimum = !hideMinimumStaffing && teamBelowMinimum(group, col);
+          const coverageTotal = Math.max(1, summary.present + summary.absent);
+          const presentRatio = summary.present / coverageTotal * 100;
+          const absentRatio = (summary.present + summary.absent) / coverageTotal * 100;
           return (
             <td key={index} className={['schema-day-cell', 'schema-org-summary-cell', col.isWeekend ? 'schema-weekend-cell' : '', toDateStr(col.date) === TODAY_STR ? 'schema-today-col' : '', belowMinimum ? 'schema-org-under-minimum' : ''].filter(Boolean).join(' ')} title={belowMinimum ? 'Ett eller flera team ligger under minimibemanning' : undefined}>
-              <div className="schema-org-summary-content" aria-label={`${summary.present} på plats, ${summary.absent} frånvarande, ${summary.pool} i pool`}>
-                <div className="schema-org-summary-bar">
-                  <span className="schema-org-present-bar" style={{ width: summary.presentWidth }} />
-                  <span className="schema-org-absent-bar" style={{ width: summary.absentWidth }} />
-                  {group.kind === 'team' && <span className="schema-org-minimum-marker" style={{ left: `${minimumFor(group, selectedPass === 'alla' ? 'dag' : selectedPass) / Math.max(1, group.personIds.length) * 100}%` }} />}
+              {useAlternativeOrganisationVisualization ? (
+                <div className="schema-org-coverage-content" aria-label={`${summary.present} på plats, ${summary.absent} frånvarande, ${summary.pool} i pool`}>
+                  <div
+                    className="schema-org-coverage-ring"
+                    style={{ background: `conic-gradient(#31a875 0 ${presentRatio}%, #d66b73 ${presentRatio}% ${absentRatio}%, #e6e6e6 ${absentRatio}% 100%)` }}
+                  >
+                    <span>{summary.present}</span>
+                  </div>
+                  <span className="schema-org-summary-numbers"><b>{summary.present} av {group.personIds.length}</b></span>
+                  <span className="schema-org-coverage-label">på plats</span>
                 </div>
-                <span className="schema-org-summary-numbers"><b>{summary.present} av {group.personIds.length}</b></span>
-                <span
-                  className={`schema-org-pool-count${summary.pool === 0 ? ' schema-org-pool-count-empty' : ''}`}
-                  aria-label={summary.pool > 0 ? `${summary.pool} samverkanspass` : undefined}
-                  aria-hidden={summary.pool === 0 ? true : undefined}
-                >
-                  {Array.from({ length: Math.min(summary.pool, 4) }, (_, dotIndex) => <i key={dotIndex} />)}
-                </span>
-              </div>
+              ) : (
+                <div className="schema-org-summary-content" aria-label={`${summary.present} på plats, ${summary.absent} frånvarande, ${summary.pool} i pool`}>
+                  <div className="schema-org-summary-bar">
+                    <span className="schema-org-present-bar" style={{ width: summary.presentWidth }} />
+                    <span className="schema-org-absent-bar" style={{ width: summary.absentWidth }} />
+                    {group.kind === 'team' && <span className="schema-org-minimum-marker" style={{ left: `${minimumFor(group, selectedPass === 'alla' ? 'dag' : selectedPass) / Math.max(1, group.personIds.length) * 100}%` }} />}
+                  </div>
+                  <span className="schema-org-summary-numbers"><b>{summary.present} av {group.personIds.length}</b></span>
+                  <span
+                    className={`schema-org-pool-count${summary.pool === 0 ? ' schema-org-pool-count-empty' : ''}`}
+                    aria-label={summary.pool > 0 ? `${summary.pool} samverkanspass` : undefined}
+                    aria-hidden={summary.pool === 0 ? true : undefined}
+                  >
+                    {Array.from({ length: Math.min(summary.pool, 4) }, (_, dotIndex) => <i key={dotIndex} />)}
+                  </span>
+                </div>
+              )}
             </td>
           );
         })}
@@ -3195,7 +3217,7 @@ export const Schema = ({ breadcrumbSectionLabel = 'Tid & Bemanning' }: SchemaPro
             dataSource={[
               { id: 'open' as OrganisationActionId, text: 'Öppna (fäll ut)', icon: 'chevron-down' },
               { id: 'close' as OrganisationActionId, text: 'Stäng (fäll ihop)', icon: 'chevron-right' },
-              ...(organisationMenu?.kind === 'team'
+              ...(!hideMinimumStaffing && organisationMenu?.kind === 'team'
                 ? [{ id: 'settings' as OrganisationActionId, text: 'Inställningar', icon: 'gear', beginGroup: true }]
                 : []),
             ]}
@@ -3272,6 +3294,7 @@ export const Schema = ({ breadcrumbSectionLabel = 'Tid & Bemanning' }: SchemaPro
             ) : null}
           />
 
+          {!hideMinimumStaffing && (
           <Popup
             visible={Boolean(organisationSettings)}
             onHiding={() => setOrganisationSettings(null)}
@@ -3324,6 +3347,7 @@ export const Schema = ({ breadcrumbSectionLabel = 'Tid & Bemanning' }: SchemaPro
               </div>
             ) : null}
           />
+          )}
         </div>
 
         {/* Substitute panel — context mode (right-click) and browse-all mode ("Visa vikarier") */}

@@ -10614,6 +10614,44 @@ input.schema-sub-checkbox:checked::after {
   justify-content: flex-start;
   gap: 3px;
 }
+.schema-org-coverage-content {
+  display: flex;
+  min-height: 40px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+}
+.schema-org-coverage-ring {
+  display: grid;
+  width: 27px;
+  height: 27px;
+  place-items: center;
+  border-radius: 50%;
+  position: relative;
+}
+.schema-org-coverage-ring::after {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  background: #faf9fd;
+}
+.schema-org-coverage-ring span {
+  position: relative;
+  z-index: 1;
+  color: #2d7d5a;
+  font-size: 9px;
+  font-weight: 700;
+}
+.schema-org-coverage-content .schema-org-summary-numbers {
+  font-size: 10px;
+}
+.schema-org-coverage-label {
+  color: #77717f;
+  font-size: 8px;
+  line-height: 1;
+}
 .schema-org-under-minimum {
   background: #ffd9dc !important;
   box-shadow: inset 0 0 0 2px #e5a2a8 !important;

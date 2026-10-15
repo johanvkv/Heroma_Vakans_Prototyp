@@ -8,5 +8,9 @@
 import { Schema } from './Schema';
 
 export const SchemaPrototype = () => (
-  <Schema breadcrumbSectionLabel="Tid & Bemanning Ny" />
+  <Schema
+    breadcrumbSectionLabel="Tid & Bemanning Ny"
+    hideMinimumStaffing
+    useAlternativeOrganisationVisualization
+  />
 );
