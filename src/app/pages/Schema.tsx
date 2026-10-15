@@ -626,7 +626,7 @@ function suitabilityScore(
 
 // ─── Shift cell sub-components ────────────────────────────────────────────────
 
-function ShiftDayCell({ shift, color, passInfo, isAkut, orderedBy, resourceNeedMode = false }: { shift: Shift; color: ColorScheme; passInfo?: string; isAkut?: boolean; orderedBy?: string; resourceNeedMode?: boolean }) {
+function ShiftDayCell({ shift, color, passInfo, isAkut, orderedBy, resourceNeedMode = false, resourceNeedCreatedBy, resourceNeedOrderedBy }: { shift: Shift; color: ColorScheme; passInfo?: string; isAkut?: boolean; orderedBy?: string; resourceNeedMode?: boolean; resourceNeedCreatedBy?: string; resourceNeedOrderedBy?: string }) {
   const cap  = `schema-col-${color}-cap`;
   const main = `schema-col-${color}-main`;
   return (
@@ -654,13 +654,15 @@ function ShiftDayCell({ shift, color, passInfo, isAkut, orderedBy, resourceNeedM
         )}
         {color === 'absence' && <span className="schema-absence-badge"><i className="fa-solid fa-user-clock" /> Frånvaro</span>}
         {color === 'vacant' && <span className="schema-vacancy-badge"><i className="fa-solid fa-user-plus" /> {resourceNeedMode ? 'Resursbehov' : 'Vakans'}</span>}
+        {resourceNeedMode && resourceNeedCreatedBy && <span className="schema-resource-need-badge"><i className="fa-solid fa-user-clock" /> Resursbehov · {resourceNeedCreatedBy}</span>}
+        {resourceNeedMode && resourceNeedOrderedBy && <span className="schema-resource-need-order-badge"><i className="fa-solid fa-cart-shopping" /> Beställd av {resourceNeedOrderedBy}</span>}
         {orderedBy && <span className="schema-order-badge" title={`Beställd av ${orderedBy}`}><i className="fa-solid fa-cart-shopping" /><span className="schema-order-badge-text">Beställd av {orderedBy}</span></span>}
       </div>
     </div>
   );
 }
 
-function ShiftMonthCell({ shift, color, passInfo, isAkut, orderedBy, resourceNeedMode = false }: { shift: Shift; color: ColorScheme; passInfo?: string; isAkut?: boolean; orderedBy?: string; resourceNeedMode?: boolean }) {
+function ShiftMonthCell({ shift, color, passInfo, isAkut, orderedBy, resourceNeedMode = false, resourceNeedCreatedBy, resourceNeedOrderedBy }: { shift: Shift; color: ColorScheme; passInfo?: string; isAkut?: boolean; orderedBy?: string; resourceNeedMode?: boolean; resourceNeedCreatedBy?: string; resourceNeedOrderedBy?: string }) {
   const cap  = `schema-col-${color}-cap`;
   const main = `schema-col-${color}-main`;
   return (
@@ -688,6 +690,8 @@ function ShiftMonthCell({ shift, color, passInfo, isAkut, orderedBy, resourceNee
         )}
         {color === 'absence' && <span className="schema-absence-badge schema-absence-badge-month" title="Frånvaro"><i className="fa-solid fa-user-clock" /></span>}
         {color === 'vacant' && <span className="schema-vacancy-badge schema-vacancy-badge-month" title={resourceNeedMode ? 'Resursbehov' : 'Vakans'}><i className="fa-solid fa-user-plus" /></span>}
+        {resourceNeedMode && resourceNeedCreatedBy && <span className="schema-resource-need-badge schema-resource-need-badge-month" title={`Resursbehov · ${resourceNeedCreatedBy}`}><i className="fa-solid fa-user-clock" /></span>}
+        {resourceNeedMode && resourceNeedOrderedBy && <span className="schema-resource-need-order-badge schema-resource-need-badge-month" title={`Beställd av ${resourceNeedOrderedBy}`}><i className="fa-solid fa-cart-shopping" /></span>}
         {orderedBy && <span className="schema-order-badge schema-order-badge-month" title={`Beställd av ${orderedBy}`}><i className="fa-solid fa-cart-shopping" /><span className="schema-order-badge-text">Beställd av {orderedBy}</span></span>}
       </div>
     </div>
@@ -1450,7 +1454,7 @@ const SHIFT_LABELS: Record<ShiftType, string> = {
   morning: 'Morgonpass', day: 'Dagpass', evening: 'Kvällspass', night: 'Nattpass',
 };
 
-function PassDetailCard({ state, onSaveTime, onPrimaryAction, onCreateOrder, onCreateResourceNeed, onReportSick, onSimulate, resourceNeedMode = false }: {
+function PassDetailCard({ state, onSaveTime, onPrimaryAction, onCreateOrder, onCreateResourceNeed, onReportSick, onSimulate, resourceNeedMode = false, resourceNeed, resourceNeedOrder, assignedPerson }: {
   state: DetailState;
   onSaveTime: (start: string, end: string) => void;
   onPrimaryAction?: () => void;
@@ -1459,6 +1463,9 @@ function PassDetailCard({ state, onSaveTime, onPrimaryAction, onCreateOrder, onC
   onReportSick: () => void;
   onSimulate: () => void;
   resourceNeedMode?: boolean;
+  resourceNeed?: ResourceNeed;
+  resourceNeedOrder?: ResourceOrder;
+  assignedPerson?: { name: string; role: string };
 }) {
   const [start, setStart] = useState(state.shift.start);
   const [end, setEnd] = useState(state.shift.end);
@@ -1482,6 +1489,9 @@ function PassDetailCard({ state, onSaveTime, onPrimaryAction, onCreateOrder, onC
         <div><dt>Pass</dt><dd><div className="order-detail-time-editor"><label>Starttid<input type="time" value={start} onChange={event => setStart(event.currentTarget.value)} /></label><span>–</span><label>Sluttid<input type="time" value={end} onChange={event => setEnd(event.currentTarget.value)} /></label>{timeChanged && <button type="button" className="btn-secondary" onClick={() => onSaveTime(start, end)}>Spara tid</button>}</div></dd></div>
         <div><dt>Passtyp</dt><dd>{SHIFT_LABELS[state.shift.type]}{getShiftPassInfo(state.empId, state.dateStr) ? ` · ${getShiftPassInfo(state.empId, state.dateStr)}` : ''}</dd></div>
         <div><dt>Status</dt><dd><span className={`schema-detail-status schema-detail-status-${state.color}`}>{statusLabel}</span></dd></div>
+        {resourceNeed && <div><dt>Resursbehov</dt><dd>{resourceNeed.createdBy}{resourceNeed.reason ? ` · ${resourceNeed.reason}` : ''}</dd></div>}
+        {resourceNeedOrder && <div><dt>Beställning</dt><dd>Beställd av {resourceNeedOrder.orderedBy} · {resourceNeedOrder.status}</dd></div>}
+        {assignedPerson && <div><dt>Tillsatt med</dt><dd>{assignedPerson.name} · {assignedPerson.role}</dd></div>}
       </dl>
       {!isPast && <div className="order-detail-actions">
         {resourceNeedMode && onCreateResourceNeed && state.color === 'normal' && <button className="btn-primary" onClick={onCreateResourceNeed}><i className="fa-solid fa-user-clock" /> Skapa resursbehov</button>}
@@ -1847,7 +1857,7 @@ function ResourceNeedsList({ needs, onClose, onOpenDetails, onAction, onDropPass
             {activeNeeds.map(need => (
               <tr
                 key={need.id}
-                className="schema-order-row schema-resource-need-row"
+                className={`schema-order-row schema-resource-need-row schema-resource-need-row-${need.source === 'frånvaro' ? 'absence' : 'extra'}`}
                 onDoubleClick={() => onOpenDetails(need)}
                 onContextMenu={event => {
                   event.preventDefault();
@@ -1856,7 +1866,7 @@ function ResourceNeedsList({ needs, onClose, onOpenDetails, onAction, onDropPass
                 }}
                 title="Dubbelklicka för detaljer eller högerklicka för åtgärder"
               >
-                <td>{need.dateStr}</td>
+                <td><span className="schema-resource-need-kind">{need.source === 'frånvaro' ? 'Frånvaro' : 'Extrapass'}</span>{need.dateStr}</td>
                 <td><strong>{need.personName}</strong><span className="schema-order-person-role">{need.role}</span></td>
                 <td>{need.reason ?? 'Pass'}</td>
                 <td><span className={`schema-order-status schema-resource-need-status-${need.status === 'Tillsatt' ? 'filled' : 'open'}`}>{need.status}</span></td>
@@ -1885,8 +1895,9 @@ function ResourceNeedsList({ needs, onClose, onOpenDetails, onAction, onDropPass
   );
 }
 
-function ResourceNeedDetailCard({ need, onAction }: {
+function ResourceNeedDetailCard({ need, order, onAction }: {
   need: ResourceNeed;
+  order?: ResourceOrder;
   onAction: (needId: string, action: ResourceNeedAction) => void;
 }) {
   return (
@@ -1901,6 +1912,7 @@ function ResourceNeedDetailCard({ need, onAction }: {
         <div><dt>Status</dt><dd><span className={`schema-order-status schema-resource-need-status-${need.status === 'Tillsatt' ? 'filled' : 'open'}`}>{need.status}</span></dd></div>
         <div><dt>Skapat av</dt><dd>{need.createdBy}</dd></div>
         <div><dt>Hanteras av</dt><dd>{need.handledBy}</dd></div>
+        {order && <div><dt>Beställning</dt><dd>Beställd av {order.orderedBy} · {order.status}</dd></div>}
       </dl>
       <div className="order-detail-actions">
         {getResourceNeedActions(need).map(action => (
@@ -2171,6 +2183,15 @@ export const Schema = ({
       .map(toDateStr);
   }, [absenceVersion, columns, period, personDetailEmployee, viewStart]);
   const passDetailKey = detailState ? `${detailState.empId}|${detailState.dateStr}` : '';
+  const passDetailResourceNeed = resourceNeedPrototype && detailState
+    ? resourceNeeds.find(need => need.personId === detailState.empId && need.dateStr === detailState.dateStr && need.status !== 'Borttaget')
+    : undefined;
+  const passDetailResourceNeedOrder = passDetailResourceNeed
+    ? resourceOrders.find(order => order.id === `resource-order-${passDetailResourceNeed.id}`)
+    : undefined;
+  const passDetailAssignedFill = detailState
+    ? fills.find(fill => fill.personId === detailState.empId && fill.dateStr === detailState.dateStr)
+    : undefined;
   const passDetailActivities = useMemo<CaseActivity[]>(() => {
     if (!detailState) return [];
     const activities: CaseActivity[] = [{
@@ -2415,22 +2436,15 @@ export const Schema = ({
           const summary = renderPresenceCell(group.personIds, col);
           const belowMinimum = !hideMinimumStaffing && teamBelowMinimum(group, col);
           const pastOrganisationCell = resourceNeedPrototype && toDateStr(col.date) < TODAY_STR;
-          const coverageTotal = Math.max(1, summary.present + summary.absent);
-          const presentRatio = summary.present / coverageTotal * 100;
-          const absentRatio = (summary.present + summary.absent) / coverageTotal * 100;
-          const presentCoverageColor = pastOrganisationCell ? '#858585' : '#31a875';
           return (
             <td key={index} className={['schema-day-cell', 'schema-org-summary-cell', col.isWeekend ? 'schema-weekend-cell' : '', toDateStr(col.date) === TODAY_STR ? 'schema-today-col' : '', pastOrganisationCell ? 'schema-org-past-cell' : '', belowMinimum ? 'schema-org-under-minimum' : ''].filter(Boolean).join(' ')} title={belowMinimum ? 'Ett eller flera team ligger under minimibemanning' : undefined}>
               {useAlternativeOrganisationVisualization ? (
                 <div className="schema-org-coverage-content" aria-label={`${summary.present} på plats, ${summary.absent} frånvarande, ${summary.pool} i pool`}>
-                  <div
-                    className="schema-org-coverage-ring"
-                    style={{ background: `conic-gradient(${presentCoverageColor} 0 ${presentRatio}%, #d66b73 ${presentRatio}% ${absentRatio}%, #e6e6e6 ${absentRatio}% 100%)` }}
-                  >
-                    <span>{summary.present}</span>
+                  <div className="schema-org-coverage-numbers" aria-label={`${summary.present} av ${group.personIds.length} på plats`}>
+                    <span className="schema-org-coverage-present">{summary.present}</span>
+                    <span className={summary.present < group.personIds.length ? 'schema-org-coverage-target-missing' : 'schema-org-coverage-target'}>{group.personIds.length}</span>
                   </div>
-                  <span className="schema-org-summary-numbers"><b>{summary.present} av {group.personIds.length}</b></span>
-                  <span className="schema-org-coverage-label">på plats</span>
+                  <span className="schema-org-coverage-label">på plats / börvärde</span>
                 </div>
               ) : (
                 <div className="schema-org-summary-content" aria-label={`${summary.present} på plats, ${summary.absent} frånvarande, ${summary.pool} i pool`}>
@@ -3558,6 +3572,12 @@ export const Schema = ({
                           const passInfo = getShiftPassInfo(emp.id, ds);
                           const akut     = isAkutShift(emp.id, ds) && color === 'vacant';
                           const resourceOrder = resourceOrders.find(order => order.personId === emp.id && order.dateStr === ds);
+                          const resourceNeed = resourceNeedPrototype
+                            ? resourceNeeds.find(need => need.personId === emp.id && need.dateStr === ds && need.status !== 'Borttaget')
+                            : undefined;
+                          const resourceNeedOrder = resourceNeed
+                            ? resourceOrders.find(order => order.id === `resource-order-${resourceNeed.id}`)
+                            : undefined;
 
                           /* Month view */
                           if (viewType === 'month-columns') {
@@ -3581,7 +3601,7 @@ export const Schema = ({
                                     onDragOver={handleCellDragOver}
                                     onDrop={e => handleCellDrop(e, emp.id, ds, shift)}
                                   >
-                                    <ShiftMonthCell shift={shift} color={color} passInfo={passInfo} isAkut={akut} orderedBy={resourceOrder?.orderedBy} resourceNeedMode={resourceNeedPrototype} />
+                                    <ShiftMonthCell shift={shift} color={color} passInfo={passInfo} isAkut={akut} orderedBy={resourceOrder?.orderedBy} resourceNeedMode={resourceNeedPrototype} resourceNeedCreatedBy={resourceNeed?.createdBy} resourceNeedOrderedBy={resourceNeedOrder?.orderedBy} />
                                   </div>
                                 )}
                               </td>
@@ -3613,7 +3633,7 @@ export const Schema = ({
                                   onDragOver={handleCellDragOver}
                                   onDrop={e => handleCellDrop(e, emp.id, ds, shift)}
                                 >
-                                  <ShiftDayCell shift={shift} color={color} passInfo={passInfo} isAkut={akut} orderedBy={resourceOrder?.orderedBy} resourceNeedMode={resourceNeedPrototype} />
+                                  <ShiftDayCell shift={shift} color={color} passInfo={passInfo} isAkut={akut} orderedBy={resourceOrder?.orderedBy} resourceNeedMode={resourceNeedPrototype} resourceNeedCreatedBy={resourceNeed?.createdBy} resourceNeedOrderedBy={resourceNeedOrder?.orderedBy} />
                                 </div>
                               )}
                             </td>
@@ -3881,6 +3901,9 @@ export const Schema = ({
               onReportSick={handlePassReportSick}
               onSimulate={handlePassSimulate}
               resourceNeedMode={resourceNeedPrototype}
+              resourceNeed={passDetailResourceNeed}
+              resourceNeedOrder={passDetailResourceNeedOrder}
+              assignedPerson={passDetailAssignedFill?.person}
             />
           ) : null}
           onPostMessage={detailState ? activity => addPassActivity(passDetailKey, activity) : undefined}
@@ -3895,7 +3918,7 @@ export const Schema = ({
           description={resourceNeedDetail ? `${resourceNeedDetail.dateStr} · ${resourceNeedDetail.shift.start}–${resourceNeedDetail.shift.end}` : ''}
           activities={resourceNeedDetail ? resourceNeedActivities[resourceNeedDetail.id] ?? [] : []}
           includeDefaultActivities={false}
-          details={resourceNeedDetail ? <ResourceNeedDetailCard need={resourceNeedDetail} onAction={handleResourceNeedAction} /> : null}
+          details={resourceNeedDetail ? <ResourceNeedDetailCard need={resourceNeedDetail} order={resourceOrders.find(order => order.id === `resource-order-${resourceNeedDetail.id}`)} onAction={handleResourceNeedAction} /> : null}
           onPostMessage={resourceNeedDetail ? activity => addResourceNeedActivity(resourceNeedDetail.id, activity) : undefined}
         />
 
