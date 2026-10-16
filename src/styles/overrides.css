@@ -9732,6 +9732,12 @@ body.page-builder-fullscreen .components-layout-wrapper {
 .schema-detail-status-absence { background: #fdebec; color: #b5232d; }
 .schema-detail-status-vacant { background: #fff0ee; color: #c23131; }
 .schema-detail-status-filled { background: #eee9fb; color: #5236ab; }
+.schema-detail-status-assignment-failed { background: #fde8e7; color: #b4232d; gap: 5px; }
+.schema-assignment-failure-badge { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; padding: 2px 6px; border: 1px solid #efb4b5; border-radius: 999px; color: #b4232d; background: #fff1f1; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.schema-assignment-failure-badge-month { margin: 2px 0 0; padding: 3px; font-size: 0; }
+.schema-assignment-failure-badge-month i + i { margin-left: -1px; }
+.schema-context-menu-item { display: inline-flex; align-items: center; gap: 8px; }
+.schema-context-menu-item > i { width: 16px; text-align: center; }
 .person-detail-card select { width: 100%; padding: 7px 8px; border: 1px solid #dcd6e4; border-radius: 5px; color: #403946; background: #fff; font: inherit; font-size: 12px; }
 .person-detail-card select:focus { border-color: #987fe0; outline: 2px solid #eee9fa; }
 .person-detail-competencies { display: flex; flex-wrap: wrap; gap: 5px; }

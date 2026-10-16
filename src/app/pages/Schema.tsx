@@ -168,6 +168,16 @@ interface ContextAction {
   beginGroup?: boolean;
 }
 
+function renderSchemaContextMenuItem(item: { id?: string; text?: string; icon?: string }) {
+  const icon = item.id === 'assign-direct' ? 'robot' : item.icon ?? 'circle';
+  return (
+    <span className="schema-context-menu-item">
+      <i className={`fa-solid fa-${icon}`} aria-hidden="true" />
+      <span>{item.text}</span>
+    </span>
+  );
+}
+
 function getContextActions(type: ContextTargetType, resourceNeedMode = false, isAssigned = false): ContextAction[] {
   const directAssignment = resourceNeedMode && !isAssigned
     ? [{ id: 'assign-direct' as const, text: 'Tillsätt direkt', icon: 'robot', beginGroup: true }]
@@ -631,7 +641,7 @@ function suitabilityScore(
 
 // ─── Shift cell sub-components ────────────────────────────────────────────────
 
-function ShiftDayCell({ shift, color, passInfo, isAkut, orderedBy, resourceNeedMode = false, resourceNeedCreatedBy, resourceNeedOrderedBy }: { shift: Shift; color: ColorScheme; passInfo?: string; isAkut?: boolean; orderedBy?: string; resourceNeedMode?: boolean; resourceNeedCreatedBy?: string; resourceNeedOrderedBy?: string }) {
+function ShiftDayCell({ shift, color, passInfo, isAkut, orderedBy, resourceNeedMode = false, resourceNeedCreatedBy, resourceNeedOrderedBy, assignmentFailure }: { shift: Shift; color: ColorScheme; passInfo?: string; isAkut?: boolean; orderedBy?: string; resourceNeedMode?: boolean; resourceNeedCreatedBy?: string; resourceNeedOrderedBy?: string; assignmentFailure?: string }) {
   const cap  = `schema-col-${color}-cap`;
   const main = `schema-col-${color}-main`;
   return (
@@ -662,12 +672,13 @@ function ShiftDayCell({ shift, color, passInfo, isAkut, orderedBy, resourceNeedM
         {resourceNeedMode && resourceNeedCreatedBy && <span className="schema-resource-need-badge"><i className="fa-solid fa-user-clock" /> Resursbehov · {resourceNeedCreatedBy}</span>}
         {resourceNeedMode && resourceNeedOrderedBy && <span className="schema-resource-need-order-badge"><i className="fa-solid fa-cart-shopping" /> Beställd av {resourceNeedOrderedBy}</span>}
         {orderedBy && <span className="schema-order-badge" title={`Beställd av ${orderedBy}`}><i className="fa-solid fa-cart-shopping" /><span className="schema-order-badge-text">Beställd av {orderedBy}</span></span>}
+        {assignmentFailure && <span className="schema-assignment-failure-badge" title={assignmentFailure}><i className="fa-solid fa-robot" /><i className="fa-solid fa-triangle-exclamation" /> Kunde inte tillsättas</span>}
       </div>
     </div>
   );
 }
 
-function ShiftMonthCell({ shift, color, passInfo, isAkut, orderedBy, resourceNeedMode = false, resourceNeedCreatedBy, resourceNeedOrderedBy }: { shift: Shift; color: ColorScheme; passInfo?: string; isAkut?: boolean; orderedBy?: string; resourceNeedMode?: boolean; resourceNeedCreatedBy?: string; resourceNeedOrderedBy?: string }) {
+function ShiftMonthCell({ shift, color, passInfo, isAkut, orderedBy, resourceNeedMode = false, resourceNeedCreatedBy, resourceNeedOrderedBy, assignmentFailure }: { shift: Shift; color: ColorScheme; passInfo?: string; isAkut?: boolean; orderedBy?: string; resourceNeedMode?: boolean; resourceNeedCreatedBy?: string; resourceNeedOrderedBy?: string; assignmentFailure?: string }) {
   const cap  = `schema-col-${color}-cap`;
   const main = `schema-col-${color}-main`;
   return (
@@ -698,6 +709,7 @@ function ShiftMonthCell({ shift, color, passInfo, isAkut, orderedBy, resourceNee
         {resourceNeedMode && resourceNeedCreatedBy && <span className="schema-resource-need-badge schema-resource-need-badge-month" title={`Resursbehov · ${resourceNeedCreatedBy}`}><i className="fa-solid fa-user-clock" /></span>}
         {resourceNeedMode && resourceNeedOrderedBy && <span className="schema-resource-need-order-badge schema-resource-need-badge-month" title={`Beställd av ${resourceNeedOrderedBy}`}><i className="fa-solid fa-cart-shopping" /></span>}
         {orderedBy && <span className="schema-order-badge schema-order-badge-month" title={`Beställd av ${orderedBy}`}><i className="fa-solid fa-cart-shopping" /><span className="schema-order-badge-text">Beställd av {orderedBy}</span></span>}
+        {assignmentFailure && <span className="schema-assignment-failure-badge schema-assignment-failure-badge-month" title={assignmentFailure}><i className="fa-solid fa-robot" /><i className="fa-solid fa-triangle-exclamation" /></span>}
       </div>
     </div>
   );
@@ -1459,7 +1471,7 @@ const SHIFT_LABELS: Record<ShiftType, string> = {
   morning: 'Morgonpass', day: 'Dagpass', evening: 'Kvällspass', night: 'Nattpass',
 };
 
-function PassDetailCard({ state, onSaveTime, onPrimaryAction, onCreateOrder, onCreateResourceNeed, onReportSick, onSimulate, resourceNeedMode = false, resourceNeed, resourceNeedOrder, assignedPerson }: {
+function PassDetailCard({ state, onSaveTime, onPrimaryAction, onCreateOrder, onCreateResourceNeed, onReportSick, onSimulate, resourceNeedMode = false, resourceNeed, resourceNeedOrder, assignedPerson, assignmentFailure }: {
   state: DetailState;
   onSaveTime: (start: string, end: string) => void;
   onPrimaryAction?: () => void;
@@ -1471,6 +1483,7 @@ function PassDetailCard({ state, onSaveTime, onPrimaryAction, onCreateOrder, onC
   resourceNeed?: ResourceNeed;
   resourceNeedOrder?: ResourceOrder;
   assignedPerson?: { name: string; role: string };
+  assignmentFailure?: string;
 }) {
   const [start, setStart] = useState(state.shift.start);
   const [end, setEnd] = useState(state.shift.end);
@@ -1480,7 +1493,7 @@ function PassDetailCard({ state, onSaveTime, onPrimaryAction, onCreateOrder, onC
   const isPast   = state.color === 'past';
   const akut     = isAkutShift(state.empId, state.dateStr) && isVacant;
   const timeChanged = start !== state.shift.start || end !== state.shift.end;
-  const statusLabel = isVacant ? (resourceNeedMode ? 'Resursbehov' : (akut ? 'Akut vakans' : 'Vakans')) : isAbsent ? 'Frånvaro' : state.color === 'filled' ? 'Tillsatt' : isPast ? 'Historiskt pass' : 'Planerat';
+  const statusLabel = assignmentFailure ? 'Kunde inte tillsättas' : isVacant ? (resourceNeedMode ? 'Resursbehov' : (akut ? 'Akut vakans' : 'Vakans')) : isAbsent ? 'Frånvaro' : state.color === 'filled' ? 'Tillsatt' : isPast ? 'Historiskt pass' : 'Planerat';
   const primaryLabel = isVacant ? 'Hitta vikarie' : isAbsent ? 'Gör till vakans' : state.color === 'normal' ? 'Boka extrapass' : null;
   const primaryIcon = isVacant ? 'fa-user-plus' : isAbsent ? 'fa-user-clock' : 'fa-calendar-plus';
 
@@ -1493,7 +1506,8 @@ function PassDetailCard({ state, onSaveTime, onPrimaryAction, onCreateOrder, onC
         <div><dt>Datum</dt><dd>{fmtDay(parseDate(state.dateStr))}</dd></div>
         <div><dt>Pass</dt><dd><div className="order-detail-time-editor"><label>Starttid<input type="time" value={start} onChange={event => setStart(event.currentTarget.value)} /></label><span>–</span><label>Sluttid<input type="time" value={end} onChange={event => setEnd(event.currentTarget.value)} /></label>{timeChanged && <button type="button" className="btn-secondary" onClick={() => onSaveTime(start, end)}>Spara tid</button>}</div></dd></div>
         <div><dt>Passtyp</dt><dd>{SHIFT_LABELS[state.shift.type]}{getShiftPassInfo(state.empId, state.dateStr) ? ` · ${getShiftPassInfo(state.empId, state.dateStr)}` : ''}</dd></div>
-        <div><dt>Status</dt><dd><span className={`schema-detail-status schema-detail-status-${state.color}`}>{statusLabel}</span></dd></div>
+        <div><dt>Status</dt><dd><span className={`schema-detail-status schema-detail-status-${state.color}${assignmentFailure ? ' schema-detail-status-assignment-failed' : ''}`}><i className={assignmentFailure ? 'fa-solid fa-robot' : undefined} />{statusLabel}</span></dd></div>
+        {assignmentFailure && <div><dt>Orsak</dt><dd>{assignmentFailure}</dd></div>}
         {resourceNeed && <div><dt>Resursbehov</dt><dd>{resourceNeed.createdBy}{resourceNeed.reason ? ` · ${resourceNeed.reason}` : ''}</dd></div>}
         {resourceNeedOrder && <div><dt>Beställning</dt><dd>Beställd av {resourceNeedOrder.orderedBy} · {resourceNeedOrder.status}</dd></div>}
         {assignedPerson && <div><dt>Tillsatt med</dt><dd>{assignedPerson.name} · {assignedPerson.role}</dd></div>}
@@ -1893,6 +1907,7 @@ function ResourceNeedsList({ needs, onClose, onOpenDetails, onAction, onDropPass
       <ContextMenu
         target=".schema-resource-need-row"
         dataSource={contextActions}
+        itemRender={renderSchemaContextMenuItem}
         onItemClick={event => {
           if (contextNeedId && event.itemData) onAction(contextNeedId, event.itemData as ResourceNeedAction);
         }}
@@ -1966,6 +1981,7 @@ export const Schema = ({
 
   // ── Fills ──
   const [fills, setFills] = useState<ShiftFill[]>(INITIAL_FILLS);
+  const [assignmentFailures, setAssignmentFailures] = useState<Record<string, string>>({});
   const [resourceOrders, setResourceOrders] = useState<ResourceOrder[]>([]);
   const [resourceNeeds, setResourceNeeds] = useState<ResourceNeed[]>([]);
   const [resourceNeedDetail, setResourceNeedDetail] = useState<ResourceNeed | null>(null);
@@ -2191,6 +2207,7 @@ export const Schema = ({
       .map(toDateStr);
   }, [absenceVersion, columns, period, personDetailEmployee, viewStart]);
   const passDetailKey = detailState ? `${detailState.empId}|${detailState.dateStr}` : '';
+  const passDetailAssignmentFailure = detailState ? assignmentFailures[passDetailKey] : undefined;
   const passDetailResourceNeed = resourceNeedPrototype && detailState
     ? resourceNeeds.find(need => need.personId === detailState.empId && need.dateStr === detailState.dateStr && need.status !== 'Borttaget')
     : undefined;
@@ -3150,8 +3167,10 @@ export const Schema = ({
     });
 
     if (!invited.length) {
+      const failureReason = 'Ingen lämplig vikarie var tillgänglig.';
+      setAssignmentFailures(previous => ({ ...previous, [key]: failureReason }));
       addPassActivity(key, { type: 'status', author: 'Systemet', initials: 'AI', time: 'Just nu', text: 'Ingen vikarie kunde förfrågas', detail: 'Passet är fortfarande otillsatt.' });
-      addPersonActivity(personId, { type: 'status', author: 'Systemet', initials: 'AI', time: 'Just nu', text: 'Ingen vikarie kunde förfrågas', detail: 'Passet är fortfarande otillsatt.' });
+      addPersonActivity(personId, { type: 'status', author: 'Systemet', initials: 'AI', time: 'Just nu', text: 'Tillsättning kunde inte genomföras', detail: failureReason });
       return;
     }
 
@@ -3178,8 +3197,20 @@ export const Schema = ({
       });
     });
 
-    if (!accepted) return;
+    if (!accepted) {
+      const failureReason = 'Ingen av de tillfrågade vikarierna tackade ja.';
+      setAssignmentFailures(previous => ({ ...previous, [key]: failureReason }));
+      addPassActivity(key, { type: 'status', author: 'Systemet', initials: 'AI', time: 'Just nu', text: 'Tillsättning kunde inte genomföras', detail: failureReason });
+      addPersonActivity(personId, { type: 'status', author: 'Systemet', initials: 'AI', time: 'Just nu', text: 'Tillsättning kunde inte genomföras', detail: failureReason });
+      return;
+    }
     const substitute = accepted.candidate;
+    setAssignmentFailures(previous => {
+      if (!previous[key]) return previous;
+      const next = { ...previous };
+      delete next[key];
+      return next;
+    });
     setFills(previous => [
       ...previous.filter(fill => !(fill.personId === personId && fill.dateStr === dateStr)),
       { personId, dateStr, fillType, person: { name: substitute.name, role: substitute.role } },
@@ -3694,7 +3725,7 @@ export const Schema = ({
                                     onDragOver={handleCellDragOver}
                                     onDrop={e => handleCellDrop(e, emp.id, ds, shift)}
                                   >
-                                    <ShiftMonthCell shift={shift} color={color} passInfo={passInfo} isAkut={akut} orderedBy={resourceOrder?.orderedBy} resourceNeedMode={resourceNeedPrototype} resourceNeedCreatedBy={resourceNeed?.createdBy} resourceNeedOrderedBy={resourceNeedOrder?.orderedBy} />
+                                    <ShiftMonthCell shift={shift} color={color} passInfo={passInfo} isAkut={akut} orderedBy={resourceOrder?.orderedBy} resourceNeedMode={resourceNeedPrototype} resourceNeedCreatedBy={resourceNeed?.createdBy} resourceNeedOrderedBy={resourceNeedOrder?.orderedBy} assignmentFailure={assignmentFailures[`${emp.id}|${ds}`]} />
                                   </div>
                                 )}
                               </td>
@@ -3726,7 +3757,7 @@ export const Schema = ({
                                   onDragOver={handleCellDragOver}
                                   onDrop={e => handleCellDrop(e, emp.id, ds, shift)}
                                 >
-                                  <ShiftDayCell shift={shift} color={color} passInfo={passInfo} isAkut={akut} orderedBy={resourceOrder?.orderedBy} resourceNeedMode={resourceNeedPrototype} resourceNeedCreatedBy={resourceNeed?.createdBy} resourceNeedOrderedBy={resourceNeedOrder?.orderedBy} />
+                                  <ShiftDayCell shift={shift} color={color} passInfo={passInfo} isAkut={akut} orderedBy={resourceOrder?.orderedBy} resourceNeedMode={resourceNeedPrototype} resourceNeedCreatedBy={resourceNeed?.createdBy} resourceNeedOrderedBy={resourceNeedOrder?.orderedBy} assignmentFailure={assignmentFailures[`${emp.id}|${ds}`]} />
                                 </div>
                               )}
                             </td>
@@ -3780,6 +3811,7 @@ export const Schema = ({
           <ContextMenu
             target=".schema-ctx-cell"
             dataSource={contextActions}
+            itemRender={renderSchemaContextMenuItem}
             onItemClick={handleContextAction}
           />
           <ContextMenu
@@ -3997,6 +4029,7 @@ export const Schema = ({
               resourceNeed={passDetailResourceNeed}
               resourceNeedOrder={passDetailResourceNeedOrder}
               assignedPerson={passDetailAssignedFill?.person}
+              assignmentFailure={passDetailAssignmentFailure}
             />
           ) : null}
           onPostMessage={detailState ? activity => addPassActivity(passDetailKey, activity) : undefined}
