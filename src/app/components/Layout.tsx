@@ -3,7 +3,6 @@ import { Header } from './Header';
 import { SubHeader } from './SubHeader';
 import { ScrollToBottomButton } from './ScrollToBottomButton';
 import { BreadcrumbItem } from './Breadcrumbs';
-import { AutomationProvider } from './AutomationContext';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -19,15 +18,12 @@ interface LayoutProps {
  * DO NOT REMOVE OR MODIFY - These elements remain consistent across the entire application.
  */
 export const Layout: React.FC<LayoutProps> = ({ children, breadcrumbItems, title, hideCaseActivityButton = false, showAutomationControls = false }) => {
-  const content = (
+  return (
     <div className="app-wrapper text-foreground">
       <Header hideCaseActivityButton={hideCaseActivityButton} showAutomationControls={showAutomationControls} />
       <SubHeader breadcrumbItems={breadcrumbItems} title={title} />
       {children}
       <ScrollToBottomButton />
     </div>
-  );
-  return (
-    showAutomationControls ? <AutomationProvider>{content}</AutomationProvider> : content
   );
 };

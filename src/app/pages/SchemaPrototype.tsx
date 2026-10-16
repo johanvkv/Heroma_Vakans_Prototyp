@@ -6,12 +6,15 @@
  * filters, dialogs and schedule changes are isolated from the original page.
  */
 import { Schema } from './Schema';
+import { AutomationProvider } from '../components/AutomationContext';
 
 export const SchemaPrototype = () => (
-  <Schema
-    breadcrumbSectionLabel="Tid & Bemanning Ny"
-    hideMinimumStaffing
-    useAlternativeOrganisationVisualization
-    resourceNeedPrototype
-  />
+  <AutomationProvider>
+    <Schema
+      breadcrumbSectionLabel="Tid & Bemanning Ny"
+      hideMinimumStaffing
+      useAlternativeOrganisationVisualization
+      resourceNeedPrototype
+    />
+  </AutomationProvider>
 );
