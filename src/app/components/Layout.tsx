@@ -3,11 +3,14 @@ import { Header } from './Header';
 import { SubHeader } from './SubHeader';
 import { ScrollToBottomButton } from './ScrollToBottomButton';
 import { BreadcrumbItem } from './Breadcrumbs';
+import { AutomationProvider } from './AutomationContext';
 
 interface LayoutProps {
   children: React.ReactNode;
   breadcrumbItems?: BreadcrumbItem[];
   title?: string;
+  hideCaseActivityButton?: boolean;
+  showAutomationControls?: boolean;
 }
 
 /**
@@ -15,20 +18,16 @@ interface LayoutProps {
  * This component contains the persistent Header and SubHeader.
  * DO NOT REMOVE OR MODIFY - These elements remain consistent across the entire application.
  */
-export const Layout: React.FC<LayoutProps> = ({ children, breadcrumbItems, title }) => {
-  return (
+export const Layout: React.FC<LayoutProps> = ({ children, breadcrumbItems, title, hideCaseActivityButton = false, showAutomationControls = false }) => {
+  const content = (
     <div className="app-wrapper text-foreground">
-      {/* PERMANENT HEADER - DO NOT REMOVE */}
-      <Header />
-
-      {/* PERMANENT SUB-HEADER - DO NOT REMOVE */}
+      <Header hideCaseActivityButton={hideCaseActivityButton} showAutomationControls={showAutomationControls} />
       <SubHeader breadcrumbItems={breadcrumbItems} title={title} />
-
-      {/* EDITABLE CONTENT AREA */}
       {children}
-
-      {/* FLOATING BUTTONS */}
       <ScrollToBottomButton />
     </div>
+  );
+  return (
+    showAutomationControls ? <AutomationProvider>{content}</AutomationProvider> : content
   );
 };

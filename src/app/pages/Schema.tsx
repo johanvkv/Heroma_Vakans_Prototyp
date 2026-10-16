@@ -16,6 +16,7 @@ import ContextMenu from 'devextreme-react/context-menu';
 import { useNavigate } from 'react-router';
 import { persons, getActiveEmployment, fullName } from '../../data';
 import { CaseActivityModal } from '../components/CaseActivityModal';
+import { useOptionalAutomation } from '../components/AutomationContext';
 import type { CaseActivity, CaseActivityResponse } from '../components/CaseActivityModal';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -1962,6 +1963,7 @@ export const Schema = ({
   resourceNeedPrototype = false,
 }: SchemaProps) => {
   const navigateTo = useNavigate();
+  const automation = useOptionalAutomation();
   const breadcrumbItems: BreadcrumbItem[] = [
     { label: 'Heroma', href: '/' },
     { label: breadcrumbSectionLabel },
@@ -1988,6 +1990,7 @@ export const Schema = ({
   const [resourceNeedActivities, setResourceNeedActivities] = useState<Record<string, CaseActivity[]>>({});
   const [resourceNeedAssignmentId, setResourceNeedAssignmentId] = useState<string | null>(null);
   const [resourceNeedOrderTargetId, setResourceNeedOrderTargetId] = useState<string | null>(null);
+  const automationProcessedNeedIdsRef = useRef<Set<string>>(new Set());
   const [vacancyKeys, setVacancyKeys] = useState<string[]>([]);
 
   // ── Sub panel ──
@@ -3234,6 +3237,19 @@ export const Schema = ({
     });
   }, [addPassActivity, addPersonActivity, addSubstituteActivity, employees, resourceNeedPrototype, substituteAbsences, substituteAvailabilityOverrides]);
 
+  useEffect(() => {
+    if (!resourceNeedPrototype || !automation?.isAutomationActive) {
+      automationProcessedNeedIdsRef.current.clear();
+      return;
+    }
+    resourceNeeds
+      .filter(need => need.status === 'Öppet' && !automationProcessedNeedIdsRef.current.has(need.id))
+      .forEach(need => {
+        automationProcessedNeedIdsRef.current.add(need.id);
+        handleDirectAssignment(need.personId, need.dateStr, need.shift, need.source === 'frånvaro' ? 'substitute' : 'extra');
+      });
+  }, [automation?.isAutomationActive, handleDirectAssignment, resourceNeedPrototype, resourceNeeds]);
+
   const handleResourceNeedAction = useCallback((needId: string, action: ResourceNeedAction) => {
     const need = resourceNeeds.find(item => item.id === needId);
     if (!need) return;
@@ -3289,14 +3305,14 @@ export const Schema = ({
         };
         addPassActivity(key, activity);
         addPersonActivity(personId, activity);
-        if (resourceNeedPrototype && reason === 'Sjuk') {
+        if (resourceNeedPrototype && (reason === 'Sjuk' || automation?.isAutomationActive)) {
           createResourceNeed(personId, dateStr, shift, reason, 'frånvaro');
         }
       }
     }
     setAbsenceDialogState(null);
     setAbsenceVersion(version => version + 1);
-  }, [absenceDialogState, addPassActivity, addPersonActivity, createResourceNeed, resourceNeedPrototype]);
+  }, [absenceDialogState, addPassActivity, addPersonActivity, automation?.isAutomationActive, createResourceNeed, resourceNeedPrototype]);
 
   const handleContextAction = useCallback((event: { itemData?: ContextAction }) => {
     const target = ctxRef.current;
@@ -3460,7 +3476,7 @@ export const Schema = ({
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <PageLayout title={activeView === 'schema' ? 'Schema' : activeView === 'orders' ? 'Beställningar' : 'Resursbehov'} breadcrumbItems={breadcrumbItems}>
+    <PageLayout title={activeView === 'schema' ? 'Schema' : activeView === 'orders' ? 'Beställningar' : 'Resursbehov'} breadcrumbItems={breadcrumbItems} hideCaseActivityButton={resourceNeedPrototype} showAutomationControls={resourceNeedPrototype}>
       <div className="col-12">
         <div className={`schema-page-wrapper${subPanelOpen ? ' schema-page-has-panel' : ''}`}>
 

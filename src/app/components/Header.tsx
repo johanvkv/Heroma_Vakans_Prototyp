@@ -7,8 +7,9 @@ import { FavouritesFlyout } from './FavouritesFlyout';
 import { NotificationsFlyout } from './NotificationsFlyout';
 import { RoleSelector } from './RoleSelector';
 import { CaseActivityModal } from './CaseActivityModal';
+import { useOptionalAutomation, type AutomationMode } from './AutomationContext';
 
-export const Header = () => {
+export const Header = ({ hideCaseActivityButton = false, showAutomationControls = false }: { hideCaseActivityButton?: boolean; showAutomationControls?: boolean }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [isMegaMenuOpen, setIsMegaMenuOpen] = useState(false);
   const [isAccessibilityOpen, setIsAccessibilityOpen] = useState(false);
@@ -19,6 +20,7 @@ export const Header = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const favouritesButtonRef = useRef<HTMLButtonElement>(null);
   const notificationsButtonRef = useRef<HTMLButtonElement>(null);
+  const automation = useOptionalAutomation();
 
   useEffect(() => {
     // Optional: Check local storage or system preference here
@@ -48,7 +50,7 @@ export const Header = () => {
 
   return (
     <>
-      <CaseActivityModal isOpen={isCaseActivityOpen} onClose={() => setIsCaseActivityOpen(false)} />
+      {!hideCaseActivityButton && <CaseActivityModal isOpen={isCaseActivityOpen} onClose={() => setIsCaseActivityOpen(false)} />}
       <MegaMenu 
         isOpen={isMegaMenuOpen} 
         onClose={() => {
@@ -152,11 +154,31 @@ export const Header = () => {
             <span>Meddelanden</span>
           </button>
 
-          <div className="separator-vertical hide-mobile"></div>
-          <button className="nav-btn case-activity-header-btn" onClick={() => setIsCaseActivityOpen(true)} aria-label="Öppna ärendets händelser och kommunikation">
-            <i className="fa-solid fa-comments" />
-            <span className="hide-mobile">Ärende</span>
-          </button>
+          {!hideCaseActivityButton && <>
+            <div className="separator-vertical hide-mobile"></div>
+            <button className="nav-btn case-activity-header-btn" onClick={() => setIsCaseActivityOpen(true)} aria-label="Öppna ärendets händelser och kommunikation">
+              <i className="fa-solid fa-comments" />
+              <span className="hide-mobile">Ärende</span>
+            </button>
+          </>}
+
+          {showAutomationControls && automation && <>
+            <div className="separator-vertical hide-mobile"></div>
+            <div className="automation-header-control" title="Styr automatisk tillsättning av frånvaro och resursbehov">
+              <i className="fa-solid fa-robot" />
+              <span className="hide-mobile">Automatik</span>
+              <select
+                aria-label="Automatikläge"
+                value={automation.automationMode}
+                onChange={event => automation.setAutomationMode(event.target.value as AutomationMode)}
+              >
+                <option value="off">Av</option>
+                <option value="always">Alltid på</option>
+                <option value="off-hours">Utanför kontorstid</option>
+              </select>
+              <span className={`automation-status-dot ${automation.isAutomationActive ? 'active' : ''}`} title={automation.isAutomationActive ? 'Automatik aktiv' : 'Automatik av'} />
+            </div>
+          </>}
 
           <div className="separator-vertical"></div>
 
