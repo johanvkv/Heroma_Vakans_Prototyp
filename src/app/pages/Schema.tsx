@@ -147,7 +147,7 @@ interface OrderContextAction {
   substituteId?: string;
   beginGroup?: boolean;
 }
-type ResourceNeedActionId = 'open' | 'remove' | 'assign' | 'order';
+type ResourceNeedActionId = 'open' | 'remove' | 'assign' | 'assign-direct' | 'order';
 interface ResourceNeedAction { id: ResourceNeedActionId; text: string; icon: string; }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -155,7 +155,7 @@ interface ResourceNeedAction { id: ResourceNeedActionId; text: string; icon: str
 const TODAY_STR = '2026-09-03';
 
 type ContextTargetType = 'absence' | 'vacant' | 'normal';
-type ContextActionId = 'find-substitute' | 'make-vacancy' | 'primary' | 'order-resource' | 'show-details' | 'simulate' | 'create-absence';
+type ContextActionId = 'find-substitute' | 'make-vacancy' | 'primary' | 'order-resource' | 'show-details' | 'simulate' | 'create-absence' | 'assign-direct';
 type OrganisationActionId = 'open' | 'close' | 'settings';
 type SubstituteContextActionId = 'show-details' | 'edit-availability' | 'mark-unavailable' | 'restore-availability' | 'report-sick' | 'clear-sickness' | 'send-request';
 interface SubstituteContextAction { id: SubstituteContextActionId; text: string; icon: string; beginGroup?: boolean; }
@@ -168,11 +168,15 @@ interface ContextAction {
   beginGroup?: boolean;
 }
 
-function getContextActions(type: ContextTargetType, resourceNeedMode = false): ContextAction[] {
+function getContextActions(type: ContextTargetType, resourceNeedMode = false, isAssigned = false): ContextAction[] {
+  const directAssignment = resourceNeedMode && !isAssigned
+    ? [{ id: 'assign-direct' as const, text: 'Tillsätt direkt', icon: 'robot', beginGroup: true }]
+    : [];
   if (type === 'absence') {
     return [
       { id: 'find-substitute', text: 'Hitta vikarie', icon: 'user' },
       { id: 'order-resource', text: 'Beställ resurs', icon: 'cart-shopping' },
+      ...directAssignment,
       { id: 'make-vacancy', text: resourceNeedMode ? 'Skapa resursbehov' : 'Gör till vakans', icon: 'user-clock' },
       { id: 'simulate', text: 'Simulera', icon: 'flask', beginGroup: true },
       { id: 'show-details', text: 'Visa frånvarodetaljer', icon: 'circle-info', beginGroup: true },
@@ -185,6 +189,7 @@ function getContextActions(type: ContextTargetType, resourceNeedMode = false): C
       icon: type === 'vacant' ? 'user' : 'plus',
     },
     { id: 'order-resource', text: 'Beställ resurs', icon: 'cart-shopping' },
+    ...directAssignment,
     { id: 'simulate', text: 'Simulera', icon: 'flask', beginGroup: true },
     { id: 'create-absence', text: 'Skapa frånvaro', icon: 'calendar-xmark' },
     { id: 'show-details', text: 'Visa passdetaljer', icon: 'circle-info', beginGroup: true },
@@ -1812,6 +1817,7 @@ function getResourceNeedActions(need: ResourceNeed): ResourceNeedAction[] {
   if (need.status === 'Borttaget') return [];
   return [
     { id: 'open' as const, text: 'Öppna', icon: 'arrow-up-right-from-square' },
+    ...(need.status !== 'Tillsatt' ? [{ id: 'assign-direct' as const, text: 'Tillsätt direkt', icon: 'robot' }] : []),
     ...(need.status !== 'Tillsatt' ? [{ id: 'assign' as const, text: 'Tillsätt', icon: 'user-check' }] : []),
     { id: 'order' as const, text: 'Beställ', icon: 'cart-shopping' },
     { id: 'remove' as const, text: 'Ta bort resursbehov', icon: 'ban' },
@@ -2035,7 +2041,7 @@ export const Schema = ({
 
   // ── Context menu ──
   const [absenceVersion, setAbsenceVersion] = useState(0);
-  const [contextActions, setContextActions] = useState<ContextAction[]>(() => getContextActions('vacant', resourceNeedPrototype));
+  const [contextActions, setContextActions] = useState<ContextAction[]>(() => getContextActions('vacant', resourceNeedPrototype, false));
   const [personContextId, setPersonContextId] = useState<string | null>(null);
   const [organisationMenu, setOrganisationMenu] = useState<OrganisationGroup | null>(null);
   const [organisationSettings, setOrganisationSettings] = useState<OrganisationGroup | null>(null);
@@ -2102,14 +2108,16 @@ export const Schema = ({
           dateStr:  el.dataset.dateStr!,
           type:     el.dataset.ctxType as ContextTargetType,
         };
-        setContextActions(getContextActions(ctxRef.current.type, resourceNeedPrototype));
+        const passKey = `${ctxRef.current.personId}|${ctxRef.current.dateStr}`;
+        const isAssigned = fills.some(fill => `${fill.personId}|${fill.dateStr}` === passKey);
+        setContextActions(getContextActions(ctxRef.current.type, resourceNeedPrototype, isAssigned));
       } else {
         ctxRef.current = null;
       }
     };
     document.addEventListener('contextmenu', onCtx, true);
     return () => document.removeEventListener('contextmenu', onCtx, true);
-  }, [resourceNeedPrototype]);
+  }, [fills, resourceNeedPrototype]);
 
   // ── Employees ──
   const employees = useMemo<ScheduleEmployee[]>(() =>
@@ -3065,30 +3073,6 @@ export const Schema = ({
     }
   }, [resourceOrders, addOrderActivity]);
 
-  const handleResourceNeedAction = useCallback((needId: string, action: ResourceNeedAction) => {
-    const need = resourceNeeds.find(item => item.id === needId);
-    if (!need) return;
-    if (action.id === 'open') {
-      setResourceNeedDetail(need);
-      return;
-    }
-    if (action.id === 'remove') {
-      setResourceNeeds(previous => previous.map(item => item.id === needId ? { ...item, status: 'Borttaget' as const } : item));
-      setVacancyKeys(previous => previous.filter(key => key !== `${need.personId}|${need.dateStr}`));
-      addResourceNeedActivity(needId, {
-        type: 'status', author: 'Du', initials: 'JV', time: 'Just nu',
-        text: 'Resursbehovet togs bort', detail: `${need.personName} · ${need.dateStr}`,
-      });
-      if (resourceNeedDetail?.id === needId) setResourceNeedDetail(null);
-      return;
-    }
-    if (action.id === 'assign') {
-      handleOpenResourceNeedAssignment(need);
-      return;
-    }
-    if (action.id === 'order') handleCreateResourceOrderForNeed(need);
-  }, [addResourceNeedActivity, handleCreateResourceOrderForNeed, handleOpenResourceNeedAssignment, resourceNeedDetail, resourceNeeds]);
-
   const handleOrderAllResourceNeeds = useCallback(() => {
     const openNeeds = resourceNeeds.filter(need => need.status === 'Öppet');
     if (openNeeds.length === 0) return;
@@ -3142,6 +3126,110 @@ export const Schema = ({
       text: 'Resursbehov tillsattes automatiskt', detail: `${substitute.name} · ${substitute.role}`,
     }));
   }, [addResourceNeedActivity, resourceNeeds]);
+
+  const handleDirectAssignment = useCallback((personId: string, dateStr: string, shift: Shift, fillType: 'substitute' | 'extra') => {
+    if (!resourceNeedPrototype) return;
+    const employee = employees.find(item => item.id === personId);
+    if (!employee) return;
+    const date = parseDate(dateStr);
+    const candidates = getAvailableSubs(shift, date, 1, substituteAvailabilityOverrides, substituteAbsences)
+      .sort((a, b) => suitabilityScore(b.id, date, shift, substituteAvailabilityOverrides, substituteAbsences)
+        - suitabilityScore(a.id, date, shift, substituteAvailabilityOverrides, substituteAbsences));
+    const invited = candidates.slice(0, 3);
+    const key = `${personId}|${dateStr}`;
+
+    addPassActivity(key, {
+      type: 'system', author: 'Systemet', initials: 'AI', time: 'Just nu',
+      text: 'Tillsätt direkt startades',
+      detail: invited.length ? `Automatiken rangordnade ${invited.length} lämpliga vikarier.` : 'Inga tillgängliga vikarier hittades.',
+    });
+    addPersonActivity(personId, {
+      type: 'system', author: 'Systemet', initials: 'AI', time: 'Just nu',
+      text: 'Automatisk tillsättning startades',
+      detail: `${dateStr} · ${shift.start}–${shift.end}`,
+    });
+
+    if (!invited.length) {
+      addPassActivity(key, { type: 'status', author: 'Systemet', initials: 'AI', time: 'Just nu', text: 'Ingen vikarie kunde förfrågas', detail: 'Passet är fortfarande otillsatt.' });
+      addPersonActivity(personId, { type: 'status', author: 'Systemet', initials: 'AI', time: 'Just nu', text: 'Ingen vikarie kunde förfrågas', detail: 'Passet är fortfarande otillsatt.' });
+      return;
+    }
+
+    const responses = invited.map((candidate, index) => ({
+      candidate,
+      response: index === 0 ? 'Tillgänglig' : index === 1 ? 'Kan inte' : 'Avvaktar',
+    }));
+    const accepted = responses.find(item => item.response === 'Tillgänglig');
+    addPassActivity(key, {
+      type: 'status', author: 'Systemet', initials: 'AI', time: 'Just nu',
+      text: 'Förfrågan skickad till vikarier',
+      detail: invited.map(candidate => candidate.name).join(' · '),
+    });
+    addPersonActivity(personId, {
+      type: 'status', author: 'Systemet', initials: 'AI', time: 'Just nu',
+      text: 'Förfrågan skickad till vikarier',
+      detail: invited.map(candidate => candidate.name).join(' · '),
+    });
+    responses.forEach(({ candidate, response }) => {
+      addSubstituteActivity(candidate.id, {
+        type: 'status', author: 'Systemet', initials: 'AI', time: 'Just nu',
+        text: `Förfrågan om ${fillType === 'extra' ? 'extrapass' : 'vikariepass'}`,
+        detail: `${dateStr} · ${shift.start}–${shift.end} · ${response}`,
+      });
+    });
+
+    if (!accepted) return;
+    const substitute = accepted.candidate;
+    setFills(previous => [
+      ...previous.filter(fill => !(fill.personId === personId && fill.dateStr === dateStr)),
+      { personId, dateStr, fillType, person: { name: substitute.name, role: substitute.role } },
+    ]);
+    setResourceNeeds(previous => previous.map(need =>
+      need.personId === personId && need.dateStr === dateStr && need.status === 'Öppet'
+        ? { ...need, status: 'Tillsatt' as const, assignedSubstituteId: substitute.id }
+        : need,
+    ));
+    addPassActivity(key, {
+      type: 'assignment', author: 'Systemet', initials: 'AI', time: 'Just nu',
+      text: 'Passet tillsattes automatiskt', detail: `${substitute.name} · ${substitute.role}`,
+    });
+    addPersonActivity(personId, {
+      type: 'assignment', author: 'Systemet', initials: 'AI', time: 'Just nu',
+      text: 'Passet tillsattes automatiskt', detail: `${dateStr} · ${shift.start}–${shift.end} · ${substitute.name}`,
+    });
+    addSubstituteActivity(substitute.id, {
+      type: 'assignment', author: 'Systemet', initials: 'AI', time: 'Just nu',
+      text: 'Tackade ja och tillsattes', detail: `${employee.name} · ${dateStr} · ${shift.start}–${shift.end}`,
+    });
+  }, [addPassActivity, addPersonActivity, addSubstituteActivity, employees, resourceNeedPrototype, substituteAbsences, substituteAvailabilityOverrides]);
+
+  const handleResourceNeedAction = useCallback((needId: string, action: ResourceNeedAction) => {
+    const need = resourceNeeds.find(item => item.id === needId);
+    if (!need) return;
+    if (action.id === 'open') {
+      setResourceNeedDetail(need);
+      return;
+    }
+    if (action.id === 'remove') {
+      setResourceNeeds(previous => previous.map(item => item.id === needId ? { ...item, status: 'Borttaget' as const } : item));
+      setVacancyKeys(previous => previous.filter(key => key !== `${need.personId}|${need.dateStr}`));
+      addResourceNeedActivity(needId, {
+        type: 'status', author: 'Du', initials: 'JV', time: 'Just nu',
+        text: 'Resursbehovet togs bort', detail: `${need.personName} · ${need.dateStr}`,
+      });
+      if (resourceNeedDetail?.id === needId) setResourceNeedDetail(null);
+      return;
+    }
+    if (action.id === 'assign') {
+      handleOpenResourceNeedAssignment(need);
+      return;
+    }
+    if (action.id === 'assign-direct') {
+      handleDirectAssignment(need.personId, need.dateStr, need.shift, need.source === 'frånvaro' ? 'substitute' : 'extra');
+      return;
+    }
+    if (action.id === 'order') handleCreateResourceOrderForNeed(need);
+  }, [addResourceNeedActivity, handleCreateResourceOrderForNeed, handleDirectAssignment, handleOpenResourceNeedAssignment, resourceNeedDetail, resourceNeeds]);
 
   const handleCreateAbsence = useCallback(() => {
     if (!absenceDialogState) return;
@@ -3206,6 +3294,11 @@ export const Schema = ({
       handleOpenVacancyPanel(target.personId, target.dateStr);
       return;
     }
+    if (action === 'assign-direct') {
+      const shift = getCellShift(target.personId, parseDate(target.dateStr), 'alla');
+      if (shift) handleDirectAssignment(target.personId, target.dateStr, shift, target.type === 'normal' ? 'extra' : 'substitute');
+      return;
+    }
     if (action === 'primary') {
       if (resourceNeedPrototype) {
         const shift = getCellShift(target.personId, parseDate(target.dateStr), 'alla');
@@ -3256,7 +3349,7 @@ export const Schema = ({
         getColorScheme(target.personId, target.dateStr, fills, vacancyKeys),
       );
     }
-  }, [addPassActivity, createResourceNeed, employees, fills, handleOpenDetail, handleOpenExtraPanel, handleOpenVacancyPanel, handleOpenResourceOrderDialog, navigateTo, openSicknessDialog, resourceNeedPrototype, vacancyKeys]);
+  }, [addPassActivity, createResourceNeed, employees, fills, handleDirectAssignment, handleOpenDetail, handleOpenExtraPanel, handleOpenVacancyPanel, handleOpenResourceOrderDialog, navigateTo, openSicknessDialog, resourceNeedPrototype, vacancyKeys]);
 
   const handlePersonContextAction = useCallback((event: { itemData?: { id?: string } }) => {
     if (!personContextId) return;
