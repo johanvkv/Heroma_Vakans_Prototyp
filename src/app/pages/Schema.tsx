@@ -2578,6 +2578,19 @@ export const Schema = ({
     });
   }, [addResourceNeedActivity, employees, resourceNeedPrototype]);
 
+  useEffect(() => {
+    if (!resourceNeedPrototype || !automation?.isAutomationActive) return;
+    Object.entries(RUNTIME_ABSENCE_SHIFTS).forEach(([key, shift]) => {
+      const [personId, dateStr] = key.split('|');
+      if (!personId || !dateStr) return;
+      const reason = RUNTIME_ABSENCE_REASONS[key];
+      const hasActiveNeed = resourceNeeds.some(need =>
+        need.personId === personId && need.dateStr === dateStr && need.status !== 'Borttaget',
+      );
+      if (!hasActiveNeed) createResourceNeed(personId, dateStr, shift, reason, 'frånvaro');
+    });
+  }, [automation?.isAutomationActive, createResourceNeed, resourceNeedPrototype, resourceNeeds]);
+
   const handleOpenVacancyPanel = useCallback((personId: string, dateStr: string) => {
     const emp   = employees.find(e => e.id === personId);
     const shift = RUNTIME_ABSENCE_SHIFTS[`${personId}|${dateStr}`];
