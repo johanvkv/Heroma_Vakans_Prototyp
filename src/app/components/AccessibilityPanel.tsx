@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface AccessibilityPanelProps {
   isOpen: boolean;
@@ -6,6 +6,7 @@ interface AccessibilityPanelProps {
 }
 
 export const AccessibilityPanel: React.FC<AccessibilityPanelProps> = ({ isOpen, onClose }) => {
+  const panelRef = useRef<HTMLDivElement>(null);
   const [activeProfile, setActiveProfile] = useState('kompakt');
   const [largerText, setLargerText] = useState(0); // 0 = off, 1 = small, 2 = medium, 3 = large
   const [largerButtons, setLargerButtons] = useState(false);
@@ -16,6 +17,42 @@ export const AccessibilityPanel: React.FC<AccessibilityPanelProps> = ({ isOpen, 
   const [keyboardNavigation, setKeyboardNavigation] = useState(false);
   const [highContrast, setHighContrast] = useState(false);
   const [largerCursor, setLargerCursor] = useState(false);
+  const onCloseRef = useRef(onClose);
+
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const panel = panelRef.current;
+    const getFocusable = () => panel?.querySelectorAll<HTMLElement>(
+      'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
+    ) ?? [];
+    getFocusable()[0]?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onCloseRef.current();
+      } else if (event.key === 'Tab') {
+        const focusable = getFocusable();
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && (document.activeElement === first || !panel?.contains(document.activeElement))) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && (document.activeElement === last || !panel?.contains(document.activeElement))) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      previouslyFocused?.focus();
+    };
+  }, [isOpen]);
 
   // Apply/remove accessibility classes when states change
   useEffect(() => {
@@ -189,14 +226,14 @@ export const AccessibilityPanel: React.FC<AccessibilityPanelProps> = ({ isOpen, 
   return (
     <>
       {/* Backdrop */}
-      <div className="accessibility-backdrop" onClick={onClose}></div>
+      <div className="accessibility-backdrop" aria-hidden="true" onClick={onClose}></div>
       
       {/* Panel */}
-      <div className="accessibility-panel">
+      <div className="accessibility-panel" ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="accessibility-panel-title" tabIndex={-1}>
         {/* Header */}
         <div className="accessibility-header">
-          <h2 className="accessibility-title">Heroma tillgänglighetsverktyg</h2>
-          <button className="accessibility-close-btn" onClick={onClose}>
+          <h2 id="accessibility-panel-title" className="accessibility-title">Heroma tillgänglighetsverktyg</h2>
+          <button type="button" className="accessibility-close-btn" aria-label="Stäng tillgänglighetspanelen" onClick={onClose}>
             <i className="fa-solid fa-xmark"></i>
           </button>
         </div>
@@ -280,17 +317,17 @@ export const AccessibilityPanel: React.FC<AccessibilityPanelProps> = ({ isOpen, 
 
           {/* Features Grid */}
           <div className="accessibility-features-grid">
-            <button className={`accessibility-feature-card ${keyboardNavigation ? 'active' : ''}`} onClick={toggleKeyboardNavigation}>
+            <button type="button" className={`accessibility-feature-card ${keyboardNavigation ? 'active' : ''}`} aria-pressed={keyboardNavigation} onClick={toggleKeyboardNavigation}>
               <i className="fa-solid fa-keyboard accessibility-feature-icon"></i>
               <span className="accessibility-feature-text">TANGENTBORDS-NAVIGERING</span>
             </button>
 
-            <button className={`accessibility-feature-card ${largerButtons ? 'active' : ''}`} onClick={() => { setLargerButtons(!largerButtons); setActiveProfile('personlig'); }}>
+            <button type="button" className={`accessibility-feature-card ${largerButtons ? 'active' : ''}`} aria-pressed={largerButtons} onClick={() => { setLargerButtons(!largerButtons); setActiveProfile('personlig'); }}>
               <i className="fa-solid fa-up-right-and-down-left-from-center accessibility-feature-icon"></i>
               <span className="accessibility-feature-text">STÖRRE KNAPPAR & INMATNINGSFÄLT</span>
             </button>
 
-            <button className={`accessibility-feature-card ${zoom > 0 ? 'active' : ''}`} onClick={toggleZoom}>
+            <button type="button" className={`accessibility-feature-card ${zoom > 0 ? 'active' : ''}`} aria-pressed={zoom > 0} aria-label={`Zoom, nivå ${zoom} av 3`} onClick={toggleZoom}>
               <i className="fa-solid fa-magnifying-glass accessibility-feature-icon"></i>
               <span className="accessibility-feature-text">ZOOM</span>
               <div className="accessibility-steps">
@@ -300,12 +337,12 @@ export const AccessibilityPanel: React.FC<AccessibilityPanelProps> = ({ isOpen, 
               </div>
             </button>
 
-            <button className={`accessibility-feature-card ${highlightLinks ? 'active' : ''}`} onClick={toggleHighlightLinks}>
+            <button type="button" className={`accessibility-feature-card ${highlightLinks ? 'active' : ''}`} aria-pressed={highlightLinks} onClick={toggleHighlightLinks}>
               <i className="fa-solid fa-pen accessibility-feature-icon"></i>
               <span className="accessibility-feature-text">MARKERA LÄNKAR</span>
             </button>
 
-            <button className={`accessibility-feature-card ${largerText > 0 ? 'active' : ''}`} onClick={toggleLargerText}>
+            <button type="button" className={`accessibility-feature-card ${largerText > 0 ? 'active' : ''}`} aria-pressed={largerText > 0} aria-label={`Större text, nivå ${largerText} av 3`} onClick={toggleLargerText}>
               <i className="fa-solid fa-text-height accessibility-feature-icon"></i>
               <span className="accessibility-feature-text">STÖRRE TEXT</span>
               <div className="accessibility-steps">
@@ -315,7 +352,7 @@ export const AccessibilityPanel: React.FC<AccessibilityPanelProps> = ({ isOpen, 
               </div>
             </button>
 
-            <button className={`accessibility-feature-card ${increasedRowSpacing > 0 ? 'active' : ''}`} onClick={toggleIncreasedRowSpacing}>
+            <button type="button" className={`accessibility-feature-card ${increasedRowSpacing > 0 ? 'active' : ''}`} aria-pressed={increasedRowSpacing > 0} aria-label={`Ökat radavstånd, nivå ${increasedRowSpacing} av 3`} onClick={toggleIncreasedRowSpacing}>
               <i className="fa-solid fa-align-left accessibility-feature-icon"></i>
               <span className="accessibility-feature-text">ÖKAT RADAVSTÅND</span>
               <div className="accessibility-steps">
@@ -325,17 +362,17 @@ export const AccessibilityPanel: React.FC<AccessibilityPanelProps> = ({ isOpen, 
               </div>
             </button>
 
-            <button className={`accessibility-feature-card ${clearBorders ? 'active' : ''}`} onClick={toggleClearBorders}>
+            <button type="button" className={`accessibility-feature-card ${clearBorders ? 'active' : ''}`} aria-pressed={clearBorders} onClick={toggleClearBorders}>
               <i className="fa-solid fa-border-all accessibility-feature-icon"></i>
               <span className="accessibility-feature-text">TYDLIGA RAMLINJER</span>
             </button>
 
-            <button className={`accessibility-feature-card ${highContrast ? 'active' : ''}`} onClick={toggleHighContrast}>
+            <button type="button" className={`accessibility-feature-card ${highContrast ? 'active' : ''}`} aria-pressed={highContrast} onClick={toggleHighContrast}>
               <i className="fa-solid fa-circle-half-stroke accessibility-feature-icon"></i>
               <span className="accessibility-feature-text">HIGH CONTRAST</span>
             </button>
 
-            <button className={`accessibility-feature-card ${largerCursor ? 'active' : ''}`} onClick={toggleLargerCursor}>
+            <button type="button" className={`accessibility-feature-card ${largerCursor ? 'active' : ''}`} aria-pressed={largerCursor} onClick={toggleLargerCursor}>
               <i className="fa-solid fa-mouse-pointer accessibility-feature-icon"></i>
               <span className="accessibility-feature-text">STÖRRE MUSEPEKARE</span>
             </button>
@@ -344,7 +381,7 @@ export const AccessibilityPanel: React.FC<AccessibilityPanelProps> = ({ isOpen, 
 
         {/* Footer */}
         <div className="accessibility-footer">
-          <button className="accessibility-reset-btn" onClick={resetAll}>
+          <button type="button" className="accessibility-reset-btn" onClick={resetAll}>
             <i className="fa-solid fa-rotate-left"></i>
             <span>Återställ</span>
           </button>

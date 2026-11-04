@@ -235,6 +235,10 @@
 }
 
 .toggle-switch {
+  border: 0;
+  padding: 0;
+  display: block;
+  flex: 0 0 auto;
   width: 40px;
   height: 20px;
   background-color: var(--color-disabled-input-bg);
@@ -265,6 +269,28 @@
 
 .toggle-switch.active .toggle-thumb {
   left: 22px;
+}
+
+.mega-menu-item-action {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+:where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline: 3px solid #5236ab;
+  outline-offset: 3px;
+}
+
+[data-theme="dark"] :where(button, a, input, select, textarea, [tabindex]):focus-visible,
+[data-theme="high-contrast"] :where(button, a, input, select, textarea, [tabindex]):focus-visible {
+  outline-color: #ffff00;
 }
 
 .badge {
@@ -4824,6 +4850,19 @@ li {
 
 .employee-actions-item:hover {
   background-color: var(--row-active-bg);
+}
+.role-selector-organisation {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding-top: 4px;
+}
+.role-selector-organisation-heading {
+  padding: 8px 12px 4px;
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 /* Dark Mode Adjustments */
@@ -9823,6 +9862,30 @@ body.page-builder-fullscreen .components-layout-wrapper {
   align-items: center;
   gap: 1.5rem;
   margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+}
+.schema-staffing-focus-note {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.schema-automation-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--foreground);
+  font-size: 14px;
+  white-space: nowrap;
+}
+.schema-automation-control > i { color: var(--primary-color); }
+.schema-automation-control select {
+  min-height: 34px;
+  padding: 4px 28px 4px 9px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--foreground);
+  background: var(--background);
+  font: inherit;
 }
 
 /* ── Period navigation ── */
@@ -9979,6 +10042,8 @@ body.page-builder-fullscreen .components-layout-wrapper {
 /* ── Context menu wrapper ── */
 .schema-ctx-wrapper,
 .schema-ctx-cell { cursor: context-menu; }
+
+.schema-ctx-wrapper[role="button"] { cursor: pointer; }
 
 /* ── Absence and vacancy badges ── */
 .schema-absence-badge,
@@ -10587,14 +10652,21 @@ input.schema-sub-checkbox:checked::after {
   background: #faf9fd !important;
   color: #554d68;
 }
+.schema-org-activity td {
+  background: #fff !important;
+  color: #554d68;
+  border-bottom: 1px solid #eceaf1 !important;
+}
 .schema-org-label-cell {
   white-space: nowrap;
   z-index: 2 !important;
 }
-.schema-org-clinic .schema-org-label-cell { padding-left: 10px !important; }
-.schema-org-department .schema-org-label-cell { padding-left: 24px !important; }
-.schema-org-team .schema-org-label-cell { padding-left: 42px !important; }
-.schema-org-employee-cell { padding-left: 70px !important; }
+.schema-org-level-0 .schema-org-label-cell { padding-left: 10px !important; }
+.schema-org-level-1 .schema-org-label-cell { padding-left: 28px !important; }
+.schema-org-level-2 .schema-org-label-cell { padding-left: 46px !important; }
+.schema-org-level-3 .schema-org-label-cell { padding-left: 64px !important; }
+.schema-org-level-4 .schema-org-label-cell { padding-left: 82px !important; }
+.schema-org-employee-cell { padding-left: 106px; }
 .schema-org-toggle {
   width: 22px;
   height: 24px;
@@ -11333,6 +11405,7 @@ input.schema-sub-checkbox:checked::after {
   min-width: 2px;
 }
 .schema-sub-bar24-avail  { background: var(--primary); opacity: 0.7; }
+.schema-sub-bar24-self-avail { background: repeating-linear-gradient(135deg, #e1f2eb 0, #e1f2eb 4px, #4a9a78 4px, #4a9a78 7px); border: 1px solid #26765b; opacity: .95; }
 .schema-sub-bar24-past   { background: #aaa; opacity: 0.5; }
 .schema-sub-bar24-booked { background: #2e7d32; opacity: 0.8; }
 
@@ -11355,4 +11428,437 @@ input.schema-sub-checkbox:checked::after {
   font-size: 11px;
   color: #2e7d32;
   white-space: nowrap;
+}
+
+/* Preschool timeline test copy: activities and self-declared availability use a 24-hour cell scale. */
+.schema-activity-timeline-cell {
+  padding: 0 !important;
+  vertical-align: top !important;
+  overflow: visible;
+}
+.schema-activity-timeline-cell.schema-month-col-cell,
+.schema-sub-panel-single-assignment .schema-month-col-cell {
+  min-width: 130px !important;
+  max-width: 130px !important;
+  width: 130px !important;
+}
+.schema-activity-timeline {
+  position: relative;
+  height: 168px;
+  min-width: 100%;
+  overflow: visible;
+  background: repeating-linear-gradient(to bottom, transparent 0, transparent 41px, #e9e8ee 41px, #e9e8ee 42px);
+}
+.schema-activity-time-axis {
+  position: absolute;
+  left: 1px;
+  z-index: 4;
+  color: #777282;
+  background: #fff;
+  font-size: 7px;
+  line-height: 9px;
+  padding-right: 1px;
+}
+.schema-activity-time-axis-00 { top: 0; }
+.schema-activity-time-axis-12 { top: 82px; }
+.schema-activity-time-axis-24 { bottom: 0; }
+.schema-activity-pass-caption,
+.schema-activity-booked-caption {
+  position: absolute;
+  top: 2px;
+  left: 18px;
+  z-index: 3;
+  color: #55515f;
+  font-size: 8px;
+  line-height: 10px;
+  white-space: nowrap;
+}
+.schema-activity-pass-window,
+.schema-activity-booked-window,
+.schema-activity-availability-window {
+  position: absolute;
+  left: 15px;
+  width: 8px;
+  border-radius: 2px;
+}
+.schema-activity-pass-window {
+  left: 0;
+  width: 100%;
+  z-index: 1;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+.schema-activity-pass-window::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 15px;
+  width: 8px;
+  border: 1px solid rgba(89, 78, 114, .22);
+  border-radius: 2px;
+  background: rgba(115, 104, 139, .06);
+  content: '';
+}
+.schema-activity-pass-window:hover::before,
+.schema-activity-pass-window:focus-visible::before {
+  border-color: #594e72;
+  background: rgba(115, 104, 139, .15);
+}
+.schema-activity-pass-window:focus-visible {
+  outline: 2px solid rgba(89, 78, 114, .25);
+}
+.schema-activity-pass-vacant::before { border-color: #c27400; background: rgba(238, 159, 49, .15); }
+.schema-activity-pass-absence::before { border-color: #bb5962; background: rgba(214, 95, 105, .13); }
+.schema-activity-pass-filled::before { border-color: #38835d; background: rgba(75, 154, 111, .16); }
+.schema-activity-time-block {
+  position: absolute;
+  left: 0;
+  z-index: 5;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #282432;
+  text-align: left;
+  overflow: visible;
+  cursor: pointer;
+}
+.schema-activity-time-mark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 16px;
+  width: 7px;
+  min-height: 4px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+}
+.schema-activity-time-label {
+  position: absolute;
+  top: 50%;
+  left: 26px;
+  transform: translateY(-50%);
+  padding: 0 2px;
+  background: rgba(255, 255, 255, .92);
+  color: #393542;
+  font-size: 8px;
+  line-height: 11px;
+  white-space: nowrap;
+}
+.schema-activity-time-block:hover .schema-activity-time-label,
+.schema-activity-time-block:focus-visible .schema-activity-time-label {
+  z-index: 2;
+  color: #15121d;
+  font-weight: 700;
+}
+.schema-activity-time-block:focus-visible { outline: 2px solid #594e72; }
+.schema-activity-type-pedagogical .schema-activity-time-mark,
+.schema-activity-legend-swatch.schema-activity-type-pedagogical { background: #8064c8; border-color: #6749ad; }
+.schema-activity-type-outdoors .schema-activity-time-mark,
+.schema-activity-legend-swatch.schema-activity-type-outdoors { background: #57a879; border-color: #39885c; }
+.schema-activity-type-meals .schema-activity-time-mark,
+.schema-activity-legend-swatch.schema-activity-type-meals { background: #e39a42; border-color: #c67c21; }
+.schema-activity-type-rest .schema-activity-time-mark,
+.schema-activity-legend-swatch.schema-activity-type-rest { background: #5b9dce; border-color: #387daf; }
+.schema-activity-assigned-icon {
+  position: absolute;
+  top: 50%;
+  left: 92px;
+  transform: translateY(-50%);
+  padding: 1px 2px;
+  background: #fff;
+  color: #247349;
+  font-size: 8px;
+}
+.schema-activity-availability-window {
+  z-index: 4;
+  border: 1px solid #26765b;
+  background: repeating-linear-gradient(135deg, #e1f2eb 0, #e1f2eb 3px, #4a9a78 3px, #4a9a78 5px);
+}
+.schema-activity-availability-caption {
+  position: absolute;
+  top: 50%;
+  left: 27px;
+  z-index: 5;
+  transform: translateY(-50%);
+  padding: 0 2px;
+  background: rgba(255, 255, 255, .92);
+  color: #235e49;
+  font-size: 8px;
+  line-height: 11px;
+  white-space: nowrap;
+}
+.schema-activity-booked-window {
+  z-index: 2;
+  border: 1px solid #777282;
+  background: repeating-linear-gradient(135deg, #eeedf1 0, #eeedf1 3px, #888492 3px, #888492 5px);
+}
+.schema-activity-legend {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.schema-activity-legend > span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.schema-activity-legend-swatch {
+  display: inline-block;
+  width: 13px;
+  height: 8px;
+  border: 1px solid transparent;
+  border-radius: 2px;
+}
+.schema-activity-legend-swatch.schema-activity-availability-swatch {
+  border-color: #26765b;
+  background: repeating-linear-gradient(135deg, #e1f2eb 0, #e1f2eb 3px, #4a9a78 3px, #4a9a78 5px);
+}
+.schema-sub-panel-single-assignment .schema-sub-all-checkbox { visibility: hidden; }
+
+/* Testkopia: compact horizontal schedule bars within each employee/day cell. */
+.schema-activity-timeline-cell {
+  height: auto;
+  min-height: 34px;
+  padding: 2px 0 !important;
+  vertical-align: middle !important;
+}
+.schema-activity-timeline {
+  position: relative;
+  height: auto;
+  box-sizing: border-box;
+  min-width: 100%;
+  padding: 3px 0 4px;
+  overflow: visible;
+  background: transparent;
+}
+.schema-activity-total-time {
+  display: block;
+  height: 12px;
+  color: #514c5b;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 12px;
+  white-space: nowrap;
+}
+.schema-activity-pass-action {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+.schema-activity-pass-action:hover { text-decoration: underline; }
+.schema-activity-pass-action:focus-visible { outline: 2px solid #594e72; }
+.schema-activity-lanes {
+  position: relative;
+  display: flex;
+  min-height: 13px;
+  flex-direction: column;
+  gap: 0;
+  overflow: visible;
+}
+.schema-activity-row {
+  position: relative;
+  flex: 0 0 13px;
+  height: 13px;
+  overflow: visible;
+  background: repeating-linear-gradient(90deg, transparent 0, transparent calc(25% - 1px), rgba(112, 105, 125, .12) calc(25% - 1px), rgba(112, 105, 125, .12) 25%);
+}
+.schema-activity-track {
+  position: relative;
+  height: 15px;
+  margin-top: 4px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: #f1f0f4;
+  box-shadow: inset 0 0 0 1px rgba(73, 66, 87, .12);
+}
+.schema-activity-pass-window,
+.schema-activity-booked-window,
+.schema-activity-availability-window,
+.schema-activity-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  height: auto;
+  border-radius: 3px;
+}
+.schema-activity-pass-window {
+  inset: 0 auto 0 0;
+  z-index: 1;
+  width: auto;
+  border: 0;
+  background: transparent;
+}
+.schema-activity-pass-window::before {
+  inset: 0;
+  left: 0;
+  right: 0;
+  width: auto;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.schema-activity-pass-window:hover::before,
+.schema-activity-pass-window:focus-visible::before { border: 0; background: transparent; }
+.schema-activity-booked-window {
+  z-index: 2;
+  border: 0;
+  border-radius: 0;
+  background: repeating-linear-gradient(135deg, #eeedf1 0, #eeedf1 3px, #888492 3px, #888492 5px);
+}
+.schema-activity-availability-window {
+  z-index: 2;
+  border: 0;
+  border-radius: 0;
+  background: repeating-linear-gradient(135deg, #e1f2eb 0, #e1f2eb 3px, #4a9a78 3px, #4a9a78 5px);
+}
+.schema-activity-bar {
+  z-index: 4;
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 2px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: #fff;
+  cursor: pointer;
+  overflow: visible;
+  white-space: nowrap;
+  font-size: 7px;
+  font-weight: 700;
+  line-height: 13px;
+  text-align: center;
+}
+.schema-activity-bar.schema-activity-type-pedagogical { background: #8064c8; }
+.schema-activity-bar.schema-activity-type-outdoors { background: #57a879; }
+.schema-activity-bar.schema-activity-type-meals { background: #e39a42; }
+.schema-activity-bar.schema-activity-type-rest { background: #5b9dce; }
+.schema-activity-bar-filled { box-shadow: none; }
+.schema-activity-assigned-icon {
+  position: static;
+  transform: none;
+  padding: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 7px;
+}
+.schema-activity-time-block:focus-visible,
+.schema-activity-bar:focus-visible { outline: 2px solid #594e72; outline-offset: 1px; }
+
+.person-activity-schedule-panel {
+  margin: 14px 0;
+  padding: 12px;
+  border: 1px solid #e2dfe8;
+  border-radius: 8px;
+  background: #faf9fc;
+}
+.person-activity-schedule-panel > h4 {
+  margin: 0 0 10px;
+  color: #413b4c;
+  font-size: 13px;
+  font-weight: 700;
+}
+.person-activity-schedule { min-width: 0; }
+.person-activity-schedule-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  color: #514c5b;
+  font-size: 11px;
+}
+.person-activity-schedule-axis {
+  position: relative;
+  height: 18px;
+  margin-top: 8px;
+  color: #777282;
+  font-size: 9px;
+}
+.person-activity-schedule-axis span { position: absolute; top: 0; white-space: nowrap; }
+.person-activity-schedule-axis span:first-child { left: 0; }
+.person-activity-schedule-axis span:nth-child(2) { transform: translateX(-50%); }
+.person-activity-schedule-axis span:last-child { right: 0; }
+.person-activity-schedule-lanes {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: visible;
+}
+.person-activity-schedule-row {
+  position: relative;
+  height: 18px;
+  flex: 0 0 18px;
+  overflow: visible;
+  background: repeating-linear-gradient(90deg, #f0eef4 0, #f0eef4 calc(25% - 1px), #d8d5df calc(25% - 1px), #d8d5df 25%);
+  border-bottom: 1px solid rgba(73, 66, 87, .1);
+}
+.person-activity-schedule-bar {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 3px;
+}
+.person-activity-schedule-bar {
+  z-index: 2;
+  border: 0;
+  border-radius: 0;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.person-activity-schedule-bar.schema-activity-type-pedagogical,
+.person-activity-schedule-swatch.schema-activity-type-pedagogical { border-color: #6749ad; background: #8064c8; }
+.person-activity-schedule-bar.schema-activity-type-outdoors,
+.person-activity-schedule-swatch.schema-activity-type-outdoors { border-color: #39885c; background: #57a879; }
+.person-activity-schedule-bar.schema-activity-type-meals,
+.person-activity-schedule-swatch.schema-activity-type-meals { border-color: #c67c21; background: #e39a42; }
+.person-activity-schedule-bar.schema-activity-type-rest,
+.person-activity-schedule-swatch.schema-activity-type-rest { border-color: #387daf; background: #5b9dce; }
+.person-activity-schedule-list { display: grid; gap: 6px; margin-top: 10px; }
+.person-activity-schedule-list > div {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+  color: #514c5b;
+  font-size: 11px;
+}
+.person-activity-schedule-list time { color: #777282; font-size: 10px; white-space: nowrap; }
+.person-activity-schedule-swatch { width: 9px; height: 9px; border: 0; border-radius: 0; }
+.schema-activity-bar-absence { background: #d94b52 !important; }
+.schema-activity-absence-caption {
+  display: block;
+  margin-top: 2px;
+  color: #b7353d;
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 11px;
+}
+.schema-activity-legend-below {
+  margin: 8px 0 10px;
+  opacity: .68;
+  font-size: 10px;
+}
+.schema-activity-legend-below .schema-activity-legend-swatch {
+  width: 10px;
+  height: 6px;
+}
+.schema-activity-legend-swatch.schema-activity-absence-swatch {
+  background: #d94b52;
+  border-color: #d94b52;
 }

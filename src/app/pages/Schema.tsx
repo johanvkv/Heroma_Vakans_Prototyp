@@ -17,14 +17,47 @@ import { useNavigate } from 'react-router';
 import { persons, getActiveEmployment, fullName } from '../../data';
 import { CaseActivityModal } from '../components/CaseActivityModal';
 import { useOptionalAutomation } from '../components/AutomationContext';
+import { useRole } from '../components/RoleContext';
 import type { CaseActivity, CaseActivityResponse } from '../components/CaseActivityModal';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type ShiftType    = 'morning' | 'day' | 'evening' | 'night';
-type PeriodType   = 'dag' | 'arbetsvecka' | 'vecka' | 'manad' | 'period' | 'ar';
+type PeriodType   = 'dag' | 'arbetsvecka' | 'vecka' | 'sjuDagar' | 'femDagar' | 'manad' | 'period' | 'ar';
 type ViewType     = 'day-columns' | 'month-columns' | 'year-columns';
 type ColorScheme  = 'normal' | 'past' | 'absence' | 'vacant' | 'filled';
+type OrganisationScenario = 'clinic' | 'school' | 'schoolTimeline';
+type ActivityKind = 'pedagogical' | 'outdoors' | 'meals' | 'rest';
+
+interface ScheduleActivity {
+  id: string;
+  employeeId: string;
+  dateStr: string;
+  kind: ActivityKind;
+  label: string;
+  start: string;
+  end: string;
+}
+
+interface PreschoolDayPattern {
+  shift: Shift;
+  activities: Array<{ kind: ActivityKind; start: string; end: string }>;
+}
+interface EmployeeDaySchedule {
+  dateStr: string;
+  shift: Shift;
+  activities: ScheduleActivity[];
+  absenceLabel?: string;
+}
+
+interface ActivityFill {
+  activityId: string;
+  dateStr: string;
+  shift: Shift;
+  substituteId: string;
+  substituteName: string;
+  substituteRole: string;
+}
 
 const EMPLOYEE_COLUMN_WIDTH = 280;
 const VIEW_COLUMN_WIDTH: Record<ViewType, number> = {
@@ -39,9 +72,9 @@ function getScheduleTableMinWidth(viewType: ViewType, columnCount: number): numb
 
 interface Shift            { type: ShiftType; start: string; end: string; }
 interface EmployeeGroup    { id: string; label: string; category: 'team'|'role'|'department'|'functional'; }
-interface OrganisationGroup { id: string; label: string; kind: 'clinic'|'department'|'team'; personIds: string[]; parentId?: string; }
+interface OrganisationGroup { id: string; label: string; kind: 'clinic'|'department'|'team'|'activity'; personIds: string[]; parentId?: string; depth?: number; }
 interface ViewColumn       { date: Date; header: string; subHeader?: string; isWeekend?: boolean; }
-interface ShiftFill        { personId: string; dateStr: string; fillType: 'substitute'|'extra'; person: { name: string; role: string }; }
+interface ShiftFill        { personId: string; dateStr: string; fillType: 'substitute'|'extra'; person: { name: string; role: string }; substituteId?: string; shift?: Shift; }
 interface ScheduleEmployee { id: string; name: string; role: string; organisation: string; department: string; fmgGroup: string; }
 interface ResourceOrder {
   id: string;
@@ -105,6 +138,9 @@ interface SubPanelState {
   fillType: 'substitute' | 'extra';
   targetPersonName: string;
   targetUnit?: string;
+  targetType?: 'pass' | 'activity';
+  targetActivityId?: string;
+  targetActivityLabel?: string;
 }
 interface ConfirmState {
   substitutes: SubstituteCandidate[];
@@ -113,6 +149,9 @@ interface ConfirmState {
   targetShift: Shift;
   fillType: 'substitute' | 'extra';
   unit: string;
+  targetType?: 'pass' | 'activity';
+  targetActivityId?: string;
+  targetActivityLabel?: string;
 }
 interface OpenRequestState {
   substitutes: SubstituteCandidate[];
@@ -153,7 +192,7 @@ interface ResourceNeedAction { id: ResourceNeedActionId; text: string; icon: str
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-const TODAY_STR = '2026-09-03';
+const TODAY_STR = toDateStr(new Date());
 
 type ContextTargetType = 'absence' | 'vacant' | 'normal';
 type ContextActionId = 'find-substitute' | 'make-vacancy' | 'primary' | 'order-resource' | 'show-details' | 'simulate' | 'create-absence' | 'assign-direct';
@@ -269,11 +308,11 @@ const TIME_FLEXIBILITY = [
   { id: 3, label: 'Upp till 3 timmar kortare' },
 ];
 const DEFAULT_ORDER_INVITES: ResourceOrderInvite[] = [
-  { substituteId: 'sub1', name: 'Anna Viksson', role: 'Undersköterska', response: 'Tillgänglig', responseText: 'Jag kan ta passet.' },
+  { substituteId: 'sub3', name: 'Maria Svensson', role: 'Undersköterska', response: 'Tillgänglig', responseText: 'Jag kan ta passet.' },
   { substituteId: 'sub2', name: 'Erik Lindqvist', role: 'Sjuksköterska', response: 'Kan inte', responseText: 'Jag är redan bokad.' },
-  { substituteId: 'sub3', name: 'Maria Svensson', role: 'Undersköterska', response: 'Avvaktar' },
+  { substituteId: 'sub7', name: 'Sara Lundberg', role: 'Undersköterska', response: 'Avvaktar' },
 ];
-const TIME_PERIODS   = [{ id:'dag',label:'Dag'},{id:'arbetsvecka',label:'Arbetsvecka'},{id:'vecka',label:'Vecka'},{id:'manad',label:'Månad'},{id:'period',label:'Period'},{id:'ar',label:'År'}];
+const TIME_PERIODS   = [{ id:'dag',label:'Dag'},{id:'arbetsvecka',label:'Arbetsvecka'},{id:'vecka',label:'Vecka'},{id:'sjuDagar',label:'Sju dagar'},{id:'femDagar',label:'Fem dagar'},{id:'manad',label:'Månad'},{id:'period',label:'Period'},{id:'ar',label:'År'}];
 const SHIFT_DEFS: Record<ShiftType,{start:string;end:string}> = {
   morning:{start:'06:45',end:'15:00'}, day:{start:'08:00',end:'17:00'},
   evening:{start:'14:30',end:'22:30'}, night:{start:'22:00',end:'06:00'},
@@ -289,6 +328,7 @@ const _pid2 = persons[2]?.id ?? '';
 const _pid3 = persons[3]?.id ?? '';
 const _pid4 = persons[4]?.id ?? '';
 const _pid5 = persons[5]?.id ?? '';
+const _pid6 = persons[6]?.id ?? '';
 const _pid10 = persons[10]?.id ?? '';
 const _pid12 = persons[12]?.id ?? '';
 const _pid14 = persons[14]?.id ?? '';
@@ -297,13 +337,17 @@ const _pid18 = persons[18]?.id ?? '';
 
 const ABSENCE_SHIFTS: Record<string,Shift> = {
   [`${_pid0}|${TODAY_STR}`]: { type:'day',     start:'08:00', end:'17:00' },
+  [`${_pid1}|${TODAY_STR}`]: { type:'day',     start:'08:00', end:'17:00' },
   [`${_pid1}|2026-09-04`]:   { type:'evening', start:'14:30', end:'22:30' },
+  [`${_pid3}|${TODAY_STR}`]: { type:'day',     start:'08:00', end:'17:00' },
   [`${_pid2}|2026-09-05`]:   { type:'morning', start:'06:45', end:'15:00' },
   [`${_pid2}|2026-09-06`]:   { type:'morning', start:'06:45', end:'15:00' },
   [`${_pid2}|2026-09-07`]:   { type:'day',     start:'08:00', end:'17:00' },
   [`${_pid3}|2026-09-05`]:   { type:'night',   start:'22:00', end:'06:00' },
   [`${_pid3}|2026-09-07`]:   { type:'evening', start:'14:30', end:'22:30' },
   [`${_pid4}|${TODAY_STR}`]: { type:'morning', start:'06:45', end:'15:00' },
+  [`${_pid5}|${TODAY_STR}`]: { type:'day',     start:'08:00', end:'17:00' },
+  [`${_pid6}|${TODAY_STR}`]: { type:'day',     start:'08:00', end:'17:00' },
   [`${_pid4}|2026-09-06`]:   { type:'day',     start:'08:00', end:'17:00' },
   [`${_pid5}|2026-09-04`]:   { type:'night',   start:'22:00', end:'06:00' },
   [`${_pid5}|2026-09-06`]:   { type:'morning', start:'06:45', end:'15:00' },
@@ -319,19 +363,29 @@ const ABSENCE_SHIFTS: Record<string,Shift> = {
 const RUNTIME_ABSENCE_SHIFTS: Record<string, Shift> = { ...ABSENCE_SHIFTS };
 const RUNTIME_ABSENCE_REASONS: Record<string, AbsenceReason> = {
   [`${_pid0}|${TODAY_STR}`]: 'Sjuk',
+  [`${_pid1}|${TODAY_STR}`]: 'Sjuk',
   [`${_pid1}|2026-09-04`]: 'VAB',
+  [`${_pid3}|${TODAY_STR}`]: 'VAB',
   [`${_pid2}|2026-09-05`]: 'Sjuk',
   [`${_pid4}|${TODAY_STR}`]: 'Semester',
+  [`${_pid5}|${TODAY_STR}`]: 'Sjuk',
+  [`${_pid6}|${TODAY_STR}`]: 'Sjuk',
   [`${_pid10}|2026-09-10`]: 'Sjuk',
   [`${_pid12}|2026-09-11`]: 'Sjuk',
   [`${_pid14}|2026-09-15`]: 'Sjuk',
   [`${_pid16}|2026-09-17`]: 'Sjuk',
   [`${_pid18}|2026-09-22`]: 'Sjuk',
 };
+function getAbsenceCaption(personId: string, dateStr: string): string | undefined {
+  const key = `${personId}|${dateStr}`;
+  if (!RUNTIME_ABSENCE_SHIFTS[key]) return undefined;
+  const reason = RUNTIME_ABSENCE_REASONS[key];
+  return `Frånvaro${reason ? ` · ${reason}` : ''}`;
+}
 const RUNTIME_SHIFT_OVERRIDES: Record<string, Shift> = {};
 
 // Specific pass info text per shift cell ("Vak", "Bil", etc.)
-const SHIFT_PASS_INFO: Record<string, string> = {
+const CLINIC_SHIFT_PASS_INFO: Record<string, string> = {
   [`${_pid0}|${TODAY_STR}`]: 'Vak',
   [`${_pid2}|2026-09-05`]:   'Bil',
   [`${_pid3}|2026-09-05`]:   'Vak',
@@ -339,19 +393,27 @@ const SHIFT_PASS_INFO: Record<string, string> = {
   [`${_pid5}|2026-09-06`]:   'Bil',
 };
 
+const SCHOOL_SHIFT_PASS_INFO: Record<string, string> = {
+  [`${_pid0}|${TODAY_STR}`]: 'Morgonöppning',
+  [`${_pid1}|${TODAY_STR}`]: 'Samling',
+  [`${_pid2}|${TODAY_STR}`]: 'Utevistelse',
+  [`${_pid3}|${TODAY_STR}`]: 'Måltider',
+  [`${_pid4}|${TODAY_STR}`]: 'Hämtning och lämning',
+};
+
 // Akut: same day OR "Vak" task type
-function isAkutShift(personId: string, dateStr: string): boolean {
+function isAkutShift(personId: string, dateStr: string, organisation: OrganisationScenario = 'clinic'): boolean {
+  if (isSchoolScenario(organisation)) return false;
   if (dateStr === TODAY_STR) return true;
-  return SHIFT_PASS_INFO[`${personId}|${dateStr}`] === 'Vak';
+  return CLINIC_SHIFT_PASS_INFO[`${personId}|${dateStr}`] === 'Vak';
 }
 
-function getShiftPassInfo(personId: string, dateStr: string): string {
-  return SHIFT_PASS_INFO[`${personId}|${dateStr}`] ?? '';
+function getShiftPassInfo(personId: string, dateStr: string, organisation: OrganisationScenario = 'clinic'): string {
+  const passInfo = isSchoolScenario(organisation) ? SCHOOL_SHIFT_PASS_INFO : CLINIC_SHIFT_PASS_INFO;
+  return passInfo[`${personId}|${dateStr}`] ?? '';
 }
 
-const INITIAL_FILLS: ShiftFill[] = _pid1
-  ? [{ personId:_pid1, dateStr:TODAY_STR, fillType:'substitute', person:{ name:'Anna Viksson', role:'Undersköterska' } }]
-  : [];
+const INITIAL_FILLS: ShiftFill[] = [];
 
 // ─── Date utilities ───────────────────────────────────────────────────────────
 
@@ -382,6 +444,15 @@ function getColumns(viewStart: Date, period: PeriodType): ViewColumn[] {
     return [{date:viewStart,header:DAY_NAMES[dayIdx(viewStart)],subHeader:fmtShort(viewStart),isWeekend:isWknd(viewStart)}];
   if (period==='arbetsvecka')
     return Array.from({length:5},(_,i)=>{ const d=addDays(viewStart,i); return {date:d,header:DAY_NAMES[dayIdx(d)],subHeader:fmtShort(d),isWeekend:false}; });
+  if (period==='sjuDagar')
+    return Array.from({length:7},(_,i)=>{ const d=addDays(viewStart,i); return {date:d,header:DAY_NAMES[dayIdx(d)],subHeader:fmtShort(d),isWeekend:isWknd(d)}; });
+  if (period==='femDagar') {
+    const dates: ViewColumn[] = [];
+    for (let date = new Date(viewStart); dates.length < 5; date = addDays(date, 1)) {
+      if (!isWknd(date)) dates.push({date,header:DAY_NAMES[dayIdx(date)],subHeader:fmtShort(date),isWeekend:false});
+    }
+    return dates;
+  }
   if (period==='vecka'||period==='period')
     return Array.from({length:7},(_,i)=>{ const d=addDays(viewStart,i); return {date:d,header:DAY_NAMES[dayIdx(d)],subHeader:fmtShort(d),isWeekend:isWknd(d)}; });
   if (period==='manad') {
@@ -410,15 +481,33 @@ function getViewType(period: PeriodType): ViewType {
 function navStep(period: PeriodType, dir: 1|-1, from: Date): Date {
   if (period==='manad'){ const d=new Date(from); d.setMonth(d.getMonth()+dir); return monthStart(d); }
   if (period==='ar')   { const d=new Date(from); d.setFullYear(d.getFullYear()+dir); return yearStart(d); }
-  const n: Record<PeriodType,number>={dag:1,arbetsvecka:5,vecka:7,period:7,manad:30,ar:365};
+  if (period==='femDagar') {
+    let next = addDays(from, dir);
+    while (isWknd(next)) next = addDays(next, dir);
+    return next;
+  }
+  if (period==='sjuDagar') return addDays(from, dir);
+  const n: Record<PeriodType,number>={dag:1,arbetsvecka:7,vecka:7,period:7,manad:30,ar:365,sjuDagar:1,femDagar:1};
   return addDays(from, dir*n[period]);
 }
 function periodLabel(vs: Date, p: PeriodType): string {
   if (p==='dag')   return fmtDay(vs);
   if (p==='manad') return `${MTH_SHORT[vs.getMonth()]} ${vs.getFullYear()}`;
   if (p==='ar')    return `${vs.getFullYear()}`;
-  const end=addDays(vs,p==='arbetsvecka'?4:6);
+  const end=addDays(vs,p==='arbetsvecka'||p==='femDagar'?4:6);
   return `${fmtMid(vs)} – ${fmtLong(end)}`;
+}
+function initialPeriodStart(period: PeriodType, today: Date): Date {
+  if (period==='manad') return monthStart(today);
+  if (period==='ar') return yearStart(today);
+  if (period==='sjuDagar') return addDays(today, -1);
+  if (period==='femDagar') {
+    const yesterday = addDays(today, -1);
+    while (isWknd(yesterday)) yesterday.setDate(yesterday.getDate() + 1);
+    return yesterday;
+  }
+  if (period==='dag') return new Date(today);
+  return monWeekStart(today);
 }
 
 // ─── Shift generation ────────────────────────────────────────────────────────
@@ -505,11 +594,99 @@ const ORGANISATION = {
   ],
 };
 
+const SCHOOL_ORGANISATION = {
+  id: 'rektorsomrade', label: 'Rektorsområde Väster',
+  preschools: [
+    { id: 'solglantan', label: 'Förskolan Solgläntan', departments: ['Ekorren', 'Fjärilen'] },
+    { id: 'skogsbrynet', label: 'Förskolan Skogsbrynet', departments: ['Myran', 'Kotten'] },
+  ],
+};
+
+const ACTIVITIES_BY_ORGANISATION = {
+  clinic: ['Patientmottagning', 'Omvårdnad'],
+  school: ['Pedagogisk verksamhet', 'Måltider och utevistelse'],
+};
+
+const PRESCHOOL_ACTIVITY_TYPES: Record<ActivityKind, { label: string; className: string }> = {
+  pedagogical: { label: 'Pedagogisk verksamhet', className: 'schema-activity-type-pedagogical' },
+  outdoors: { label: 'Utevistelse', className: 'schema-activity-type-outdoors' },
+  meals: { label: 'Måltider', className: 'schema-activity-type-meals' },
+  rest: { label: 'Vila och återhämtning', className: 'schema-activity-type-rest' },
+};
+
+function isSchoolScenario(organisation: OrganisationScenario): boolean {
+  return organisation !== 'clinic';
+}
+
+function internalCandidateId(personId: string): string {
+  return `employee:${personId}`;
+}
+
+function isSelfAvailablePreschoolEmployee(employeeIndex: number, date: Date): boolean {
+  if (isWknd(date)) return false;
+  const weekdayIndex = date.getDay() - 1;
+  return employeeIndex % 5 === weekdayIndex;
+}
+
+function getPreschoolDayPattern(employeeIndex: number, date: Date): PreschoolDayPattern | null {
+  if (isWknd(date) || isSelfAvailablePreschoolEmployee(employeeIndex, date)) return null;
+  const templates: PreschoolDayPattern[] = [
+    {
+      shift: { type: 'day', start: '07:00', end: '16:30' },
+      activities: [
+        { kind: 'pedagogical', start: '07:00', end: '12:00' },
+        { kind: 'outdoors', start: '12:00', end: '16:30' },
+      ],
+    },
+    {
+      shift: { type: 'day', start: '07:30', end: '17:00' },
+      activities: [
+        { kind: 'outdoors', start: '07:30', end: '12:30' },
+        { kind: 'pedagogical', start: '12:30', end: '17:00' },
+      ],
+    },
+    {
+      shift: { type: 'day', start: '08:00', end: '16:30' },
+      activities: [
+        { kind: 'meals', start: '08:00', end: '12:30' },
+        { kind: 'rest', start: '12:30', end: '16:30' },
+      ],
+    },
+    {
+      shift: { type: 'day', start: '07:00', end: '15:30' },
+      activities: [
+        { kind: 'pedagogical', start: '07:00', end: '15:30' },
+      ],
+    },
+  ];
+  return templates[(employeeIndex + date.getDate()) % templates.length];
+}
+
+function getPreschoolActivities(employeeId: string, employeeIndex: number, date: Date): ScheduleActivity[] {
+  const pattern = getPreschoolDayPattern(employeeIndex, date);
+  if (!pattern) return [];
+  const dateStr = toDateStr(date);
+  return pattern.activities.map((activity, index) => ({
+    ...activity,
+    id: `${employeeId}|${dateStr}|activity-${index + 1}`,
+    employeeId,
+    dateStr,
+    label: PRESCHOOL_ACTIVITY_TYPES[activity.kind].label,
+  }));
+}
+
 const CARE_ROLES = [
   'Sjuksköterska', 'Undersköterska', 'Läkare', 'Fysioterapeut', 'Vårdadministratör',
   'Sjuksköterska', 'Undersköterska', 'Läkare', 'Medicinsk sekreterare', 'Arbetsterapeut',
   'Sjuksköterska', 'Undersköterska', 'Läkare', 'Sjuksköterska', 'Vårdadministratör',
   'Sjuksköterska', 'Undersköterska', 'Läkare', 'Medicinsk sekreterare', 'Fysioterapeut',
+];
+
+const PRESCHOOL_ROLES = [
+  'Förskollärare', 'Barnskötare', 'Barnskötare', 'Förskollärare', 'Barnskötare',
+  'Förskollärare', 'Barnskötare', 'Barnskötare', 'Förskollärare', 'Barnskötare',
+  'Förskollärare', 'Barnskötare', 'Barnskötare', 'Förskollärare', 'Barnskötare',
+  'Förskollärare', 'Barnskötare', 'Barnskötare', 'Förskollärare', 'Barnskötare',
 ];
 
 const ROLE_COMPETENCIES: Record<string, string[]> = {
@@ -599,13 +776,14 @@ function getAvailableSubs(
   flexibilityHours = 1,
   overrides: SubstituteAvailabilityOverrides = {},
   absences: SubstituteAbsences = {},
+  candidates: SubstituteCandidate[] = SUBSTITUTE_CANDIDATES,
 ): SubstituteCandidate[] {
   const [sH,sM]=shift.start.split(':').map(Number);
   const [eH,eM]=shift.end.split(':').map(Number);
   const shiftStart=sH*60+sM;
   const shiftEnd=(eH*60+eM) <= shiftStart ? eH*60+eM+1440 : eH*60+eM;
   const requiredMinutes=Math.max(0, shiftEnd-shiftStart-flexibilityHours*60);
-  return SUBSTITUTE_CANDIDATES.filter(sub => {
+  return candidates.filter(sub => {
     if (isSubstituteBooked(sub.id, toDateStr(date))) return false;
     const a=getSubAvailability(sub.id, date, overrides, absences);
     if (!a) return false;
@@ -716,14 +894,103 @@ function ShiftMonthCell({ shift, color, passInfo, isAkut, orderedBy, resourceNee
   );
 }
 
+function timeToMinutes(time: string): number {
+  const [hours, minutes] = time.split(':').map(Number);
+  return hours * 60 + minutes;
+}
+
+function ActivityTimelineCell({ shift, color, passFill, activities, activityFills, availability, bookedAssignment, absenceLabel, onOpenPass, onOpenActivity, onPassDragOver, onPassDrop }: {
+  shift: Shift | null;
+  color: ColorScheme;
+  passFill?: ShiftFill;
+  activities: ScheduleActivity[];
+  activityFills: Record<string, ActivityFill>;
+  availability: SubAvailability | null;
+  bookedAssignment?: { start: string; end: string; name: string };
+  absenceLabel?: string;
+  onOpenPass: () => void;
+  onOpenActivity: (activity: ScheduleActivity) => void;
+  onPassDragOver: (event: React.DragEvent) => void;
+  onPassDrop: (event: React.DragEvent, shift: Shift) => void;
+}) {
+  const segmentStyle = (start: string, end: string): React.CSSProperties => ({
+    left: `${timeToMinutes(start) / 1440 * 100}%`,
+    width: `${Math.max(0, (timeToMinutes(end) - timeToMinutes(start)) / 1440 * 100)}%`,
+  });
+  const availabilityStart = availability ? `${String(availability.startH).padStart(2, '0')}:${String(availability.startM).padStart(2, '0')}` : '';
+  const availabilityEnd = availability ? `${String(availability.endH).padStart(2, '0')}:${String(availability.endM).padStart(2, '0')}` : '';
+  const totalTime = shift ? `${shift.start}–${shift.end}`
+    : bookedAssignment ? `${bookedAssignment.start}–${bookedAssignment.end}`
+      : availability ? fmtAvailTime(availability) : '';
+  return (
+    <div className="schema-activity-timeline" aria-label={`Schema ${totalTime}`}>
+      {shift
+        ? <button type="button" className="schema-activity-total-time schema-activity-pass-action" onClick={onOpenPass} title={`Välj vikarie för hela passet ${shift.start}–${shift.end}`}>{totalTime}</button>
+        : totalTime && <span className="schema-activity-total-time">{totalTime}</span>}
+      <div className="schema-activity-lanes">
+      {shift && <>
+        <button
+          type="button"
+          className={`schema-activity-pass-window schema-activity-pass-${color}`}
+          style={segmentStyle(shift.start, shift.end)}
+          aria-label={`${passFill ? 'Ändra vikarie för passet' : 'Välj vikarie för passet'} ${shift.start} till ${shift.end}`}
+          title={`${passFill ? `Tillsatt med ${passFill.person.name}. ` : ''}Välj vikarie för hela passet ${shift.start}–${shift.end}`}
+          onClick={onOpenPass}
+          onDragOver={onPassDragOver}
+          onDrop={event => onPassDrop(event, shift)}
+        />
+      </>}
+      {activities.map(activity => {
+        const presentation = PRESCHOOL_ACTIVITY_TYPES[activity.kind];
+        const assignment = activityFills[activity.id];
+        return (
+          <div className="schema-activity-row" key={activity.id}>
+            <button
+              type="button"
+              className={`schema-activity-bar ${presentation.className}${absenceLabel ? ' schema-activity-bar-absence' : ''}${assignment ? ' schema-activity-bar-filled' : ''}`}
+              style={segmentStyle(activity.start, activity.end)}
+              aria-label={`${activity.label}, ${activity.start} till ${activity.end}${assignment ? `, vikarie ${assignment.substituteName}` : ', välj vikarie för aktiviteten'}`}
+              title={`${activity.label} · ${activity.start}–${activity.end}${assignment ? ` · Tillsatt med ${assignment.substituteName}` : ' · Klicka för att välja vikarie för just aktiviteten'}`}
+              onClick={event => { event.stopPropagation(); onOpenActivity(activity); }}
+            >
+              <span>{activity.label.slice(0, 3)}</span>
+            </button>
+          </div>
+        );
+      })}
+      {bookedAssignment && !shift && <div className="schema-activity-row">
+        <span
+          className="schema-activity-booked-window"
+          style={segmentStyle(bookedAssignment.start, bookedAssignment.end)}
+          title={`Bokad som vikarie för ${bookedAssignment.name}, ${bookedAssignment.start}–${bookedAssignment.end}`}
+        />
+      </div>}
+      {availability && !shift && !bookedAssignment && <div className="schema-activity-row">
+        <span
+          className="schema-activity-availability-window"
+          style={segmentStyle(availabilityStart, availabilityEnd)}
+          title={fmtAvailTime(availability)}
+        />
+      </div>}
+      {!shift && !bookedAssignment && !availability && <div className="schema-activity-row" aria-hidden="true" />}
+      </div>
+      {absenceLabel && <span className="schema-activity-absence-caption">{absenceLabel}</span>}
+    </div>
+  );
+}
+
 // ─── Substitute panel ─────────────────────────────────────────────────────────
 
 interface SubstitutePanelProps {
   isOpen: boolean;
   browseAll: boolean;
   state: SubPanelState | null;
+  candidates: SubstituteCandidate[];
+  singleAssignment?: boolean;
+  bookingsByCandidate?: Record<string, SubBookedShift[]>;
   columns: ViewColumn[];
   viewType: ViewType;
+  viewColumnWidth?: number;
   onClose: () => void;
   onSendRequest: (selectedIds: string[]) => void;
   onOpenDetails: (substituteId: string, dateStr: string) => void;
@@ -740,7 +1007,7 @@ interface SubstitutePanelProps {
 }
 
 function SubstitutePanel({
-  isOpen, browseAll, state, columns, viewType,
+  isOpen, browseAll, state, candidates, singleAssignment = false, bookingsByCandidate = SUB_BOOKED_SHIFTS, columns, viewType, viewColumnWidth: viewColumnWidthOverride,
   onClose, onSendRequest, onOpenDetails, onSetAvailability, onRestoreAvailability, onReportSick, onClearSickness,
   availabilityOverrides, absences,
   onDragStart, scrollRef, tableWidth, tableInset,
@@ -775,7 +1042,7 @@ function SubstitutePanel({
     setTimeFlexibility(1);
     setSelectedSubIds([]);
     setExpandedSubId(null);
-  }, [browseAll, state?.dateStr, state?.personId]);
+  }, [browseAll, state?.dateStr, state?.personId, state?.targetActivityId, state?.targetType]);
 
   const toggleExpand = useCallback((id: string) => {
     setExpandedSubId(prev => prev === id ? null : id);
@@ -786,6 +1053,12 @@ function SubstitutePanel({
     const t = PASS_TO_SHIFT[filterPass];
     return { type: t, ...SHIFT_DEFS[t] };
   }, [browseAll, filterPass, state?.shift]);
+  const candidateRoles = useMemo(() => [...new Set(candidates.map(candidate => candidate.role))]
+    .sort((a, b) => a.localeCompare(b, 'sv'))
+    .map(role => ({ id: role, label: role })), [candidates]);
+  const candidateCategories = useMemo(() => [...new Set(candidates.map(candidate => candidate.category))]
+    .sort((a, b) => a.localeCompare(b, 'sv'))
+    .map(category => ({ id: category, label: category })), [candidates]);
 
   const availSubs = useMemo(() => {
     const matchesFilters = (sub: SubstituteCandidate) => {
@@ -799,12 +1072,20 @@ function SubstitutePanel({
     };
     let list: SubstituteCandidate[];
     if (browseAll) {
-      list = SUBSTITUTE_CANDIDATES.filter(sub => {
+      list = candidates.filter(sub => {
         if (!matchesFilters(sub)) return false;
+        if (singleAssignment && sub.category === 'Tillgänglig medarbetare' && !browseShift) {
+          const hasSelfAvailability = columns.some(column => {
+            const dateStr = toDateStr(column.date);
+            if ((bookingsByCandidate[sub.id] ?? []).some(booking => booking.dateStr === dateStr)) return false;
+            return Boolean(getSubAvailability(sub.id, column.date, availabilityOverrides, absences));
+          });
+          if (!hasSelfAvailability) return false;
+        }
         if (browseShift) {
           const hasMatchingAvailability = columns.some(column => {
             const dateStr = toDateStr(column.date);
-            if (isSubstituteBooked(sub.id, dateStr)) return false;
+            if ((bookingsByCandidate[sub.id] ?? []).some(booking => booking.dateStr === dateStr)) return false;
             const avail = getSubAvailability(sub.id, column.date, availabilityOverrides, absences);
             return Boolean(avail && subAvailPct(avail, browseShift) > 0);
           });
@@ -824,7 +1105,7 @@ function SubstitutePanel({
       }
     } else {
       list = state && browseShift
-        ? getAvailableSubs(browseShift, parseDate(state.dateStr), timeFlexibility, availabilityOverrides, absences).filter(matchesFilters)
+        ? getAvailableSubs(browseShift, parseDate(state.dateStr), state.targetType === 'activity' ? 0 : timeFlexibility, availabilityOverrides, absences, candidates).filter(matchesFilters)
         : [];
       if (state && browseShift) {
         const date = parseDate(state.dateStr);
@@ -835,12 +1116,12 @@ function SubstitutePanel({
       }
     }
     return list;
-  }, [absences, availabilityOverrides, browseAll, filterRoles, filterCategories, filterCompetencies, browseShift, columns, state, timeFlexibility]);
+  }, [absences, availabilityOverrides, bookingsByCandidate, browseAll, candidates, filterRoles, filterCategories, filterCompetencies, browseShift, columns, singleAssignment, state, timeFlexibility]);
 
-  const panelClass = `schema-sub-panel${isOpen ? ' schema-sub-panel-open' : ''}`;
+  const panelClass = `schema-sub-panel${isOpen ? ' schema-sub-panel-open' : ''}${singleAssignment ? ' schema-sub-panel-single-assignment' : ''}`;
   const fillLabel = 'Vikarier';
-  const viewColumnWidth = VIEW_COLUMN_WIDTH[viewType];
-  const tableMinWidth = getScheduleTableMinWidth(viewType, columns.length);
+  const viewColumnWidth = viewColumnWidthOverride ?? VIEW_COLUMN_WIDTH[viewType];
+  const tableMinWidth = EMPLOYEE_COLUMN_WIDTH + viewColumnWidth * columns.length;
 
   useEffect(() => {
     const visibleIds = new Set(availSubs.map(substitute => substitute.id));
@@ -916,6 +1197,7 @@ function SubstitutePanel({
           <span className="schema-sub-panel-context">
             {state.targetPersonName}
             <span className="schema-sub-panel-context-sep"> · </span>
+            {state.targetActivityLabel && <>{state.targetActivityLabel}<span className="schema-sub-panel-context-sep"> · </span></>}
             {state.dateStr}
             <span className="schema-sub-panel-context-sep"> · </span>
             {state.shift.start}–{state.shift.end}
@@ -931,15 +1213,15 @@ function SubstitutePanel({
       <div className="schema-sub-send-bar">
         <button
           className="btn-primary schema-sub-send-btn"
-          disabled={selectedSubIds.length === 0}
+          disabled={selectedSubIds.length === 0 || (singleAssignment && !state)}
           onClick={() => onSendRequest(selectedSubIds)}
         >
           <i className="fa-solid fa-paper-plane" />
-          Skicka förfrågan
+          {singleAssignment ? state ? 'Välj vikarie' : 'Dra vikarie till pass' : 'Skicka förfrågan'}
         </button>
         <div className="schema-sub-filter-fields">
           <TagBox
-            dataSource={SUBSTITUTE_ROLES}
+            dataSource={candidateRoles}
             displayExpr="label"
             valueExpr="id"
             value={filterRoles}
@@ -953,7 +1235,7 @@ function SubstitutePanel({
             width={210}
           />
           <TagBox
-            dataSource={SUBSTITUTE_CATEGORIES}
+            dataSource={candidateCategories}
             displayExpr="label"
             valueExpr="id"
             value={filterCategories}
@@ -991,7 +1273,7 @@ function SubstitutePanel({
             stylingMode="outlined"
             width={230}
           />
-          {!browseAll && state && (
+          {!browseAll && state && state.targetType !== 'activity' && (
             <SelectBox
               dataSource={TIME_FLEXIBILITY}
               displayExpr="label"
@@ -1012,7 +1294,7 @@ function SubstitutePanel({
             }}><i className="fa-solid fa-rotate-left" /> Rensa filter</button>
           )}
         </div>
-        <span className="schema-sub-send-hint">Markera vikarier i listan nedan</span>
+        <span className="schema-sub-send-hint">{singleAssignment ? state ? 'Välj en vikarie för det markerade passet eller aktiviteten' : 'Dra en vikarie till ett pass i schemat' : 'Markera vikarier i listan nedan'}</span>
       </div>
 
       {/* Scrollable table — synced with main schedule */}
@@ -1028,7 +1310,7 @@ function SubstitutePanel({
           <thead>
             <tr>
               <th className="schema-employee-header schema-sub-sticky-col schema-sub-th-select">
-                {(() => {
+                {!singleAssignment && (() => {
                   return (
                     <input
                       type="checkbox"
@@ -1083,7 +1365,7 @@ function SubstitutePanel({
                 const isExpanded   = expandedSubId === sub.id;
                 const details      = SUB_DETAILS[sub.id];
                 const atlPct       = details ? Math.round(details.atlHours / details.maxAtlHours * 100) : 0;
-                const bookedShifts = SUB_BOOKED_SHIFTS[sub.id] ?? [];
+                const bookedShifts = bookingsByCandidate[sub.id] ?? [];
 
                 return (
                   <React.Fragment key={sub.id}>
@@ -1103,14 +1385,15 @@ function SubstitutePanel({
                       >
                         <div className="schema-sub-name-cell">
                           <input
-                            type="checkbox"
+                            type={singleAssignment ? 'radio' : 'checkbox'}
+                            name={singleAssignment ? 'schema-sub-single-assignment' : undefined}
                             data-sub-id={sub.id}
                             className="schema-sub-checkbox"
                             aria-label={`Välj ${sub.name}`}
                             checked={selectedSubIds.includes(sub.id)}
-                            onChange={() => setSelectedSubIds(current => current.includes(sub.id)
-                              ? current.filter(id => id !== sub.id)
-                              : [...current, sub.id])}
+                            onChange={() => setSelectedSubIds(current => singleAssignment
+                              ? [sub.id]
+                              : current.includes(sub.id) ? current.filter(id => id !== sub.id) : [...current, sub.id])}
                           />
                           <button
                             className="schema-sub-chevron"
@@ -1195,7 +1478,7 @@ function SubstitutePanel({
                                 </span>
                               ) : (
                                 <>
-                                  {bar24(avail.startH, avail.startM, avail.endH, avail.endM, isPast ? 'schema-sub-bar24-past' : 'schema-sub-bar24-avail')}
+                                  {bar24(avail.startH, avail.startM, avail.endH, avail.endM, isPast ? 'schema-sub-bar24-past' : sub.category === 'Tillgänglig medarbetare' ? 'schema-sub-bar24-self-avail' : 'schema-sub-bar24-avail')}
                                   {viewType === 'day-columns' && (
                                     <span className={`schema-sub-avail-time${isPast ? ' schema-sub-avail-time-past' : ''}`}>
                                       {fmtAvailTime(avail)}
@@ -1310,7 +1593,9 @@ function ConfirmAssignDialogInner({ state, onConfirm, onCancel }: {
 }) {
   const [msg, setMsg] = useState('');
   const [unit, setUnit] = useState(state.unit);
-  const title = state.fillType === 'substitute' ? 'Skicka förfrågan' : 'Boka extrapass';
+  const title = state.targetActivityLabel
+    ? `Skicka förfrågan · ${state.targetActivityLabel}`
+    : state.fillType === 'substitute' ? 'Skicka förfrågan' : 'Boka extrapass';
   return (
     <Popup visible={true} onHiding={onCancel} title={title} width={500} height="auto" showCloseButton={true} dragEnabled={false}>
       <div className="schema-dialog-content">
@@ -1323,6 +1608,7 @@ function ConfirmAssignDialogInner({ state, onConfirm, onCancel }: {
             <i className="fa-solid fa-clock" />
             <span>{state.targetShift.start}–{state.targetShift.end}</span>
           </div>
+          {state.targetActivityLabel && <div className="schema-confirm-row"><i className="fa-solid fa-shapes" /><span>Vikarie för aktiviteten <strong>{state.targetActivityLabel}</strong></span></div>}
           <div className="schema-confirm-row">
             <i className="fa-solid fa-user-plus" />
             <div className="schema-confirm-subs">
@@ -1472,7 +1758,7 @@ const SHIFT_LABELS: Record<ShiftType, string> = {
   morning: 'Morgonpass', day: 'Dagpass', evening: 'Kvällspass', night: 'Nattpass',
 };
 
-function PassDetailCard({ state, onSaveTime, onPrimaryAction, onCreateOrder, onCreateResourceNeed, onReportSick, onSimulate, resourceNeedMode = false, resourceNeed, resourceNeedOrder, assignedPerson, assignmentFailure }: {
+function PassDetailCard({ state, onSaveTime, onPrimaryAction, onCreateOrder, onCreateResourceNeed, onReportSick, onSimulate, resourceNeedMode = false, resourceNeed, resourceNeedOrder, assignedPerson, assignmentFailure, activitySchedule, organisation = 'clinic' }: {
   state: DetailState;
   onSaveTime: (start: string, end: string) => void;
   onPrimaryAction?: () => void;
@@ -1485,6 +1771,8 @@ function PassDetailCard({ state, onSaveTime, onPrimaryAction, onCreateOrder, onC
   resourceNeedOrder?: ResourceOrder;
   assignedPerson?: { name: string; role: string };
   assignmentFailure?: string;
+  activitySchedule?: EmployeeDaySchedule;
+  organisation?: OrganisationScenario;
 }) {
   const [start, setStart] = useState(state.shift.start);
   const [end, setEnd] = useState(state.shift.end);
@@ -1492,7 +1780,8 @@ function PassDetailCard({ state, onSaveTime, onPrimaryAction, onCreateOrder, onC
   const isVacant = state.color === 'vacant';
   const isAbsent = state.color === 'absence';
   const isPast   = state.color === 'past';
-  const akut     = isAkutShift(state.empId, state.dateStr) && isVacant;
+  const akut     = isAkutShift(state.empId, state.dateStr, organisation) && isVacant;
+  const passInfo = getShiftPassInfo(state.empId, state.dateStr, organisation);
   const timeChanged = start !== state.shift.start || end !== state.shift.end;
   const statusLabel = assignmentFailure ? 'Kunde inte tillsättas' : isVacant ? (resourceNeedMode ? 'Resursbehov' : (akut ? 'Akut vakans' : 'Vakans')) : isAbsent ? 'Frånvaro' : state.color === 'filled' ? 'Tillsatt' : isPast ? 'Historiskt pass' : 'Planerat';
   const primaryLabel = isVacant ? 'Hitta vikarie' : isAbsent ? 'Gör till vakans' : state.color === 'normal' ? 'Boka extrapass' : null;
@@ -1506,13 +1795,17 @@ function PassDetailCard({ state, onSaveTime, onPrimaryAction, onCreateOrder, onC
       <dl>
         <div><dt>Datum</dt><dd>{fmtDay(parseDate(state.dateStr))}</dd></div>
         <div><dt>Pass</dt><dd><div className="order-detail-time-editor"><label>Starttid<input type="time" value={start} onChange={event => setStart(event.currentTarget.value)} /></label><span>–</span><label>Sluttid<input type="time" value={end} onChange={event => setEnd(event.currentTarget.value)} /></label>{timeChanged && <button type="button" className="btn-secondary" onClick={() => onSaveTime(start, end)}>Spara tid</button>}</div></dd></div>
-        <div><dt>Passtyp</dt><dd>{SHIFT_LABELS[state.shift.type]}{getShiftPassInfo(state.empId, state.dateStr) ? ` · ${getShiftPassInfo(state.empId, state.dateStr)}` : ''}</dd></div>
+        <div><dt>Passtyp</dt><dd>{SHIFT_LABELS[state.shift.type]}{passInfo ? ` · ${passInfo}` : ''}</dd></div>
         <div><dt>Status</dt><dd><span className={`schema-detail-status schema-detail-status-${state.color}${assignmentFailure ? ' schema-detail-status-assignment-failed' : ''}`}><i className={assignmentFailure ? 'fa-solid fa-robot' : undefined} />{statusLabel}</span></dd></div>
         {assignmentFailure && <div><dt>Orsak</dt><dd>{assignmentFailure}</dd></div>}
         {resourceNeed && <div><dt>Resursbehov</dt><dd>{resourceNeed.createdBy}{resourceNeed.reason ? ` · ${resourceNeed.reason}` : ''}</dd></div>}
         {resourceNeedOrder && <div><dt>Beställning</dt><dd>Beställd av {resourceNeedOrder.orderedBy} · {resourceNeedOrder.status}</dd></div>}
         {assignedPerson && <div><dt>Tillsatt med</dt><dd>{assignedPerson.name} · {assignedPerson.role}</dd></div>}
       </dl>
+      {activitySchedule && <div className="person-activity-schedule-panel pass-activity-schedule-panel">
+        <h4>Aktiviteter den här dagen</h4>
+        <ActivityScheduleDetail schedule={activitySchedule} />
+      </div>}
       {!isPast && <div className="order-detail-actions">
         {resourceNeedMode && onCreateResourceNeed && state.color === 'normal' && <button className="btn-primary" onClick={onCreateResourceNeed}><i className="fa-solid fa-user-clock" /> Skapa resursbehov</button>}
         {!resourceNeedMode && primaryLabel && onPrimaryAction && <button className="btn-primary" onClick={onPrimaryAction}><i className={`fa-solid ${primaryIcon}`} /> {primaryLabel}</button>}
@@ -1524,10 +1817,54 @@ function PassDetailCard({ state, onSaveTime, onPrimaryAction, onCreateOrder, onC
   );
 }
 
-function PersonDetailCard({ employee, competencies, shiftDates, onReportSick, onShowSchedule }: {
+function ActivityScheduleDetail({ schedule }: { schedule: EmployeeDaySchedule }) {
+  const segmentStyle = (from: string, to: string): React.CSSProperties => ({
+    left: `${timeToMinutes(from) / 1440 * 100}%`,
+    width: `${Math.max(0, (timeToMinutes(to) - timeToMinutes(from)) / 1440 * 100)}%`,
+  });
+  return (
+    <section className="person-activity-schedule" aria-label={`Dagschema ${fmtDay(parseDate(schedule.dateStr))}`}>
+      <div className="person-activity-schedule-heading">
+        <strong>{fmtDay(parseDate(schedule.dateStr))}</strong>
+        <span>{schedule.shift.start}–{schedule.shift.end}</span>
+      </div>
+      <div className="person-activity-schedule-axis" aria-hidden="true">
+        <span>00:00</span>
+        <span style={{ left: '50%' }}>12:00</span>
+        <span>24:00</span>
+      </div>
+      <div className="person-activity-schedule-lanes" aria-label={`Arbetstid ${schedule.shift.start} till ${schedule.shift.end}`}>
+        {schedule.activities.map(activity => (
+          <div className="person-activity-schedule-row" key={activity.id}>
+            <span
+              className={`person-activity-schedule-bar ${schedule.absenceLabel ? 'schema-activity-bar-absence' : PRESCHOOL_ACTIVITY_TYPES[activity.kind].className}`}
+              style={segmentStyle(activity.start, activity.end)}
+              title={`${activity.label} · ${activity.start}–${activity.end}`}
+            >
+              {activity.label.slice(0, 3)}
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="person-activity-schedule-list">
+        {schedule.activities.map(activity => (
+          <div key={activity.id}>
+            <i className={`person-activity-schedule-swatch ${schedule.absenceLabel ? 'schema-activity-bar-absence' : PRESCHOOL_ACTIVITY_TYPES[activity.kind].className}`} />
+            <span>{activity.label}</span>
+            <time>{activity.start}–{activity.end}</time>
+          </div>
+        ))}
+      </div>
+      {schedule.absenceLabel && <span className="schema-activity-absence-caption">{schedule.absenceLabel}</span>}
+    </section>
+  );
+}
+
+function PersonDetailCard({ employee, competencies, shiftDates, activitySchedules, onReportSick, onShowSchedule }: {
   employee: ScheduleEmployee;
   competencies: string[];
   shiftDates: string[];
+  activitySchedules?: Record<string, EmployeeDaySchedule>;
   onReportSick: (dateStr: string) => void;
   onShowSchedule: () => void;
 }) {
@@ -1544,6 +1881,12 @@ function PersonDetailCard({ employee, competencies, shiftDates, onReportSick, on
         <div><dt>Kompetenser</dt><dd><div className="person-detail-competencies">{competencies.map(competency => <span key={competency}>{competency}</span>)}</div></dd></div>
         <div><dt>Datum för sjukanmälan</dt><dd><select value={selectedDate} onChange={event => setSelectedDate(event.currentTarget.value)} disabled={shiftDates.length === 0}>{shiftDates.length > 0 ? shiftDates.map(dateStr => <option key={dateStr} value={dateStr}>{fmtDay(parseDate(dateStr))}</option>) : <option value="">Inget pass i aktuell period</option>}</select></dd></div>
       </dl>
+      {activitySchedules && <div className="person-activity-schedule-panel">
+        <h4>Schema för vald dag</h4>
+        {activitySchedules[selectedDate]
+          ? <ActivityScheduleDetail schedule={activitySchedules[selectedDate]} />
+          : <p>Inget arbetsschema i aktuell period.</p>}
+      </div>}
       <div className="order-detail-actions">
         <button className="btn-primary" disabled={!selectedDate} onClick={() => selectedDate && onReportSick(selectedDate)}><i className="fa-solid fa-calendar-xmark" /> Sjukanmäl</button>
         <button className="btn-secondary" onClick={onShowSchedule}><i className="fa-solid fa-calendar-days" /> Visa i schema</button>
@@ -1554,7 +1897,7 @@ function PersonDetailCard({ employee, competencies, shiftDates, onReportSick, on
 
 function SubstituteDetailCard({ substitute, details, dateStr, dateOptions, availability, hasAvailabilityOverride, booking, absenceReason, onSelectDate, onSaveAvailability, onMarkUnavailable, onRestoreAvailability, onReportSick, onClearSickness, onSendRequest }: {
   substitute: SubstituteCandidate;
-  details: SubstituteDetails;
+  details?: SubstituteDetails;
   dateStr: string;
   dateOptions: string[];
   availability: SubAvailability | null;
@@ -1597,9 +1940,9 @@ function SubstituteDetailCard({ substitute, details, dateStr, dateOptions, avail
       <h3>{substitute.name}</h3>
       <p className="order-detail-role">{substitute.role} · {substitute.category}</p>
       <dl>
-        <div><dt>Kontakt</dt><dd><a href={`tel:${details.phone.replace(/\s/g, '')}`}>{details.phone}</a><br /><a href={`mailto:${details.email}`}>{details.email}</a></dd></div>
-        <div><dt>ATL</dt><dd>{details.atlHours} av {details.maxAtlHours} timmar</dd></div>
-        <div><dt>Kompetenser</dt><dd><div className="person-detail-competencies">{details.competencies.map(competency => <span key={competency}>{competency}</span>)}</div></dd></div>
+        {details && <div><dt>Kontakt</dt><dd><a href={`tel:${details.phone.replace(/\s/g, '')}`}>{details.phone}</a><br /><a href={`mailto:${details.email}`}>{details.email}</a></dd></div>}
+        {details && <div><dt>ATL</dt><dd>{details.atlHours} av {details.maxAtlHours} timmar</dd></div>}
+        {details && <div><dt>Kompetenser</dt><dd><div className="person-detail-competencies">{details.competencies.map(competency => <span key={competency}>{competency}</span>)}</div></dd></div>}
         <div><dt>Datum</dt><dd><select value={dateStr} onChange={event => onSelectDate(event.currentTarget.value)}>{dateOptions.map(option => <option key={option} value={option}>{fmtDay(parseDate(option))}</option>)}</select></dd></div>
         <div><dt>Status</dt><dd><span className={`schema-detail-status ${absenceReason ? 'schema-detail-status-absence' : booking ? 'schema-detail-status-filled' : availability ? 'schema-detail-status-normal' : ''}`}>{availabilityLabel}</span></dd></div>
         <div><dt>Tillgänglighet</dt><dd><div className="order-detail-time-editor"><label>Från<input type="time" value={start} disabled={!canEdit} onChange={event => setStart(event.currentTarget.value)} /></label><span>–</span><label>Till<input type="time" value={end} disabled={!canEdit} onChange={event => setEnd(event.currentTarget.value)} /></label>{canEdit && <button type="button" className="btn-secondary" onClick={saveAvailability}>Spara</button>}</div></dd></div>
@@ -1846,7 +2189,7 @@ function ResourceNeedsList({ needs, onClose, onOpenDetails, onAction, onDropPass
   onAction: (needId: string, action: ResourceNeedAction) => void;
   onDropPass: (event: React.DragEvent<HTMLDivElement>) => void;
   onOrderAll: () => void;
-  onAssignAll: () => void;
+  onAssignAll?: () => void;
 }) {
   const [contextNeedId, setContextNeedId] = useState<string | null>(null);
   const [contextActions, setContextActions] = useState<ResourceNeedAction[]>([]);
@@ -1901,9 +2244,9 @@ function ResourceNeedsList({ needs, onClose, onOpenDetails, onAction, onDropPass
         <button className="btn-secondary" disabled={activeNeeds.every(need => need.status !== 'Öppet')} onClick={onOrderAll}>
           <i className="fa-solid fa-cart-shopping" /> Beställ alla
         </button>
-        <button className="btn-primary" disabled={activeNeeds.every(need => need.status !== 'Öppet')} onClick={onAssignAll}>
+        {onAssignAll && <button className="btn-primary" disabled={activeNeeds.every(need => need.status !== 'Öppet')} onClick={onAssignAll}>
           <i className="fa-solid fa-robot" /> Tillsätt alla
-        </button>
+        </button>}
       </div>
       <ContextMenu
         target=".schema-resource-need-row"
@@ -1964,6 +2307,8 @@ export const Schema = ({
 }: SchemaProps) => {
   const navigateTo = useNavigate();
   const automation = useOptionalAutomation();
+  const { selectedOrganisation } = useRole();
+  const isActivityTimelineScenario = selectedOrganisation === 'schoolTimeline';
   const breadcrumbItems: BreadcrumbItem[] = [
     { label: 'Heroma', href: '/' },
     { label: breadcrumbSectionLabel },
@@ -1979,10 +2324,17 @@ export const Schema = ({
   const [showOrders,     setShowOrders]     = useState(false);
   const [showResourceNeeds, setShowResourceNeeds] = useState(false);
   const [activeView,     setActiveView]     = useState<'schema' | 'orders' | 'resource-needs'>('schema');
-  const [viewStart, setViewStart] = useState<Date>(() => monWeekStart(new Date(TODAY_STR)));
+  const [viewStart, setViewStart] = useState<Date>(() => initialPeriodStart('vecka', new Date(TODAY_STR)));
 
   // ── Fills ──
   const [fills, setFills] = useState<ShiftFill[]>(INITIAL_FILLS);
+  useEffect(() => {
+    setFills(current => {
+      const next = current.filter(fill => !(fill.person.name === 'Anna Viksson' && !fill.substituteId));
+      return next.length === current.length ? current : next;
+    });
+  }, []);
+  const [activityFills, setActivityFills] = useState<Record<string, ActivityFill>>({});
   const [assignmentFailures, setAssignmentFailures] = useState<Record<string, string>>({});
   const [resourceOrders, setResourceOrders] = useState<ResourceOrder[]>([]);
   const [resourceNeeds, setResourceNeeds] = useState<ResourceNeed[]>([]);
@@ -2142,25 +2494,45 @@ export const Schema = ({
   const employees = useMemo<ScheduleEmployee[]>(() =>
     persons.map((p, index) => {
       const emp = getActiveEmployment(p.id) ?? p.employments[0];
-      const departmentIndex = Math.floor(index / 10);
-      const teamIndex = Math.floor((index % 10) / 5);
-      const department = ORGANISATION.departments[departmentIndex];
+      const departmentIndex = selectedOrganisation === 'clinic' ? Math.floor(index / 10) : Math.floor(index / 5);
+      const teamIndex = selectedOrganisation === 'clinic' ? Math.floor((index % 10) / 5) : 0;
+      const clinicDepartment = ORGANISATION.departments[departmentIndex];
+      const preschoolIndex = Math.floor(departmentIndex / 2);
+      const schoolDepartment = SCHOOL_ORGANISATION.preschools[preschoolIndex]?.departments[departmentIndex % 2];
+      const departmentLabel = selectedOrganisation === 'clinic' ? clinicDepartment?.label : schoolDepartment;
+      const organisationLabel = selectedOrganisation === 'clinic'
+        ? ORGANISATION.clinic.label
+        : SCHOOL_ORGANISATION.preschools[preschoolIndex]?.label ?? SCHOOL_ORGANISATION.label;
       return {
         id:         p.id,
         name:       p.displayName || fullName(p),
-        role:       CARE_ROLES[index] ?? emp?.position.title ?? '—',
+        role:       (selectedOrganisation === 'clinic' ? CARE_ROLES[index] : PRESCHOOL_ROLES[index]) ?? emp?.position.title ?? '—',
         // Keep the displayed workplace aligned with the organisation tree below.
         // The seed data contains legacy HR/test departments that should not be
         // shown as the employee's current workplace in this prototype.
-        organisation: department
-          ? `Team ${teamIndex + 1}, ${department.label}, ${ORGANISATION.clinic.label}`
-          : ORGANISATION.clinic.label,
-        department: department?.label ?? emp?.organization.department ?? '—',
+        organisation: selectedOrganisation === 'clinic'
+          ? `Team ${teamIndex + 1}, ${departmentLabel}, ${ORGANISATION.clinic.label}`
+          : `${departmentLabel}, ${organisationLabel}`,
+        department: departmentLabel ?? emp?.organization.department ?? '—',
         fmgGroup:   emp?.fmgGroup ?? '—',
       };
     }),
-  []);
+  [selectedOrganisation]);
 
+  const getScheduleShift = useCallback((personId: string, date: Date, passFilter: string): Shift | null => {
+    if (isSchoolScenario(selectedOrganisation)) {
+      if (isWknd(date) || (passFilter !== 'alla' && PASS_TO_SHIFT[passFilter] !== 'day')) return null;
+      if (selectedOrganisation === 'schoolTimeline') {
+        return getPreschoolDayPattern(persons.findIndex(person => person.id === personId), date)?.shift ?? null;
+      }
+      return { type: 'day', start: '07:00', end: '17:00' };
+    }
+    return getCellShift(personId, date, passFilter);
+  }, [persons, selectedOrganisation]);
+  const getCellActivities = useCallback((personId: string, date: Date) => {
+    if (!isActivityTimelineScenario) return [];
+    return getPreschoolActivities(personId, persons.findIndex(person => person.id === personId), date);
+  }, [isActivityTimelineScenario, persons]);
   useEffect(() => {
     if (!resourceNeedPrototype) return;
     const seededNeedKeys = Object.entries(RUNTIME_ABSENCE_REASONS)
@@ -2174,7 +2546,7 @@ export const Schema = ({
         .map(([key, reason]) => {
           const [personId, dateStr] = key.split('|');
           const employee = employees.find(item => item.id === personId);
-          const shift = getCellShift(personId, parseDate(dateStr), 'alla');
+          const shift = getScheduleShift(personId, parseDate(dateStr), 'alla');
           if (!employee || !shift) return null;
           return {
             id: `resource-need-${key}`,
@@ -2192,13 +2564,108 @@ export const Schema = ({
         })
         .filter(Boolean) as ResourceNeed[];
     });
-  }, [employees, resourceNeedPrototype]);
+  }, [employees, getScheduleShift, resourceNeedPrototype]);
 
-  const columns  = useMemo(() => getColumns(viewStart, period),  [viewStart, period]);
+  const columns  = useMemo(() => getColumns(viewStart, period).filter(column =>
+    !isSchoolScenario(selectedOrganisation)
+      || period === 'ar'
+      || period === 'vecka'
+      || period === 'sjuDagar'
+      || !isWknd(column.date),
+  ), [viewStart, period, selectedOrganisation]);
+  useEffect(() => {
+    if (!isSchoolScenario(selectedOrganisation) || period !== 'dag' || !isWknd(viewStart)) return;
+    setViewStart(current => addDays(current, current.getDay() === 6 ? 2 : 1));
+  }, [period, selectedOrganisation, viewStart]);
   const viewType = useMemo(() => getViewType(period),            [period]);
-  const pLabel   = useMemo(() => periodLabel(viewStart, period), [viewStart, period]);
-  const viewColumnWidth = VIEW_COLUMN_WIDTH[viewType];
-  const scheduleTableMinWidth = getScheduleTableMinWidth(viewType, columns.length);
+  const pLabel   = useMemo(() => {
+    if (period === 'sjuDagar' || period === 'femDagar') {
+      const first = columns[0]?.date ?? viewStart;
+      const last = columns[columns.length - 1]?.date ?? first;
+      return `${fmtMid(first)} – ${fmtLong(last)}`;
+    }
+    if (isSchoolScenario(selectedOrganisation) && period === 'period') {
+      return `${fmtMid(viewStart)} – ${fmtLong(addDays(viewStart, 4))}`;
+    }
+    return periodLabel(viewStart, period);
+  }, [columns, viewStart, period, selectedOrganisation]);
+  const viewColumnWidth = isActivityTimelineScenario && viewType === 'month-columns' ? 130 : VIEW_COLUMN_WIDTH[viewType];
+  const scheduleTableMinWidth = EMPLOYEE_COLUMN_WIDTH + viewColumnWidth * columns.length;
+  const internalSubstituteCandidates = useMemo<SubstituteCandidate[]>(() => isActivityTimelineScenario
+    ? employees.map(employee => ({
+        id: internalCandidateId(employee.id),
+        name: employee.name,
+        role: employee.role,
+        category: 'Tillgänglig medarbetare',
+      }))
+    : [], [employees, isActivityTimelineScenario]);
+  const panelCandidates = useMemo(() => [...SUBSTITUTE_CANDIDATES, ...internalSubstituteCandidates], [internalSubstituteCandidates]);
+  const internalAvailabilityOverrides = useMemo<SubstituteAvailabilityOverrides>(() => {
+    if (!isActivityTimelineScenario) return {};
+    const overrides: SubstituteAvailabilityOverrides = {};
+    employees.forEach((employee, index) => {
+      const candidateId = internalCandidateId(employee.id);
+      columns.forEach(column => {
+        const dateStr = toDateStr(column.date);
+        const isBookedBySchedule = Boolean(getScheduleShift(employee.id, column.date, 'alla'));
+        const isAssigned = fills.some(fill => fill.substituteId === candidateId && fill.dateStr === dateStr)
+          || Object.values(activityFills).some(fill => fill.substituteId === candidateId && fill.dateStr === dateStr);
+        const isAvailable = !isBookedBySchedule && !isAssigned && isSelfAvailablePreschoolEmployee(index, column.date);
+        overrides[substituteAvailabilityKey(candidateId, dateStr)] = isAvailable
+          ? { startH: 7, startM: 0, endH: 17, endM: 0 }
+          : null;
+      });
+    });
+    return overrides;
+  }, [activityFills, columns, employees, fills, getScheduleShift, isActivityTimelineScenario]);
+  const effectiveAvailabilityOverrides = useMemo<SubstituteAvailabilityOverrides>(() => {
+    const overrides = { ...internalAvailabilityOverrides, ...substituteAvailabilityOverrides };
+    if (isActivityTimelineScenario) {
+      const newlyAssigned = [
+        ...fills.filter(fill => fill.substituteId).map(fill => ({
+          candidateId: fill.substituteId,
+          dateStr: fill.dateStr,
+        })),
+        ...Object.values(activityFills).map(fill => ({ candidateId: fill.substituteId, dateStr: fill.dateStr })),
+      ];
+      newlyAssigned.forEach(({ candidateId, dateStr }) => {
+        if (candidateId) overrides[substituteAvailabilityKey(candidateId, dateStr)] = null;
+      });
+      employees.forEach(employee => {
+        const candidateId = internalCandidateId(employee.id);
+        columns.forEach(column => {
+          const dateStr = toDateStr(column.date);
+          const isBookedBySchedule = Boolean(getScheduleShift(employee.id, column.date, 'alla'));
+          const isAssigned = fills.some(fill => fill.substituteId === candidateId && fill.dateStr === dateStr)
+            || Object.values(activityFills).some(fill => fill.substituteId === candidateId && fill.dateStr === dateStr);
+          if (isBookedBySchedule || isAssigned) overrides[substituteAvailabilityKey(candidateId, dateStr)] = null;
+        });
+      });
+    }
+    return overrides;
+  }, [activityFills, columns, employees, fills, getScheduleShift, internalAvailabilityOverrides, isActivityTimelineScenario, substituteAvailabilityOverrides]);
+  const candidateBookings = useMemo<Record<string, SubBookedShift[]>>(() => {
+    if (!isActivityTimelineScenario) return SUB_BOOKED_SHIFTS;
+    const bookings: Record<string, SubBookedShift[]> = { ...SUB_BOOKED_SHIFTS };
+    employees.forEach(employee => {
+      const candidateId = internalCandidateId(employee.id);
+      const scheduled = columns.flatMap(column => {
+        const shift = getScheduleShift(employee.id, column.date, 'alla');
+        return shift ? [{ dateStr: toDateStr(column.date), start: shift.start, end: shift.end }] : [];
+      });
+      bookings[candidateId] = scheduled;
+    });
+    fills.forEach(fill => {
+      const candidateId = fill.substituteId;
+      const shift = fill.shift ?? getScheduleShift(fill.personId, parseDate(fill.dateStr), 'alla');
+      if (!candidateId || !shift) return;
+      bookings[candidateId] = [...(bookings[candidateId] ?? []), { dateStr: fill.dateStr, start: shift.start, end: shift.end }];
+    });
+    Object.values(activityFills).forEach(fill => {
+      bookings[fill.substituteId] = [...(bookings[fill.substituteId] ?? []), { dateStr: fill.dateStr, start: fill.shift.start, end: fill.shift.end }];
+    });
+    return bookings;
+  }, [activityFills, columns, employees, fills, getScheduleShift, isActivityTimelineScenario]);
 
   const personDetailEmployee = personDetailId
     ? employees.find(employee => employee.id === personDetailId) ?? null
@@ -2206,9 +2673,25 @@ export const Schema = ({
   const personDetailShiftDates = useMemo(() => {
     if (!personDetailEmployee) return [];
     return getPeriodDates(viewStart, period, columns)
-      .filter(date => Boolean(getCellShift(personDetailEmployee.id, date, 'alla')))
+      .filter(date => Boolean(getScheduleShift(personDetailEmployee.id, date, 'alla')))
       .map(toDateStr);
-  }, [absenceVersion, columns, period, personDetailEmployee, viewStart]);
+  }, [absenceVersion, columns, getScheduleShift, period, personDetailEmployee, viewStart]);
+  const personDetailSchedules = useMemo<Record<string, EmployeeDaySchedule> | undefined>(() => {
+    if (!personDetailEmployee || !isActivityTimelineScenario) return undefined;
+    const schedules: Record<string, EmployeeDaySchedule> = {};
+    getPeriodDates(viewStart, period, columns).forEach(date => {
+      const shift = getScheduleShift(personDetailEmployee.id, date, 'alla');
+      if (!shift) return;
+      const dateStr = toDateStr(date);
+      schedules[dateStr] = {
+        dateStr,
+        shift,
+        activities: getCellActivities(personDetailEmployee.id, date),
+        absenceLabel: getAbsenceCaption(personDetailEmployee.id, dateStr),
+      };
+    });
+    return schedules;
+  }, [columns, getCellActivities, getScheduleShift, isActivityTimelineScenario, period, personDetailEmployee, viewStart]);
   const passDetailKey = detailState ? `${detailState.empId}|${detailState.dateStr}` : '';
   const passDetailAssignmentFailure = detailState ? assignmentFailures[passDetailKey] : undefined;
   const passDetailResourceNeed = resourceNeedPrototype && detailState
@@ -2220,6 +2703,15 @@ export const Schema = ({
   const passDetailAssignedFill = detailState
     ? fills.find(fill => fill.personId === detailState.empId && fill.dateStr === detailState.dateStr)
     : undefined;
+  const passDetailSchedule = useMemo<EmployeeDaySchedule | undefined>(() => {
+    if (!detailState || !isActivityTimelineScenario) return undefined;
+    return {
+      dateStr: detailState.dateStr,
+      shift: detailState.shift,
+      activities: getCellActivities(detailState.empId, parseDate(detailState.dateStr)),
+      absenceLabel: getAbsenceCaption(detailState.empId, detailState.dateStr),
+    };
+  }, [detailState, getCellActivities, isActivityTimelineScenario]);
   const passDetailActivities = useMemo<CaseActivity[]>(() => {
     if (!detailState) return [];
     const activities: CaseActivity[] = [{
@@ -2257,7 +2749,7 @@ export const Schema = ({
     }, ...(personActivities[personDetailEmployee.id] ?? [])];
   }, [personActivities, personDetailEmployee]);
   const substituteDetail = substituteDetailState
-    ? SUBSTITUTE_CANDIDATES.find(substitute => substitute.id === substituteDetailState.substituteId) ?? null
+    ? panelCandidates.find(substitute => substitute.id === substituteDetailState.substituteId) ?? null
     : null;
   const substituteDetailInfo = substituteDetail ? SUB_DETAILS[substituteDetail.id] : null;
   const substituteDetailDates = useMemo(() => {
@@ -2271,10 +2763,10 @@ export const Schema = ({
     ? substituteAvailabilityKey(substituteDetailState.substituteId, substituteDetailState.dateStr)
     : '';
   const substituteDetailAvailability = substituteDetailState
-    ? getSubAvailability(substituteDetailState.substituteId, parseDate(substituteDetailState.dateStr), substituteAvailabilityOverrides, substituteAbsences)
+    ? getSubAvailability(substituteDetailState.substituteId, parseDate(substituteDetailState.dateStr), effectiveAvailabilityOverrides, substituteAbsences)
     : null;
   const substituteDetailBooking = substituteDetailState
-    ? (SUB_BOOKED_SHIFTS[substituteDetailState.substituteId] ?? []).find(booking => booking.dateStr === substituteDetailState.dateStr)
+    ? (candidateBookings[substituteDetailState.substituteId] ?? []).find(booking => booking.dateStr === substituteDetailState.dateStr)
     : undefined;
   const substituteDetailActivities = useMemo<CaseActivity[]>(() => {
     if (!substituteDetail || !substituteDetailInfo) return [];
@@ -2332,40 +2824,66 @@ export const Schema = ({
   const availableGroups = useMemo(() => {
     return [
       { id:'alla', label:'Alla medarbetare', category:'team' as const },
-      ...ALL_GROUPS.filter(g => g.id !== 'alla'),
+      ...ALL_GROUPS.filter(g => g.id !== 'alla' && (!isSchoolScenario(selectedOrganisation) || g.category !== 'team')),
     ];
-  }, []);
+  }, [selectedOrganisation]);
 
-  // Prototype organisation: 20 people split into four credible teams of five.
-  // The grouping is kept in the schedule view so every summary uses the same day cells as employees.
+  // Each activity is a real staffing focus beneath a team, rather than a shift or absence.
   const organisationGroups = useMemo(() => {
     const ids = filteredEmployees.map(employee => employee.id);
+    const visibleIds = new Set(ids);
+    const members = (start: number, end: number) => employees.slice(start, end).map(employee => employee.id).filter(id => visibleIds.has(id));
+    const root = selectedOrganisation === 'clinic' ? ORGANISATION.clinic : SCHOOL_ORGANISATION;
     const result: OrganisationGroup[] = [
-      { id: ORGANISATION.clinic.id, label: ORGANISATION.clinic.label, kind: 'clinic', personIds: ids },
+      { id: root.id, label: root.label, kind: 'clinic', personIds: ids, depth: 0 },
     ];
-    ORGANISATION.departments.forEach((department, departmentIndex) => {
-      const departmentIds = ids.filter(id => {
-        const originalIndex = employees.findIndex(employee => employee.id === id);
-        return originalIndex >= departmentIndex * 10 && originalIndex < (departmentIndex + 1) * 10;
+    const addActivityGroups = (parentId: string, personIds: string[], depth: number) => {
+      const midpoint = Math.ceil(personIds.length / 2);
+      const activityLabels = selectedOrganisation === 'clinic' ? ACTIVITIES_BY_ORGANISATION.clinic : ACTIVITIES_BY_ORGANISATION.school;
+      activityLabels.forEach((label, index) => {
+        const activityIds = personIds.slice(index === 0 ? 0 : midpoint, index === 0 ? midpoint : undefined);
+        if (!activityIds.length) return;
+        result.push({ id: `${parentId}-activity-${index + 1}`, label, kind: 'activity', parentId, personIds: activityIds, depth });
       });
-      result.push({ ...department, kind: 'department', personIds: departmentIds });
-      [0, 1].forEach(teamIndex => {
-        result.push({
-          id: `${department.id}-team-${teamIndex + 1}`,
-          label: `Team ${teamIndex + 1}`,
-          kind: 'team',
-          parentId: department.id,
-          personIds: departmentIds.filter(id => {
-            const originalIndex = employees.findIndex(employee => employee.id === id);
-            return originalIndex % 10 >= teamIndex * 5 && originalIndex % 10 < (teamIndex + 1) * 5;
-          }),
+    };
+    const addTeamWithActivities = (teamId: string, teamLabel: string, parentId: string, personIds: string[], depth: number) => {
+      result.push({ id: teamId, label: teamLabel, kind: 'team', parentId, personIds, depth });
+      addActivityGroups(teamId, personIds, depth + 1);
+    };
+    if (selectedOrganisation === 'clinic') {
+      ORGANISATION.departments.forEach((department, departmentIndex) => {
+        const departmentIds = members(departmentIndex * 10, (departmentIndex + 1) * 10);
+        result.push({ ...department, kind: 'department', parentId: root.id, personIds: departmentIds, depth: 1 });
+        [0, 1].forEach(teamIndex => {
+          const teamIds = members(departmentIndex * 10 + teamIndex * 5, departmentIndex * 10 + (teamIndex + 1) * 5);
+          addTeamWithActivities(`${department.id}-team-${teamIndex + 1}`, `Team ${teamIndex + 1}`, department.id, teamIds, 2);
         });
       });
-    });
+    } else {
+      SCHOOL_ORGANISATION.preschools.forEach((preschool, preschoolIndex) => {
+        const preschoolIds = members(preschoolIndex * 10, (preschoolIndex + 1) * 10);
+        result.push({ id: preschool.id, label: preschool.label, kind: 'department', parentId: root.id, personIds: preschoolIds, depth: 1 });
+        preschool.departments.forEach((departmentLabel, departmentIndex) => {
+          const globalDepartmentIndex = preschoolIndex * 2 + departmentIndex;
+          const departmentId = `${preschool.id}-avdelning-${departmentIndex + 1}`;
+          const departmentIds = members(globalDepartmentIndex * 5, (globalDepartmentIndex + 1) * 5);
+          result.push({ id: departmentId, label: `Avdelning ${departmentLabel}`, kind: 'department', parentId: preschool.id, personIds: departmentIds, depth: 2 });
+          if (!isActivityTimelineScenario) addActivityGroups(departmentId, departmentIds, 3);
+        });
+      });
+    }
     return result;
-  }, [employees, filteredEmployees]);
+  }, [employees, filteredEmployees, isActivityTimelineScenario, selectedOrganisation]);
 
   const [collapsedGroups, setCollapsedGroups] = useState<string[]>([]);
+  useEffect(() => {
+    setSelectedGroups([]);
+    setSelectedPass('alla');
+    setCollapsedGroups([]);
+  }, [selectedOrganisation]);
+  useEffect(() => {
+    setViewStart(initialPeriodStart(period, new Date(TODAY_STR)));
+  }, [period, selectedOrganisation]);
   const toggleGroup = (id: string) => setCollapsedGroups(current =>
     current.includes(id) ? current.filter(groupId => groupId !== id) : [...current, id],
   );
@@ -2375,7 +2893,7 @@ export const Schema = ({
     minimumValues[minimumKey(group, passType)] ?? Math.ceil(group.personIds.length * 0.6);
 
   const passTypesForTeam = (group: OrganisationGroup) => PASS_TYPES.filter(pass => pass.id !== 'alla' && group.personIds.some(personId =>
-    columns.some(column => Boolean(getCellShift(personId, column.date, pass.id))),
+    columns.some(column => Boolean(getScheduleShift(personId, column.date, pass.id))),
   ));
 
   const openOrganisationSettings = (group: OrganisationGroup) => {
@@ -2392,13 +2910,13 @@ export const Schema = ({
     const dates = columns.map(column => column.date);
     return group.personIds.filter(personId => {
       const index = employees.findIndex(employee => employee.id === personId);
-      return dates.some(date => hasPoolDuty(index, date));
+      return dates.some(date => (!isSchoolScenario(selectedOrganisation) || !isWknd(date)) && hasPoolDuty(index, date));
     }).length;
   };
 
   const teamBelowMinimum = (group: OrganisationGroup, col: ViewColumn) => {
     if (group.kind !== 'team' || selectedPass === 'alla') return false;
-    const scheduled = group.personIds.filter(personId => Boolean(getCellShift(personId, col.date, selectedPass))).length;
+    const scheduled = group.personIds.filter(personId => Boolean(getScheduleShift(personId, col.date, selectedPass))).length;
     if (scheduled === 0) return false;
     const summary = renderPresenceCell(group.personIds, col);
     return summary.present < minimumFor(group, selectedPass);
@@ -2415,12 +2933,12 @@ export const Schema = ({
       personIds.forEach(id => {
         for (let day = 1; day <= days; day += 1) {
           const date = new Date(y, m, day);
-          const shift = getCellShift(id, date, selectedPass);
+          const shift = getScheduleShift(id, date, selectedPass);
           if (shift) {
             if (RUNTIME_ABSENCE_SHIFTS[`${id}|${toDateStr(date)}`]) absent += 1;
             else present += 1;
           }
-          if (hasPoolDuty(employees.findIndex(employee => employee.id === id), date)) pool += 1;
+          if ((!isSchoolScenario(selectedOrganisation) || !isWknd(date)) && hasPoolDuty(employees.findIndex(employee => employee.id === id), date)) pool += 1;
         }
       });
       const total = Math.max(1, present + absent);
@@ -2431,7 +2949,7 @@ export const Schema = ({
     let pool = 0;
     personIds.forEach(id => {
       const ds = toDateStr(col.date);
-      if (getCellShift(id, col.date, selectedPass)) {
+      if (getScheduleShift(id, col.date, selectedPass)) {
         if (RUNTIME_ABSENCE_SHIFTS[`${id}|${ds}`]) absent += 1;
         else present += 1;
       }
@@ -2445,9 +2963,10 @@ export const Schema = ({
     const collapsed = collapsedGroups.includes(group.id);
     const poolPeople = poolPeopleInGroup(group);
     return (
-      <tr key={group.id} className={`schema-org-row schema-org-${group.kind}`}>
+      <tr key={group.id} className={`schema-org-row schema-org-${group.kind} schema-org-level-${group.depth ?? 0}`}>
         <td
           className="schema-employee-cell schema-org-label-cell"
+          style={{ paddingLeft: `${10 + (group.depth ?? 0) * 18}px` }}
           onContextMenu={event => { event.preventDefault(); setOrganisationMenu(group); }}
         >
           <button className="schema-org-toggle" onClick={() => toggleGroup(group.id)} aria-label={`${collapsed ? 'Visa' : 'Dölj'} ${group.label}`}>
@@ -2498,15 +3017,6 @@ export const Schema = ({
     );
   };
 
-  const isPersonVisible = (personId: string) => {
-    if (collapsedGroups.includes(ORGANISATION.clinic.id)) return false;
-    const index = employees.findIndex(employee => employee.id === personId);
-    const department = ORGANISATION.departments[Math.floor(index / 10)];
-    if (!department || collapsedGroups.includes(department.id)) return false;
-    return !collapsedGroups.includes(`${department.id}-team-${Math.floor((index % 10) / 5) + 1}`);
-  };
-
-  const visibleEmployees = filteredEmployees.filter(emp => isPersonVisible(emp.id));
   type ScheduleRow =
     | { type: 'group'; group: OrganisationGroup }
     | { type: 'employee'; employee: typeof employees[number] };
@@ -2514,36 +3024,42 @@ export const Schema = ({
   // Build the visible rows as a real tree projection. This keeps sibling branches intact
   // regardless of which department or team is opened or closed.
   const scheduleRows: ScheduleRow[] = [];
-  const clinicGroup = organisationGroups.find(group => group.kind === 'clinic');
-  if (clinicGroup) scheduleRows.push({ type: 'group', group: clinicGroup });
-  if (!collapsedGroups.includes(ORGANISATION.clinic.id)) {
-    ORGANISATION.departments.forEach(department => {
-      const departmentGroup = organisationGroups.find(group => group.id === department.id);
-      if (!departmentGroup || departmentGroup.personIds.length === 0) return;
-      scheduleRows.push({ type: 'group', group: departmentGroup });
-      if (collapsedGroups.includes(department.id)) return;
-      [0, 1].forEach(teamIndex => {
-        const teamId = `${department.id}-team-${teamIndex + 1}`;
-        const teamGroup = organisationGroups.find(group => group.id === teamId);
-        if (!teamGroup || teamGroup.personIds.length === 0) return;
-        scheduleRows.push({ type: 'group', group: teamGroup });
-        if (collapsedGroups.includes(teamId)) return;
-        teamGroup.personIds.forEach(personId => {
-          const employee = filteredEmployees.find(item => item.id === personId);
-          if (employee && isPersonVisible(employee.id)) scheduleRows.push({ type: 'employee', employee });
-        });
+  const rootId = selectedOrganisation === 'clinic' ? ORGANISATION.clinic.id : SCHOOL_ORGANISATION.id;
+  const appendGroup = (group: OrganisationGroup) => {
+    if (group.personIds.length === 0) return;
+    scheduleRows.push({ type: 'group', group });
+    if (collapsedGroups.includes(group.id)) return;
+    if (group.kind === 'activity') {
+      group.personIds.forEach(personId => {
+        const employee = filteredEmployees.find(item => item.id === personId);
+        if (employee) scheduleRows.push({ type: 'employee', employee });
       });
-    });
-  }
+      return;
+    }
+    if (isActivityTimelineScenario && group.kind === 'department' && group.depth === 2) {
+      group.personIds.forEach(personId => {
+        const employee = filteredEmployees.find(item => item.id === personId);
+        if (employee) scheduleRows.push({ type: 'employee', employee });
+      });
+      return;
+    }
+    organisationGroups.filter(child => child.parentId === group.id).forEach(appendGroup);
+  };
+  const rootGroup = organisationGroups.find(group => group.id === rootId);
+  if (rootGroup) appendGroup(rootGroup);
 
   // ── Handlers: navigation / filters ──
-  const navigate = (dir: 1|-1) => setViewStart(prev => navStep(period, dir, prev));
+  const navigate = (dir: 1|-1) => setViewStart(prev => {
+    let next = navStep(period, dir, prev);
+    if (isSchoolScenario(selectedOrganisation) && period === 'dag' && isWknd(next)) {
+      next = addDays(next, dir > 0 ? (next.getDay() === 6 ? 2 : 1) : (next.getDay() === 0 ? -2 : -1));
+    }
+    return next;
+  });
 
   const changePeriod = (p: PeriodType) => {
     setPeriod(p);
-    if (p==='manad') setViewStart(monthStart(new Date(TODAY_STR)));
-    else if (p==='ar') setViewStart(yearStart(new Date(TODAY_STR)));
-    else setViewStart(monWeekStart(new Date(TODAY_STR)));
+    setViewStart(initialPeriodStart(p, new Date(TODAY_STR)));
   };
 
   // ── Handlers: sub panel ──
@@ -2580,34 +3096,58 @@ export const Schema = ({
 
   useEffect(() => {
     if (!resourceNeedPrototype || !automation?.isAutomationActive) return;
-    Object.entries(RUNTIME_ABSENCE_SHIFTS).forEach(([key, shift]) => {
+    Object.entries(RUNTIME_ABSENCE_SHIFTS).forEach(([key]) => {
       const [personId, dateStr] = key.split('|');
       if (!personId || !dateStr) return;
+      const shift = getScheduleShift(personId, parseDate(dateStr), 'alla');
+      if (!shift) return;
       const reason = RUNTIME_ABSENCE_REASONS[key];
       const hasActiveNeed = resourceNeeds.some(need =>
         need.personId === personId && need.dateStr === dateStr && need.status !== 'Borttaget',
       );
       if (!hasActiveNeed) createResourceNeed(personId, dateStr, shift, reason, 'frånvaro');
     });
-  }, [automation?.isAutomationActive, createResourceNeed, resourceNeedPrototype, resourceNeeds]);
+  }, [automation?.isAutomationActive, createResourceNeed, getScheduleShift, resourceNeedPrototype, resourceNeeds]);
 
   const handleOpenVacancyPanel = useCallback((personId: string, dateStr: string) => {
     const emp   = employees.find(e => e.id === personId);
-    const shift = RUNTIME_ABSENCE_SHIFTS[`${personId}|${dateStr}`];
+    const shift = getScheduleShift(personId, parseDate(dateStr), 'alla');
     if (!shift) return;
-    setSubPanelState({ personId, dateStr, shift, fillType:'substitute', targetPersonName: emp?.name ?? '', targetUnit: emp?.department });
+    setResourceNeedAssignmentId(null);
+    setOrderAssignment(null);
+    setSubPanelState({ personId, dateStr, shift, fillType:'substitute', targetPersonName: emp?.name ?? '', targetUnit: emp?.department, targetType: 'pass' });
+    setSubPanelBrowseAll(false);
+    setSubPanelOpen(true);
+  }, [employees, getScheduleShift]);
+
+  const handleOpenActivitySubstitutePanel = useCallback((activity: ScheduleActivity) => {
+    const employee = employees.find(item => item.id === activity.employeeId);
+    if (!employee) return;
+    setResourceNeedAssignmentId(null);
+    setOrderAssignment(null);
+    setSubPanelState({
+      personId: activity.employeeId,
+      dateStr: activity.dateStr,
+      shift: { type: 'day', start: activity.start, end: activity.end },
+      fillType: 'substitute',
+      targetPersonName: employee.name,
+      targetUnit: employee.department,
+      targetType: 'activity',
+      targetActivityId: activity.id,
+      targetActivityLabel: activity.label,
+    });
     setSubPanelBrowseAll(false);
     setSubPanelOpen(true);
   }, [employees]);
 
   const handleOpenExtraPanel = useCallback((personId: string, dateStr: string) => {
     const emp   = employees.find(e => e.id === personId);
-    const shift = getCellShift(personId, parseDate(dateStr), 'alla');
+    const shift = getScheduleShift(personId, parseDate(dateStr), 'alla');
     if (!shift) return;
     setSubPanelState({ personId, dateStr, shift, fillType:'extra', targetPersonName: emp?.name ?? '', targetUnit: emp?.department });
     setSubPanelBrowseAll(false);
     setSubPanelOpen(true);
-  }, [employees]);
+  }, [employees, getScheduleShift]);
 
   const handleCloseSubPanel = useCallback(() => {
     setSubPanelOpen(false);
@@ -2635,14 +3175,14 @@ export const Schema = ({
 
   const handleSetSubstituteAvailability = useCallback((substituteId: string, dateStr: string, availability: SubAvailability | null) => {
     const key = substituteAvailabilityKey(substituteId, dateStr);
-    const substitute = SUBSTITUTE_CANDIDATES.find(item => item.id === substituteId);
+    const substitute = panelCandidates.find(item => item.id === substituteId);
     setSubstituteAvailabilityOverrides(current => ({ ...current, [key]: availability }));
     addSubstituteActivity(substituteId, {
       type: 'status', author: 'Du', initials: 'JV', time: 'Just nu',
       text: availability ? 'Tillgänglighet ändrades' : 'Markerad som ej tillgänglig',
       detail: availability ? `${dateStr} · ${fmtAvailTime(availability)}` : `${dateStr} · ${substitute?.name ?? 'Vikarie'}`,
     });
-  }, [addSubstituteActivity]);
+  }, [addSubstituteActivity, panelCandidates]);
 
   const handleRestoreSubstituteAvailability = useCallback((substituteId: string, dateStr: string) => {
     const key = substituteAvailabilityKey(substituteId, dateStr);
@@ -2718,23 +3258,24 @@ export const Schema = ({
   }, []);
 
   // ── Handlers: assign ──
-  const openConfirm = useCallback((subs: SubstituteCandidate[], personId: string, dateStr: string, shift: Shift, fillType: 'substitute'|'extra') => {
+  const openConfirm = useCallback((subs: SubstituteCandidate[], personId: string, dateStr: string, shift: Shift, fillType: 'substitute'|'extra', target?: Pick<SubPanelState, 'targetType'|'targetActivityId'|'targetActivityLabel'>) => {
     const employee = employees.find(item => item.id === personId);
-    setConfirmState({ substitutes: subs, targetPersonId: personId, targetDateStr: dateStr, targetShift: shift, fillType, unit: employee?.department ?? SUBSTITUTE_UNITS[0].label });
+    setConfirmState({ substitutes: subs, targetPersonId: personId, targetDateStr: dateStr, targetShift: shift, fillType, unit: employee?.department ?? SUBSTITUTE_UNITS[0].label, ...target });
   }, [employees]);
 
   const handleSendRequest = useCallback((selectedIds: string[]) => {
     if (selectedIds.length === 0) return;
-    const subs = SUBSTITUTE_CANDIDATES.filter(s => selectedIds.includes(s.id));
+    const requestedIds = isActivityTimelineScenario ? selectedIds.slice(0, 1) : selectedIds;
+    const subs = panelCandidates.filter(s => requestedIds.includes(s.id));
     if (subs.length === 0) return;
     if (!subPanelState) {
       setOpenRequestState({ substitutes: subs, dateStr: toDateStr(columns[0]?.date ?? new Date(TODAY_STR)), shift: { type: 'day', ...SHIFT_DEFS.day }, role: subs[0]?.role ?? SUBSTITUTE_ROLES[0]?.id ?? '', unit: SUBSTITUTE_UNITS[0].label });
       setSubPanelOpen(false);
       return;
     }
-    openConfirm(subs, subPanelState.personId, subPanelState.dateStr, subPanelState.shift, subPanelState.fillType);
+    openConfirm(subs, subPanelState.personId, subPanelState.dateStr, subPanelState.shift, subPanelState.fillType, subPanelState);
     setSubPanelOpen(false);
-  }, [subPanelState, openConfirm, columns]);
+  }, [subPanelState, openConfirm, columns, isActivityTimelineScenario, panelCandidates]);
 
   const handleSendSubstituteRequest = useCallback((substituteId: string) => {
     setSubstituteDetailState(null);
@@ -2751,6 +3292,24 @@ export const Schema = ({
 
   const handleConfirm = useCallback((_msg: string) => {
     if (!confirmState) return;
+    if (confirmState.targetType === 'activity' && confirmState.targetActivityId) {
+      const substitute = confirmState.substitutes[0];
+      if (!substitute) return;
+      setActivityFills(current => ({
+        ...current,
+        [confirmState.targetActivityId!]: {
+          activityId: confirmState.targetActivityId!,
+          dateStr: confirmState.targetDateStr,
+          shift: confirmState.targetShift,
+          substituteId: substitute.id,
+          substituteName: substitute.name,
+          substituteRole: substitute.role,
+        },
+      }));
+      setConfirmState(null);
+      setSubPanelOpen(false);
+      return;
+    }
     if (resourceNeedAssignmentId) {
       const need = resourceNeeds.find(item => item.id === resourceNeedAssignmentId);
       if (!need) return;
@@ -2762,6 +3321,8 @@ export const Schema = ({
           dateStr: need.dateStr,
           fillType: 'substitute' as const,
           person: { name: sub.name, role: sub.role },
+          substituteId: sub.id,
+          shift: need.shift,
         })),
       ]);
       setResourceNeeds(previous => previous.map(item => item.id === need.id
@@ -2786,6 +3347,8 @@ export const Schema = ({
           dateStr: orderAssignment.dateStr,
           fillType: orderAssignment.resourceType === 'vikarie' ? 'substitute' as const : 'extra' as const,
           person: { name: sub.name, role: sub.role },
+          substituteId: sub.id,
+          shift: orderAssignment.shift,
         })),
       ]);
       setResourceOrders(previous => previous.map(item => item.id === orderAssignment.id
@@ -2801,17 +3364,23 @@ export const Schema = ({
       setSubPanelOpen(false);
       return;
     }
-    confirmState.substitutes.forEach(sub => {
-      setFills(prev => [...prev, {
+    const selectedSubstitutes = isActivityTimelineScenario ? confirmState.substitutes.slice(0, 1) : confirmState.substitutes;
+    setFills(previous => [
+      ...(isActivityTimelineScenario
+        ? previous.filter(fill => !(fill.personId === confirmState.targetPersonId && fill.dateStr === confirmState.targetDateStr))
+        : previous),
+      ...selectedSubstitutes.map(sub => ({
         personId: confirmState.targetPersonId,
-        dateStr:  confirmState.targetDateStr,
+        dateStr: confirmState.targetDateStr,
         fillType: confirmState.fillType,
-        person:   { name: sub.name, role: sub.role },
-      }]);
-    });
+        person: { name: sub.name, role: sub.role },
+        substituteId: sub.id,
+        shift: confirmState.targetShift,
+      })),
+    ]);
     setConfirmState(null);
     setSubPanelOpen(false);
-  }, [addOrderActivity, addResourceNeedActivity, confirmState, orderAssignment, resourceNeedAssignmentId, resourceNeeds]);
+  }, [addOrderActivity, addResourceNeedActivity, confirmState, isActivityTimelineScenario, orderAssignment, resourceNeedAssignmentId, resourceNeeds]);
 
   const handleCancelConfirm = useCallback(() => setConfirmState(null), []);
 
@@ -2819,7 +3388,7 @@ export const Schema = ({
     if (!orderDetail || candidateIds.length === 0) return;
     const order = resourceOrders.find(item => item.id === orderDetail.id);
     if (!order) return;
-    const selected = order.invitedSubstitutes.filter(invite => candidateIds.includes(invite.substituteId));
+    const selected = order.invitedSubstitutes.filter(invite => candidateIds.includes(invite.substituteId)).slice(0, isActivityTimelineScenario ? 1 : undefined);
     if (selected.length === 0) return;
     setFills(previous => [
       ...previous.filter(fill => !(fill.personId === order.personId && fill.dateStr === order.dateStr)),
@@ -2828,6 +3397,8 @@ export const Schema = ({
         dateStr: order.dateStr,
         fillType: order.resourceType === 'vikarie' ? 'substitute' as const : 'extra' as const,
         person: { name: invite.name, role: invite.role },
+        substituteId: invite.substituteId,
+        shift: order.shift,
       })),
     ]);
     setResourceOrders(previous => previous.map(item => item.id === order.id
@@ -2838,13 +3409,16 @@ export const Schema = ({
       text: selected.length === 1 ? 'Vikarie vald' : 'Vikarier valda',
       detail: `${selected.map(invite => invite.name).join(' · ')} · ${order.shift.start}–${order.shift.end}`,
     });
-  }, [orderDetail, resourceOrders, addOrderActivity]);
+  }, [orderDetail, resourceOrders, addOrderActivity, isActivityTimelineScenario]);
 
   // ── Handlers: shift detail dialog ──
   const handleOpenDetail = useCallback((
     empId: string, empName: string, empRole: string,
     dateStr: string, shift: Shift, color: ColorScheme,
   ) => {
+    setSubPanelOpen(false);
+    setSubPanelBrowseAll(false);
+    setSubPanelState(null);
     setDetailState({ empId, empName, empRole, dateStr, shift, color });
   }, []);
 
@@ -2852,7 +3426,7 @@ export const Schema = ({
 
   const openSicknessDialog = useCallback((personId: string, dateStr: string) => {
     const employee = employees.find(emp => emp.id === personId);
-    const shift = getCellShift(personId, parseDate(dateStr), 'alla');
+    const shift = getScheduleShift(personId, parseDate(dateStr), 'alla');
     if (!employee || !shift) return;
     setAbsenceDialogState({
       personId,
@@ -2863,7 +3437,7 @@ export const Schema = ({
       endDate: dateStr,
       reason: 'Sjuk',
     });
-  }, [employees]);
+  }, [employees, getScheduleShift]);
 
   const handleUpdatePassTime = useCallback((start: string, end: string) => {
     if (!detailState || !start || !end || (start === detailState.shift.start && end === detailState.shift.end)) return;
@@ -2886,7 +3460,7 @@ export const Schema = ({
   // ── Context-menu actions ──
   const handleOpenResourceOrderDialog = useCallback((target: NonNullable<typeof ctxRef.current>) => {
     const employee = employees.find(emp => emp.id === target.personId);
-    const shift = getCellShift(target.personId, parseDate(target.dateStr), 'alla');
+    const shift = getScheduleShift(target.personId, parseDate(target.dateStr), 'alla');
     if (!employee || !shift) return;
 
     setResourceOrderDialogState({
@@ -2897,7 +3471,7 @@ export const Schema = ({
       shift,
       resourceType: target.type === 'normal' ? 'extrapass' : 'vikarie',
     });
-  }, [employees]);
+  }, [employees, getScheduleShift]);
 
   const handleConfirmResourceOrder = useCallback((orderedShift: Shift, _msg: string) => {
     if (!resourceOrderDialogState) return;
@@ -3019,11 +3593,11 @@ export const Schema = ({
         employeeName: employee.name,
         employeeRole: employee.role,
         workplace: employee.department,
-        passInfo: getShiftPassInfo(detailState.empId, detailState.dateStr),
+        passInfo: getShiftPassInfo(detailState.empId, detailState.dateStr, selectedOrganisation),
       },
     });
     setDetailState(null);
-  }, [detailState, employees, navigateTo]);
+  }, [detailState, employees, navigateTo, selectedOrganisation]);
 
   const handlePersonReportSick = useCallback((dateStr: string) => {
     if (!personDetailEmployee) return;
@@ -3043,7 +3617,7 @@ export const Schema = ({
     const order = orderAssignment;
     setFills(previous => [
       ...previous.filter(fill => !(fill.personId === order.personId && fill.dateStr === order.dateStr)),
-      { personId: order.personId, dateStr: order.dateStr, fillType: order.resourceType === 'vikarie' ? 'substitute' : 'extra', person: { name: substitute.name, role: substitute.role } },
+      { personId: order.personId, dateStr: order.dateStr, fillType: order.resourceType === 'vikarie' ? 'substitute' : 'extra', person: { name: substitute.name, role: substitute.role }, substituteId: substitute.id, shift: order.shift },
     ]);
     setResourceOrders(previous => previous.map(item => item.id === order.id ? { ...item, status: 'Tillsatt', acceptedSubstituteId: substitute.id } : item));
     addOrderActivity(order.id, { type: 'assignment', author: 'Du', initials: 'JV', time: 'Just nu', text: 'Vikarie vald', detail: `${substitute.name} · ${order.shift.start}–${order.shift.end}` });
@@ -3097,6 +3671,8 @@ export const Schema = ({
           dateStr: order.dateStr,
           fillType: order.resourceType === 'vikarie' ? 'substitute' : 'extra',
           person: { name: invite.name, role: invite.role },
+          substituteId: invite.substituteId,
+          shift: order.shift,
         },
       ]);
       setResourceOrders(previous => previous.map(item => item.id === orderId
@@ -3165,10 +3741,10 @@ export const Schema = ({
     const employee = employees.find(item => item.id === personId);
     if (!employee) return;
     const date = parseDate(dateStr);
-    const candidates = getAvailableSubs(shift, date, 1, substituteAvailabilityOverrides, substituteAbsences)
-      .sort((a, b) => suitabilityScore(b.id, date, shift, substituteAvailabilityOverrides, substituteAbsences)
-        - suitabilityScore(a.id, date, shift, substituteAvailabilityOverrides, substituteAbsences));
-    const invited = candidates.slice(0, 3);
+    const candidates = getAvailableSubs(shift, date, 1, effectiveAvailabilityOverrides, substituteAbsences, panelCandidates)
+      .sort((a, b) => suitabilityScore(b.id, date, shift, effectiveAvailabilityOverrides, substituteAbsences)
+        - suitabilityScore(a.id, date, shift, effectiveAvailabilityOverrides, substituteAbsences));
+    const invited = candidates.slice(0, isActivityTimelineScenario ? 1 : 3);
     const key = `${personId}|${dateStr}`;
 
     addPassActivity(key, {
@@ -3229,7 +3805,7 @@ export const Schema = ({
     });
     setFills(previous => [
       ...previous.filter(fill => !(fill.personId === personId && fill.dateStr === dateStr)),
-      { personId, dateStr, fillType, person: { name: substitute.name, role: substitute.role } },
+      { personId, dateStr, fillType, person: { name: substitute.name, role: substitute.role }, substituteId: substitute.id, shift },
     ]);
     setResourceNeeds(previous => previous.map(need =>
       need.personId === personId && need.dateStr === dateStr && need.status === 'Öppet'
@@ -3248,7 +3824,7 @@ export const Schema = ({
       type: 'assignment', author: 'Systemet', initials: 'AI', time: 'Just nu',
       text: 'Tackade ja och tillsattes', detail: `${employee.name} · ${dateStr} · ${shift.start}–${shift.end}`,
     });
-  }, [addPassActivity, addPersonActivity, addSubstituteActivity, employees, resourceNeedPrototype, substituteAbsences, substituteAvailabilityOverrides]);
+  }, [addPassActivity, addPersonActivity, addSubstituteActivity, effectiveAvailabilityOverrides, employees, isActivityTimelineScenario, panelCandidates, resourceNeedPrototype, substituteAbsences]);
 
   useEffect(() => {
     if (!resourceNeedPrototype || !automation?.isAutomationActive) {
@@ -3257,11 +3833,12 @@ export const Schema = ({
     }
     resourceNeeds
       .filter(need => need.status === 'Öppet' && !automationProcessedNeedIdsRef.current.has(need.id))
+      .slice(0, isActivityTimelineScenario ? 1 : undefined)
       .forEach(need => {
         automationProcessedNeedIdsRef.current.add(need.id);
         handleDirectAssignment(need.personId, need.dateStr, need.shift, need.source === 'frånvaro' ? 'substitute' : 'extra');
       });
-  }, [automation?.isAutomationActive, handleDirectAssignment, resourceNeedPrototype, resourceNeeds]);
+  }, [automation?.isAutomationActive, handleDirectAssignment, isActivityTimelineScenario, resourceNeedPrototype, resourceNeeds]);
 
   const handleResourceNeedAction = useCallback((needId: string, action: ResourceNeedAction) => {
     const need = resourceNeeds.find(item => item.id === needId);
@@ -3300,7 +3877,7 @@ export const Schema = ({
     const end = parseDate(endDate);
     for (let date = new Date(start); date <= end; date = addDays(date, 1)) {
       const dateStr = toDateStr(date);
-      const shift = getCellShift(personId, date, 'alla');
+      const shift = getScheduleShift(personId, date, 'alla');
       if (shift) {
         const key = `${personId}|${dateStr}`;
         RUNTIME_ABSENCE_SHIFTS[key] = shift;
@@ -3325,7 +3902,7 @@ export const Schema = ({
     }
     setAbsenceDialogState(null);
     setAbsenceVersion(version => version + 1);
-  }, [absenceDialogState, addPassActivity, addPersonActivity, automation?.isAutomationActive, createResourceNeed, resourceNeedPrototype]);
+  }, [absenceDialogState, addPassActivity, addPersonActivity, automation?.isAutomationActive, createResourceNeed, getScheduleShift, resourceNeedPrototype]);
 
   const handleContextAction = useCallback((event: { itemData?: ContextAction }) => {
     const target = ctxRef.current;
@@ -3334,7 +3911,7 @@ export const Schema = ({
 
     if (action === 'make-vacancy') {
       const key = `${target.personId}|${target.dateStr}`;
-      const targetShift = getCellShift(target.personId, parseDate(target.dateStr), 'alla');
+      const targetShift = getScheduleShift(target.personId, parseDate(target.dateStr), 'alla');
       if (resourceNeedPrototype && targetShift) {
         if (RUNTIME_ABSENCE_SHIFTS[key] && RUNTIME_ABSENCE_REASONS[key] !== 'Sjuk') return;
         createResourceNeed(target.personId, target.dateStr, targetShift, RUNTIME_ABSENCE_REASONS[key], RUNTIME_ABSENCE_SHIFTS[key] ? 'frånvaro' : 'pass');
@@ -3342,7 +3919,7 @@ export const Schema = ({
       }
       setVacancyKeys(previous => previous.includes(key) ? previous : [...previous, key]);
       const employee = employees.find(emp => emp.id === target.personId);
-      const shift = getCellShift(target.personId, parseDate(target.dateStr), 'alla');
+      const shift = getScheduleShift(target.personId, parseDate(target.dateStr), 'alla');
       addPassActivity(key, {
         type: 'status', author: 'Du', initials: 'JV', time: 'Just nu', text: 'Passet markerades som vakans',
         detail: `${employee?.name ?? 'Medarbetare'} · ${target.dateStr}${shift ? ` · ${shift.start}–${shift.end}` : ''}`,
@@ -3355,13 +3932,13 @@ export const Schema = ({
       return;
     }
     if (action === 'assign-direct') {
-      const shift = getCellShift(target.personId, parseDate(target.dateStr), 'alla');
+      const shift = getScheduleShift(target.personId, parseDate(target.dateStr), 'alla');
       if (shift) handleDirectAssignment(target.personId, target.dateStr, shift, target.type === 'normal' ? 'extra' : 'substitute');
       return;
     }
     if (action === 'primary') {
       if (resourceNeedPrototype) {
-        const shift = getCellShift(target.personId, parseDate(target.dateStr), 'alla');
+        const shift = getScheduleShift(target.personId, parseDate(target.dateStr), 'alla');
         if (shift) createResourceNeed(target.personId, target.dateStr, shift, undefined, 'pass');
         return;
       }
@@ -3381,7 +3958,7 @@ export const Schema = ({
 
     if (action === 'simulate') {
       const employee = employees.find(emp => emp.id === target.personId);
-      const shift = getCellShift(target.personId, parseDate(target.dateStr), 'alla');
+      const shift = getScheduleShift(target.personId, parseDate(target.dateStr), 'alla');
       if (employee && shift) {
         navigateTo('/vikariehantering/urvalstest', {
           state: {
@@ -3390,7 +3967,7 @@ export const Schema = ({
             employeeName: employee.name,
             employeeRole: employee.role,
             workplace: employee.department,
-            passInfo: getShiftPassInfo(target.personId, target.dateStr),
+            passInfo: getShiftPassInfo(target.personId, target.dateStr, selectedOrganisation),
           },
         });
       }
@@ -3398,7 +3975,7 @@ export const Schema = ({
     }
 
     const employee = employees.find(emp => emp.id === target.personId);
-    const shift = getCellShift(target.personId, parseDate(target.dateStr), 'alla');
+    const shift = getScheduleShift(target.personId, parseDate(target.dateStr), 'alla');
     if (employee && shift) {
       handleOpenDetail(
         employee.id,
@@ -3409,7 +3986,7 @@ export const Schema = ({
         getColorScheme(target.personId, target.dateStr, fills, vacancyKeys),
       );
     }
-  }, [addPassActivity, createResourceNeed, employees, fills, handleDirectAssignment, handleOpenDetail, handleOpenExtraPanel, handleOpenVacancyPanel, handleOpenResourceOrderDialog, navigateTo, openSicknessDialog, resourceNeedPrototype, vacancyKeys]);
+  }, [addPassActivity, createResourceNeed, employees, fills, getScheduleShift, handleDirectAssignment, handleOpenDetail, handleOpenExtraPanel, handleOpenVacancyPanel, handleOpenResourceOrderDialog, navigateTo, openSicknessDialog, resourceNeedPrototype, selectedOrganisation, vacancyKeys]);
 
   const handlePersonContextAction = useCallback((event: { itemData?: { id?: string } }) => {
     if (!personContextId) return;
@@ -3420,10 +3997,10 @@ export const Schema = ({
     }
     if (action === 'report-sick') {
       const firstShiftDate = getPeriodDates(viewStart, period, columns)
-        .find(date => Boolean(getCellShift(personContextId, date, 'alla')));
+        .find(date => Boolean(getScheduleShift(personContextId, date, 'alla')));
       if (firstShiftDate) openSicknessDialog(personContextId, toDateStr(firstShiftDate));
     }
-  }, [columns, openSicknessDialog, period, personContextId, viewStart]);
+  }, [columns, getScheduleShift, openSicknessDialog, period, personContextId, viewStart]);
 
   // ── Handlers: drag / drop ──
   const handleDragStartSub = useCallback((e: React.DragEvent, subId: string) => {
@@ -3451,11 +4028,12 @@ export const Schema = ({
       try { return JSON.parse(e.dataTransfer.getData('substituteIds')) as string[]; } catch { return []; }
     })();
     const fallbackId = e.dataTransfer.getData('substituteId');
-    const selected = SUBSTITUTE_CANDIDATES.filter(sub => ids.includes(sub.id) || (!ids.length && sub.id === fallbackId));
+    const requestedIds = isActivityTimelineScenario ? ids.slice(0, 1) : ids;
+    const selected = panelCandidates.filter(sub => requestedIds.includes(sub.id) || (!ids.length && sub.id === fallbackId));
     if (!selected.length) return;
     const fillType = vacancyKeys.includes(`${personId}|${dateStr}`) ? 'substitute' : 'extra';
-    openConfirm(selected, personId, dateStr, shift, fillType);
-  }, [subPanelOpen, openConfirm, vacancyKeys]);
+    openConfirm(selected, personId, dateStr, shift, fillType, { targetType: 'pass' });
+  }, [subPanelOpen, openConfirm, vacancyKeys, isActivityTimelineScenario, panelCandidates]);
 
   const handleSchedulePassDragStart = useCallback((event: React.DragEvent, personId: string, dateStr: string, shift: Shift) => {
     if (!resourceNeedPrototype) return;
@@ -3479,17 +4057,17 @@ export const Schema = ({
     fills
       .filter(f => f.personId === empId)
       .map(f => {
-        const shift = getCellShift(empId, parseDate(f.dateStr), 'alla');
+        const shift = getScheduleShift(empId, parseDate(f.dateStr), 'alla');
         if (!shift) return null;
         return { key:`${empId}-${f.dateStr}-${f.person.name}`, name:f.person.name, role:f.person.role, dateStr:f.dateStr, shift };
       })
       .filter(Boolean) as Array<{ key:string; name:string; role:string; dateStr:string; shift:Shift }>,
-  [fills]);
+  [fills, getScheduleShift]);
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <PageLayout title={activeView === 'schema' ? 'Schema' : activeView === 'orders' ? 'Beställningar' : 'Resursbehov'} breadcrumbItems={breadcrumbItems} hideCaseActivityButton={resourceNeedPrototype} showAutomationControls={resourceNeedPrototype}>
+    <PageLayout title={activeView === 'schema' ? 'Schema' : activeView === 'orders' ? 'Beställningar' : 'Resursbehov'} breadcrumbItems={breadcrumbItems} hideCaseActivityButton={resourceNeedPrototype}>
       <div className="col-12">
         <div className={`schema-page-wrapper${subPanelOpen ? ' schema-page-has-panel' : ''}`}>
 
@@ -3505,7 +4083,7 @@ export const Schema = ({
             </div>
           ) : activeView === 'resource-needs' ? (
             <div className="schema-orders-page-view">
-              <ResourceNeedsList needs={resourceNeeds} onClose={() => setActiveView('schema')} onOpenDetails={setResourceNeedDetail} onAction={handleResourceNeedAction} onDropPass={handleResourceNeedDrop} onOrderAll={handleOrderAllResourceNeeds} onAssignAll={handleAssignAllResourceNeeds} />
+              <ResourceNeedsList needs={resourceNeeds} onClose={() => setActiveView('schema')} onOpenDetails={setResourceNeedDetail} onAction={handleResourceNeedAction} onDropPass={handleResourceNeedDrop} onOrderAll={handleOrderAllResourceNeeds} onAssignAll={isActivityTimelineScenario ? undefined : handleAssignAllResourceNeeds} />
             </div>
           ) : <>
 
@@ -3533,7 +4111,7 @@ export const Schema = ({
               Visa vikarier
             </button>
             <SelectBox
-              dataSource={PASS_TYPES}
+              dataSource={isSchoolScenario(selectedOrganisation) ? PASS_TYPES.filter(pass => pass.id === 'alla' || pass.id === 'dag') : PASS_TYPES}
               displayExpr="label"
               valueExpr="id"
               value={selectedPass}
@@ -3562,6 +4140,25 @@ export const Schema = ({
 
           {/* Checkboxes */}
           <div className="schema-filter-checks">
+            {isActivityTimelineScenario ? (
+              <span className="schema-staffing-focus-note">Klicka på en aktivitetsstapel för vikarie till aktiviteten, eller på tidsspannet ovanför för vikarie till hela passet. Dubbelklicka på dagen för detaljer.</span>
+            ) : <span className="schema-staffing-focus-note">Bemanning följs per aktivitet; pass och frånvaro visas som underlag.</span>}
+            {resourceNeedPrototype && automation && (
+              <label className="schema-automation-control">
+                <i className="fa-solid fa-robot" />
+                <span>Automatik</span>
+                <select
+                  aria-label="Automatikläge"
+                  value={automation.automationMode}
+                  onChange={event => automation.setAutomationMode(event.target.value as 'off' | 'always' | 'off-hours')}
+                >
+                  <option value="off">Av</option>
+                  <option value="always">Alltid på</option>
+                  <option value="off-hours">Utanför kontorstid</option>
+                </select>
+                <span className={`automation-status-dot ${automation.isAutomationActive ? 'active' : ''}`} title={automation.isAutomationActive ? 'Automatik aktiv' : 'Automatik av'} />
+              </label>
+            )}
             <CheckBox value={showVacancies} onValueChanged={e => setShowVacancies(e.value)} text={resourceNeedPrototype ? 'Visa frånvaro och resursbehov' : 'Visa bara vakanser'} />
             {resourceNeedPrototype && (
               <div className="schema-orders-toggle">
@@ -3615,7 +4212,7 @@ export const Schema = ({
               </colgroup>
               <thead>
                 <tr>
-                  <th className="schema-header-cell schema-employee-header">Medarbetare</th>
+                  <th className="schema-header-cell schema-employee-header">{isActivityTimelineScenario ? 'Medarbetare' : 'Aktivitet / medarbetare'}</th>
                   {columns.map((col, i) => {
                     const ds      = toDateStr(col.date);
                     const isToday = ds === TODAY_STR;
@@ -3665,6 +4262,7 @@ export const Schema = ({
                       <tr className="schema-table-row">
                         <td
                           className="schema-employee-cell schema-org-employee-cell schema-person-context-cell"
+                          style={{ paddingLeft: 106 }}
                           data-person-id={emp.id}
                           onContextMenu={() => setPersonContextId(emp.id)}
                         >
@@ -3674,7 +4272,7 @@ export const Schema = ({
                         </td>
                         {columns.map((col, ci) => {
                           const ds    = toDateStr(col.date);
-                          const shift = getCellShift(emp.id, col.date, selectedPass);
+                          const shift = getScheduleShift(emp.id, col.date, selectedPass);
 
                           /* Year view */
                           if (viewType === 'year-columns') {
@@ -3717,13 +4315,16 @@ export const Schema = ({
                           const hasFill  = fills.some(f => f.personId===emp.id && f.dateStr===ds);
                           const absenceKey = `${emp.id}|${ds}`;
                           const isAbsent  = !!RUNTIME_ABSENCE_SHIFTS[absenceKey];
+                          const absenceCaption = isAbsent
+                            ? `Frånvaro${RUNTIME_ABSENCE_REASONS[absenceKey] ? ` · ${RUNTIME_ABSENCE_REASONS[absenceKey]}` : ''}`
+                            : undefined;
                           const isVacant  = vacancyKeys.includes(absenceKey);
                           const ctxType: ContextTargetType | undefined = shift
                             ? (isAbsent ? (isVacant ? 'vacant' : 'absence') : 'normal')
                             : undefined;
                           const color    = shift ? getColorScheme(emp.id, ds, fills, vacancyKeys) : 'normal';
-                          const passInfo = getShiftPassInfo(emp.id, ds);
-                          const akut     = isAkutShift(emp.id, ds) && color === 'vacant';
+                          const passInfo = getShiftPassInfo(emp.id, ds, selectedOrganisation);
+                          const akut     = isAkutShift(emp.id, ds, selectedOrganisation) && color === 'vacant';
                           const resourceOrder = resourceOrders.find(order => order.personId === emp.id && order.dateStr === ds);
                           const resourceNeed = resourceNeedPrototype
                             ? resourceNeeds.find(need => need.personId === emp.id && need.dateStr === ds && need.status !== 'Borttaget')
@@ -3731,6 +4332,54 @@ export const Schema = ({
                           const resourceNeedOrder = resourceNeed
                             ? resourceOrders.find(order => order.id === `resource-order-${resourceNeed.id}`)
                             : undefined;
+
+                          if (isActivityTimelineScenario && viewType !== 'year-columns') {
+                            const candidateId = internalCandidateId(emp.id);
+                            const selfAvailability = !shift
+                              ? getSubAvailability(candidateId, col.date, effectiveAvailabilityOverrides, substituteAbsences)
+                              : null;
+                            const assignedPass = fills.find(fill => fill.substituteId === candidateId && fill.dateStr === ds);
+                            const assignedActivity = Object.values(activityFills).find(fill => fill.substituteId === candidateId && fill.dateStr === ds);
+                            const bookedAssignment = assignedActivity
+                              ? { start: assignedActivity.shift.start, end: assignedActivity.shift.end, name: assignedActivity.substituteName }
+                              : assignedPass?.shift
+                                ? { start: assignedPass.shift.start, end: assignedPass.shift.end, name: assignedPass.person.name }
+                                : undefined;
+                            const passFill = fills.find(fill => fill.personId === emp.id && fill.dateStr === ds);
+                            const activities = shift ? getCellActivities(emp.id, col.date) : [];
+                            return (
+                              <td
+                                key={ci}
+                                className={[
+                                  'schema-day-cell',
+                                  'schema-activity-timeline-cell',
+                                  viewType === 'month-columns' ? 'schema-month-col-cell' : '',
+                                  col.isWeekend ? 'schema-weekend-cell' : '',
+                                  ds === TODAY_STR ? 'schema-today-col' : '',
+                                  ctxType ? 'schema-ctx-cell' : '',
+                                ].filter(Boolean).join(' ')}
+                                data-person-id={ctxType ? emp.id : undefined}
+                                data-date-str={ctxType ? ds : undefined}
+                                data-ctx-type={ctxType}
+                                onDoubleClick={shift ? () => handleOpenDetail(emp.id, emp.name, emp.role, ds, shift, color) : undefined}
+                              >
+                                <ActivityTimelineCell
+                                  shift={shift}
+                                  color={color}
+                                  passFill={passFill}
+                                  activities={activities}
+                                  activityFills={activityFills}
+                                  availability={selfAvailability}
+                                  bookedAssignment={bookedAssignment}
+                                  absenceLabel={absenceCaption}
+                                  onOpenPass={() => handleOpenVacancyPanel(emp.id, ds)}
+                                  onOpenActivity={handleOpenActivitySubstitutePanel}
+                                  onPassDragOver={handleCellDragOver}
+                                  onPassDrop={(event, targetShift) => handleCellDrop(event, emp.id, ds, targetShift)}
+                                />
+                              </td>
+                            );
+                          }
 
                           /* Month view */
                           if (viewType === 'month-columns') {
@@ -3745,12 +4394,21 @@ export const Schema = ({
                                 {shift && (
                                   <div
                                     className={['schema-ctx-wrapper', ctxType ? `schema-ctx-${ctxType}` : '', subPanelOpen ? 'schema-drop-target' : ''].filter(Boolean).join(' ')}
+                                    role="button"
+                                    tabIndex={0}
+                                    aria-label={`${emp.name}, ${ds}, pass ${shift.start} till ${shift.end}, ${color === 'absence' ? 'frånvaro' : color === 'vacant' ? (resourceNeedPrototype ? 'resursbehov' : 'vakans') : color === 'filled' ? 'tillsatt' : 'schemalagt pass'}. Visa passdetaljer.`}
                                     draggable={resourceNeedPrototype}
                                     onDragStart={event => handleSchedulePassDragStart(event, emp.id, ds, shift)}
                                     data-person-id={ctxType ? emp.id : undefined}
                                     data-date-str={ctxType  ? ds     : undefined}
                                     data-ctx-type={ctxType  ? ctxType : undefined}
                                     onDoubleClick={() => handleOpenDetail(emp.id, emp.name, emp.role, ds, shift, color)}
+                                    onKeyDown={event => {
+                                      if (event.key === 'Enter' || event.key === ' ') {
+                                        event.preventDefault();
+                                        handleOpenDetail(emp.id, emp.name, emp.role, ds, shift, color);
+                                      }
+                                    }}
                                     onDragOver={handleCellDragOver}
                                     onDrop={e => handleCellDrop(e, emp.id, ds, shift)}
                                   >
@@ -3777,12 +4435,21 @@ export const Schema = ({
                               {shift && (
                                 <div
                                   className={['schema-ctx-wrapper', ctxType ? `schema-ctx-${ctxType}` : '', subPanelOpen ? 'schema-drop-target' : ''].filter(Boolean).join(' ')}
+                                  role="button"
+                                  tabIndex={0}
+                                  aria-label={`${emp.name}, ${ds}, pass ${shift.start} till ${shift.end}, ${color === 'absence' ? 'frånvaro' : color === 'vacant' ? (resourceNeedPrototype ? 'resursbehov' : 'vakans') : color === 'filled' ? 'tillsatt' : 'schemalagt pass'}. Visa passdetaljer.`}
                                   draggable={resourceNeedPrototype}
                                   onDragStart={event => handleSchedulePassDragStart(event, emp.id, ds, shift)}
                                   data-person-id={ctxType ? emp.id  : undefined}
                                   data-date-str={ctxType  ? ds      : undefined}
                                   data-ctx-type={ctxType  ? ctxType : undefined}
                                   onDoubleClick={() => handleOpenDetail(emp.id, emp.name, emp.role, ds, shift, color)}
+                                  onKeyDown={event => {
+                                    if (event.key === 'Enter' || event.key === ' ') {
+                                      event.preventDefault();
+                                      handleOpenDetail(emp.id, emp.name, emp.role, ds, shift, color);
+                                    }
+                                  }}
                                   onDragOver={handleCellDragOver}
                                   onDrop={e => handleCellDrop(e, emp.id, ds, shift)}
                                 >
@@ -3830,8 +4497,13 @@ export const Schema = ({
               </tbody>
             </table>
           </div>
+          {isActivityTimelineScenario && <div className="schema-activity-legend schema-activity-legend-below" aria-label="Aktivitetstyper och tillgänglighet">
+            {Object.entries(PRESCHOOL_ACTIVITY_TYPES).map(([kind, activityType]) => <span key={kind}><i className={`schema-activity-legend-swatch ${activityType.className}`} />{activityType.label}</span>)}
+            <span><i className="schema-activity-legend-swatch schema-activity-availability-swatch" />Tillgänglig vikarie</span>
+            <span><i className="schema-activity-legend-swatch schema-activity-absence-swatch" />Frånvaro</span>
+          </div>}
           {showOrders && <ResourceOrdersList orders={resourceOrders} onClose={() => setShowOrders(false)} onAction={handleOrderAction} onOpenDetails={setOrderDetail} onChooseSubstitute={handleOpenOrderSubstitutePanel} onShowSubstitutes={handleOpenAllSubstitutes} />}
-          {resourceNeedPrototype && showResourceNeeds && <ResourceNeedsList needs={resourceNeeds} onClose={() => setShowResourceNeeds(false)} onOpenDetails={setResourceNeedDetail} onAction={handleResourceNeedAction} onDropPass={handleResourceNeedDrop} onOrderAll={handleOrderAllResourceNeeds} onAssignAll={handleAssignAllResourceNeeds} />}
+          {resourceNeedPrototype && showResourceNeeds && <ResourceNeedsList needs={resourceNeeds} onClose={() => setShowResourceNeeds(false)} onOpenDetails={setResourceNeedDetail} onAction={handleResourceNeedAction} onDropPass={handleResourceNeedDrop} onOrderAll={handleOrderAllResourceNeeds} onAssignAll={isActivityTimelineScenario ? undefined : handleAssignAllResourceNeeds} />}
           </div>
 
           </>}
@@ -3986,8 +4658,12 @@ export const Schema = ({
           isOpen={subPanelOpen}
           browseAll={subPanelBrowseAll}
           state={subPanelState}
+          candidates={panelCandidates}
+          singleAssignment={isActivityTimelineScenario}
+          bookingsByCandidate={candidateBookings}
           columns={columns}
           viewType={viewType}
+          viewColumnWidth={viewColumnWidth}
           onClose={handleCloseSubPanel}
           onSendRequest={handleSendRequest}
           onOpenDetails={handleOpenSubstituteDetails}
@@ -3995,7 +4671,7 @@ export const Schema = ({
           onRestoreAvailability={handleRestoreSubstituteAvailability}
           onReportSick={handleReportSubstituteSick}
           onClearSickness={handleClearSubstituteSickness}
-          availabilityOverrides={substituteAvailabilityOverrides}
+          availabilityOverrides={effectiveAvailabilityOverrides}
           absences={substituteAbsences}
           onDragStart={handleDragStartSub}
           scrollRef={subScrollRef}
@@ -4059,6 +4735,8 @@ export const Schema = ({
               resourceNeedOrder={passDetailResourceNeedOrder}
               assignedPerson={passDetailAssignedFill?.person}
               assignmentFailure={passDetailAssignmentFailure}
+              activitySchedule={passDetailSchedule}
+              organisation={selectedOrganisation}
             />
           ) : null}
           onPostMessage={detailState ? activity => addPassActivity(passDetailKey, activity) : undefined}
@@ -4091,6 +4769,7 @@ export const Schema = ({
               employee={personDetailEmployee}
               competencies={getEmployeeCompetencies(personDetailEmployee.role)}
               shiftDates={personDetailShiftDates}
+              activitySchedules={personDetailSchedules}
               onReportSick={handlePersonReportSick}
               onShowSchedule={handleShowPersonInSchedule}
             />
@@ -4099,7 +4778,7 @@ export const Schema = ({
         />
 
         <CaseActivityModal
-          isOpen={Boolean(substituteDetail && substituteDetailInfo && substituteDetailState)}
+          isOpen={Boolean(substituteDetail && substituteDetailState)}
           onClose={handleCloseSubstituteDetails}
           contextKey={substituteDetail ? `${substituteDetail.id}|${substituteDetailState?.dateStr ?? ''}` : undefined}
           kicker="Vikarie"
@@ -4107,7 +4786,7 @@ export const Schema = ({
           description={substituteDetailState ? `${substituteDetailState.dateStr} · tillgänglighet och händelser` : ''}
           activities={substituteDetailActivities}
           includeDefaultActivities={false}
-          details={substituteDetail && substituteDetailInfo && substituteDetailState ? (
+          details={substituteDetail && substituteDetailState ? (
             <SubstituteDetailCard
               substitute={substituteDetail}
               details={substituteDetailInfo}

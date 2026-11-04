@@ -7,7 +7,7 @@ import { useRole } from './RoleContext';
  * with a check on the active one. Opening user settings stays on the separate user-icon button.
  */
 export const RoleSelector: React.FC = () => {
-  const { roles, selectedRoleId, selectedRole, setSelectedRoleId } = useRole();
+  const { roles, selectedRoleId, selectedRole, setSelectedRoleId, selectedOrganisation, setSelectedOrganisation } = useRole();
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
@@ -57,6 +57,27 @@ export const RoleSelector: React.FC = () => {
               <span>{role.label}</span>
             </button>
           ))}
+          {selectedRoleId === 'admin' && (
+            <div className="role-selector-organisation" role="group" aria-label="Prototypscenario">
+              <div className="role-selector-organisation-heading">Prototypscenario</div>
+              {[
+                { id: 'clinic' as const, label: 'Medicinkliniken' },
+                { id: 'school' as const, label: 'Rektorsområde Väster' },
+                { id: 'schoolTimeline' as const, label: 'Rektorsområde Väster – testkopia' },
+              ].map(organisation => (
+                <button
+                  key={organisation.id}
+                  className="employee-actions-item"
+                  role="menuitemradio"
+                  aria-checked={selectedOrganisation === organisation.id}
+                  onClick={() => setSelectedOrganisation(organisation.id)}
+                >
+                  <i className={`fa-solid fa-check me-2${selectedOrganisation === organisation.id ? '' : ' invisible'}`} aria-hidden="true" />
+                  <span>{organisation.label}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

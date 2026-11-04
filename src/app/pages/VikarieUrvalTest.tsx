@@ -134,7 +134,7 @@ export const VikarieUrvalTest = () => {
       </div>
 
       <div className="col-12 col-xl-8">
-        <Card title="2. Prioriteringsordning" actions={<span className="vikarie-result-count">{filteredCandidates.length} av 100 visas</span>}>
+        <Card title="2. Prioriteringsordning" actions={<span className="vikarie-result-count" role="status" aria-live="polite" aria-atomic="true">{filteredCandidates.length} av 100 visas</span>}>
           <div className="vikarie-priority-list">
             {[1, 2, 3].map((group) => <div className="vikarie-priority-item" key={group}>
               <span className="vikarie-priority-number">{group}</span>
@@ -150,7 +150,8 @@ export const VikarieUrvalTest = () => {
         <Card title="Prioriterad lista över personer">
           <div className="table-responsive">
             <table className="table table-hover align-middle vikarie-table">
-              <thead><tr><th>#</th><th>Medarbetare</th><th>Urvalsgrupp</th><th>Kompetens</th><th>ATL</th><th>Dygnsvila</th><th>Kompletterande underlag</th></tr></thead>
+              <caption className="visually-hidden">Prioriterade personer och urvalsunderlag</caption>
+              <thead><tr><th scope="col">#</th><th scope="col">Medarbetare</th><th scope="col">Urvalsgrupp</th><th scope="col">Kompetens</th><th scope="col">ATL</th><th scope="col">Dygnsvila</th><th scope="col">Kompletterande underlag</th></tr></thead>
               <tbody>{filteredCandidates.map((candidate, index) => <tr key={candidate.id}>
                 <td><span className={`vikarie-rank vikarie-rank-${candidate.priorityGroup}`}>{index + 1}</span></td>
                 <td><strong>{candidate.name}</strong><small>{candidate.role} · {candidate.workplace}</small></td>

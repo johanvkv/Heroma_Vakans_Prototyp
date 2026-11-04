@@ -14,6 +14,53 @@ export const MegaMenu: React.FC<MegaMenuProps> = ({ isOpen, onClose, searchQuery
   const navigate = useNavigate();
   const [selectedMenu, setSelectedMenu] = React.useState('personligt');
   const [selectedPill, setSelectedPill] = React.useState<string | null>(null);
+  const menuRef = React.useRef<HTMLDivElement>(null);
+  const onCloseRef = React.useRef(onClose);
+
+  React.useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const menu = menuRef.current;
+    const getFocusable = (): HTMLElement[] => {
+      const search = document.getElementById('header-search');
+      const menuControls: HTMLElement[] = [];
+      menu?.querySelectorAll(
+        'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'
+      ).forEach(element => {
+        if (element instanceof HTMLElement && element.getClientRects().length > 0) menuControls.push(element);
+      });
+      return [
+        ...(search instanceof HTMLElement && search.getClientRects().length > 0 ? [search] : []),
+        ...menuControls,
+      ];
+    };
+    if (!(previouslyFocused?.id === 'header-search')) getFocusable()[0]?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onCloseRef.current();
+      } else if (event.key === 'Tab') {
+        const focusable = getFocusable();
+        if (!focusable.length) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && (document.activeElement === first || !focusable.includes(document.activeElement as HTMLElement))) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && (document.activeElement === last || !focusable.includes(document.activeElement as HTMLElement))) {
+          event.preventDefault();
+          first.focus();
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      previouslyFocused?.focus();
+    };
+  }, [isOpen]);
 
   const menuItems = getMegaMenuItems();
 
@@ -313,7 +360,7 @@ export const MegaMenu: React.FC<MegaMenuProps> = ({ isOpen, onClose, searchQuery
   if (!isOpen) return null;
 
   return (
-    <div className="mega-menu-overlay">
+    <div id="mega-menu" className="mega-menu-overlay" ref={menuRef} role="dialog" aria-modal="true" aria-label="Meny och sökresultat" tabIndex={-1}>
       <div className="mega-menu-container">
         {/* Left Sidebar */}
         <div className="mega-menu-sidebar">
@@ -410,8 +457,10 @@ export const MegaMenu: React.FC<MegaMenuProps> = ({ isOpen, onClose, searchQuery
                               {section.title && <h4 className="mega-menu-search-section-title">{section.title}</h4>}
                               <ul className="mega-menu-search-section-list">
                                 {section.items.map((item, itemIdx) => (
-                                  <li key={itemIdx} className="mega-menu-search-section-item" onClick={() => handleSearchItemClick(item.text)}>
-                                    {highlightText(item.text, searchQuery)}
+                                  <li key={itemIdx} className="mega-menu-search-section-item">
+                                    <button type="button" className="mega-menu-item-action" onClick={() => handleSearchItemClick(item.text)}>
+                                      {highlightText(item.text, searchQuery)}
+                                    </button>
                                   </li>
                                 ))}
                               </ul>
@@ -451,12 +500,10 @@ export const MegaMenu: React.FC<MegaMenuProps> = ({ isOpen, onClose, searchQuery
                       const isHighlighted = typeof item === 'object' && item.highlighted;
                       const text = typeof item === 'string' ? item : item.text;
                       return (
-                        <li 
-                          key={itemIdx} 
-                          className={`mega-menu-section-item ${isHighlighted ? 'mega-menu-section-item-highlighted' : ''}`}
-                          onClick={() => handleSearchItemClick(text)}
-                        >
-                          {text}
+                        <li key={itemIdx} className={`mega-menu-section-item ${isHighlighted ? 'mega-menu-section-item-highlighted' : ''}`}>
+                          <button type="button" className="mega-menu-item-action" onClick={() => handleSearchItemClick(text)}>
+                            {text}
+                          </button>
                         </li>
                       );
                     })}

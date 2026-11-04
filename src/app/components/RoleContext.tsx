@@ -11,12 +11,15 @@ interface RoleContextValue {
   selectedRoleId: string;
   selectedRole: Role;
   setSelectedRoleId: (id: string) => void;
+  selectedOrganisation: 'clinic' | 'school' | 'schoolTimeline';
+  setSelectedOrganisation: (organisation: 'clinic' | 'school' | 'schoolTimeline') => void;
 }
 
 const RoleContext = createContext<RoleContextValue | undefined>(undefined);
 
 export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [selectedRoleId, setSelectedRoleId] = useState<string>(DEFAULT_ROLE_ID);
+  const [selectedOrganisation, setSelectedOrganisation] = useState<'clinic' | 'school' | 'schoolTimeline'>('clinic');
 
   const roles = useMemo(
     () => [...ROLES].sort((a, b) => a.label.localeCompare(b.label, 'sv')),
@@ -25,7 +28,7 @@ export const RoleProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const selectedRole = getRoleById(selectedRoleId) ?? roles[0];
 
-  const value: RoleContextValue = { roles, selectedRoleId, selectedRole, setSelectedRoleId };
+  const value: RoleContextValue = { roles, selectedRoleId, selectedRole, setSelectedRoleId, selectedOrganisation, setSelectedOrganisation };
   return <RoleContext.Provider value={value}>{children}</RoleContext.Provider>;
 };
 

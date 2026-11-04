@@ -70,7 +70,7 @@ body {
 .vikarie-table { margin-bottom: 0; font-size: 13px; } .vikarie-table th { color: #625c70; font-size: 12px; font-weight: 700; text-transform: uppercase; white-space: nowrap; } .vikarie-table td { vertical-align: middle; }
 .vikarie-rank { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; font-weight: 700; background: #f0eef8; color: #5236ab; } .vikarie-rank-1 { background: #dff6e8; color: #13733b; } .vikarie-rank-2 { background: #e8efff; color: #315d9f; }
 .vikarie-badge { border-radius: 12px; padding: 4px 8px; white-space: nowrap; font-size: 12px; font-weight: 700; } .vikarie-badge-1 { background: #dff6e8; color: #13733b; } .vikarie-badge-2 { background: #e8efff; color: #315d9f; } .vikarie-badge-3 { background: #fff2d9; color: #98600a; } .vikarie-badge-4 { background: #f0eef2; color: #6b6570; }
-.vikarie-muted { color: #8a8490 !important; } .vikarie-ok { color: #13733b; font-weight: 700; } .vikarie-danger { color: #b42318; font-weight: 700; } .vikarie-empty-state { padding: 32px; text-align: center; color: #77727e; }
+.vikarie-muted { color: #625d6f !important; } .vikarie-ok { color: #13733b; font-weight: 700; } .vikarie-danger { color: #b42318; font-weight: 700; } .vikarie-empty-state { padding: 32px; text-align: center; color: #625d6f; }
 @media (max-width: 700px) { .vikarie-test-intro { display: block; padding: 20px; } .vikarie-test-date { margin-top: 18px; } }
 
 a {

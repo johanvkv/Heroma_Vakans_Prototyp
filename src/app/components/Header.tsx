@@ -20,6 +20,8 @@ export const Header = ({ hideCaseActivityButton = false, showAutomationControls 
   const [searchQuery, setSearchQuery] = useState('');
   const favouritesButtonRef = useRef<HTMLButtonElement>(null);
   const notificationsButtonRef = useRef<HTMLButtonElement>(null);
+  const accessibilityButtonRef = useRef<HTMLButtonElement>(null);
+  const profileButtonRef = useRef<HTMLButtonElement>(null);
   const automation = useOptionalAutomation();
 
   useEffect(() => {
@@ -84,12 +86,12 @@ export const Header = ({ hideCaseActivityButton = false, showAutomationControls 
           </div>
 
           <div className="d-flex align-items-center header-nav-group">
-            <button className="nav-btn ms-3" onClick={() => setIsMegaMenuOpen(!isMegaMenuOpen)} data-wizard-target="mega-menu-btn">
+            <button type="button" className="nav-btn ms-3" aria-haspopup="dialog" aria-expanded={isMegaMenuOpen} aria-controls="mega-menu" onClick={() => setIsMegaMenuOpen(!isMegaMenuOpen)} data-wizard-target="mega-menu-btn">
               <i className="fa-solid fa-bars"></i>
               <span>Meny</span>
             </button>
             <div className="separator-vertical show-mobile-only"></div>
-            <button className="nav-btn-icon show-mobile-only" onClick={() => setIsMegaMenuOpen(!isMegaMenuOpen)} data-wizard-target="mobile-search-btn">
+            <button type="button" className="nav-btn-icon show-mobile-only" aria-label="Öppna sök och meny" aria-haspopup="dialog" aria-expanded={isMegaMenuOpen} aria-controls="mega-menu" onClick={() => setIsMegaMenuOpen(!isMegaMenuOpen)} data-wizard-target="mobile-search-btn">
               <i className="fa-solid fa-search"></i>
             </button>
             <div className="separator-vertical hide-mobile"></div>
@@ -104,7 +106,13 @@ export const Header = ({ hideCaseActivityButton = false, showAutomationControls 
         <div className="center-section hide-mobile">
           <div className="search-input-wrapper" data-wizard-target="search-btn">
             <i className="fa-solid fa-search search-icon"></i>
+            <label className="visually-hidden" htmlFor="header-search">Sök i Heroma</label>
             <input 
+              id="header-search"
+              aria-label="Sök i Heroma"
+              aria-haspopup="dialog"
+              aria-expanded={isMegaMenuOpen}
+              aria-controls="mega-menu"
               type="text" 
               placeholder="Sök.." 
               className="search-input"
@@ -123,9 +131,9 @@ export const Header = ({ hideCaseActivityButton = false, showAutomationControls 
         <div className="d-flex align-items-center gap-2">
           <div className="d-flex align-items-center gap-2" data-wizard-target="theme-toggle">
              <div className="tooltip-wrapper">
-               <div className={`toggle-switch ${isDarkMode ? 'active' : ''} bg-[#cfcfcf]`} onClick={toggleTheme}>
+               <button type="button" className={`toggle-switch ${isDarkMode ? 'active' : ''} bg-[#cfcfcf}`} role="switch" aria-checked={isDarkMode} aria-label={isDarkMode ? 'Mörkt tema' : 'Ljust tema'} onClick={toggleTheme}>
                   <div className="toggle-thumb"></div>
-               </div>
+               </button>
                <div className="tooltip-content">
                  <span className="tooltip-text">{isDarkMode ? 'Byt till ljust läge' : 'Byt till mörkt läge'}</span>
                </div>
@@ -134,7 +142,7 @@ export const Header = ({ hideCaseActivityButton = false, showAutomationControls 
           
           <div className="separator-vertical hide-mobile"></div>
 
-          <button className="nav-btn hide-mobile" onClick={() => setIsAccessibilityOpen(!isAccessibilityOpen)} data-wizard-target="accessibility-btn">
+          <button type="button" className="nav-btn" ref={accessibilityButtonRef} aria-haspopup="dialog" aria-expanded={isAccessibilityOpen} onClick={() => setIsAccessibilityOpen(!isAccessibilityOpen)} data-wizard-target="accessibility-btn">
             <i className="fa-solid fa-universal-access"></i>
             <span>Tillgänglighet</span>
           </button>
@@ -142,7 +150,7 @@ export const Header = ({ hideCaseActivityButton = false, showAutomationControls 
           <div className="separator-vertical hide-mobile"></div>
 
           {/* Combined notifications - shows as single bell on mobile */}
-          <button className="nav-btn position-relative notification-combined" ref={notificationsButtonRef} onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}>
+          <button type="button" className="nav-btn position-relative notification-combined" ref={notificationsButtonRef} aria-haspopup="dialog" aria-expanded={isNotificationsOpen} onClick={() => setIsNotificationsOpen(!isNotificationsOpen)}>
             <span className="hide-mobile">Avisering</span>
             <i className="fa-solid fa-chevron-down show-mobile-only"></i>
             <span className="badge">1</span>
@@ -185,7 +193,7 @@ export const Header = ({ hideCaseActivityButton = false, showAutomationControls 
           <div className="d-flex align-items-center gap-2">
             <RoleSelector />
             <div className="separator-vertical"></div>
-            <button className="icon-btn" onClick={() => setIsUserProfileOpen(!isUserProfileOpen)}>
+            <button type="button" className="icon-btn" ref={profileButtonRef} aria-label="Öppna användarprofil" aria-haspopup="dialog" aria-expanded={isUserProfileOpen} onClick={() => setIsUserProfileOpen(!isUserProfileOpen)}>
                <i className="fa-solid fa-user"></i>
             </button>
           </div>
