@@ -64,6 +64,13 @@
     "_new": true,
     "_overviewCards": []
   },
+  "Bemanningsstatistik": {
+    "_id": "bemanningsstatistik",
+    "_icon": "fa-chart-line",
+    "_path": "/vikariehantering/statistik",
+    "_new": true,
+    "_overviewCards": []
+  },
   "Page Builder Studio": {
     "_id": "components",
     "_icon": "fa-cube",

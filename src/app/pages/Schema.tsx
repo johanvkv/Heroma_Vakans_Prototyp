@@ -15,6 +15,7 @@ import CheckBox  from 'devextreme-react/check-box';
 import ContextMenu from 'devextreme-react/context-menu';
 import { useNavigate } from 'react-router';
 import { persons, getActiveEmployment, fullName } from '../../data';
+import { PRESCHOOL_SUBSTITUTE_PROFILES, SUBSTITUTE_ROSTER } from '../../data/substituteRoster';
 import { CaseActivityModal } from '../components/CaseActivityModal';
 import { useOptionalAutomation } from '../components/AutomationContext';
 import { useRole } from '../components/RoleContext';
@@ -25,9 +26,10 @@ import type { CaseActivity, CaseActivityResponse } from '../components/CaseActiv
 type ShiftType    = 'morning' | 'day' | 'evening' | 'night';
 type PeriodType   = 'dag' | 'arbetsvecka' | 'vecka' | 'sjuDagar' | 'femDagar' | 'manad' | 'period' | 'ar';
 type ViewType     = 'day-columns' | 'month-columns' | 'year-columns';
-type ColorScheme  = 'normal' | 'past' | 'absence' | 'vacant' | 'filled';
+type ColorScheme  = 'normal' | 'past' | 'absence' | 'vacant' | 'filled' | 'ordered';
 type OrganisationScenario = 'clinic' | 'school' | 'schoolTimeline';
 type ActivityKind = 'pedagogical' | 'outdoors' | 'meals' | 'rest';
+type ActivityFilterKind = ActivityKind | 'absence';
 
 interface ScheduleActivity {
   id: string;
@@ -57,6 +59,17 @@ interface ActivityFill {
   substituteId: string;
   substituteName: string;
   substituteRole: string;
+}
+
+interface RemainingPass {
+  id: string;
+  dateStr: string;
+  unitId: string;
+  unit: string;
+  shift: Shift;
+  activities: ScheduleActivity[];
+  assignedSubstituteId?: string;
+  assignedSubstituteName?: string;
 }
 
 const EMPLOYEE_COLUMN_WIDTH = 280;
@@ -101,11 +114,13 @@ interface ResourceNeed {
   reason?: AbsenceReason;
   source: 'frånvaro' | 'pass';
   status: ResourceNeedStatus;
+  workflowStatus?: ResourceOrderStatus;
   createdBy: string;
   handledBy: string;
   assignedSubstituteId?: string;
+  assignedSubstituteName?: string;
 }
-type ResourceOrderStatus = 'Beställd' | 'Under behandling' | 'Förfrågan skickad' | 'Tillsatt' | 'Avbruten';
+type ResourceOrderStatus = 'Beställd' | 'Under behandling' | 'Förfrågan skickad' | 'Besvarad' | 'Tillsatt' | 'Avbruten';
 type ResourceResponseStatus = 'Avvaktar' | 'Tillgänglig' | 'Kan inte';
 interface ResourceOrderInvite {
   substituteId: string;
@@ -114,7 +129,8 @@ interface ResourceOrderInvite {
   response: ResourceResponseStatus;
   responseText?: string;
 }
-interface SubstituteCandidate { id: string; name: string; role: string; category: string; }
+type SubstituteCostLevel = 'Gratis' | 'Kostnadsnivå 1' | 'Kostnadsnivå 2' | 'Kostnadsnivå 3';
+interface SubstituteCandidate { id: string; name: string; role: string; category: string; costLevel: SubstituteCostLevel; competencies?: string[]; }
 interface SubAvailability  { startH: number; startM: number; endH: number; endM: number; }
 type SubstituteAvailabilityOverrides = Record<string, SubAvailability | null>;
 type SubstituteAbsences = Record<string, AbsenceReason>;
@@ -141,6 +157,8 @@ interface SubPanelState {
   targetType?: 'pass' | 'activity';
   targetActivityId?: string;
   targetActivityLabel?: string;
+  targetRemainingPassId?: string;
+  unitLocked?: boolean;
 }
 interface ConfirmState {
   substitutes: SubstituteCandidate[];
@@ -152,6 +170,9 @@ interface ConfirmState {
   targetType?: 'pass' | 'activity';
   targetActivityId?: string;
   targetActivityLabel?: string;
+  targetRemainingPassId?: string;
+  unitLocked?: boolean;
+  costApproval?: boolean;
 }
 interface OpenRequestState {
   substitutes: SubstituteCandidate[];
@@ -246,16 +267,7 @@ function getContextActions(type: ContextTargetType, resourceNeedMode = false, is
   ];
 }
 
-const SUBSTITUTE_CANDIDATES: SubstituteCandidate[] = [
-  { id: 'sub1', name: 'Anna Viksson', role: 'Undersköterska', category: 'Timanställd' },
-  { id: 'sub2', name: 'Erik Lindqvist', role: 'Sjuksköterska', category: 'Pool' },
-  { id: 'sub3', name: 'Maria Svensson', role: 'Undersköterska', category: 'Timanställd' },
-  { id: 'sub4', name: 'Jonas Berg', role: 'Sjuksköterska', category: 'Pensionär' },
-  { id: 'sub5', name: 'Karin Nilsson', role: 'Undersköterska', category: 'Samverkanspass' },
-  { id: 'sub6', name: 'Peter Holm', role: 'Sjuksköterska', category: 'Pool' },
-  { id: 'sub7', name: 'Sara Lundberg', role: 'Undersköterska', category: 'Timanställd' },
-  { id: 'sub8', name: 'Anders Persson', role: 'Sjuksköterska', category: 'Övrig' },
-];
+const SUBSTITUTE_CANDIDATES: SubstituteCandidate[] = SUBSTITUTE_ROSTER;
 
 const SUB_DETAILS: Record<string, SubstituteDetails> = {
   sub1: { phone: '070-123 45 67', email: 'anna.viksson@vardpool.se',    competencies: ['Demens', 'Palliation', 'Sondmatning'],             atlHours: 145, maxAtlHours: 168 },
@@ -273,7 +285,7 @@ const SUB_BOOKED_SHIFTS: Record<string, SubBookedShift[]> = {
   sub1: [{ dateStr: '2026-09-05', start: '08:00', end: '17:00' }],
   sub2: [{ dateStr: '2026-09-04', start: '14:30', end: '22:30' }, { dateStr: '2026-09-07', start: '06:45', end: '15:00' }],
   sub3: [{ dateStr: '2026-09-06', start: '06:45', end: '15:00' }],
-  sub5: [{ dateStr: TODAY_STR,    start: '22:00', end: '06:00' }],
+  sub5: [{ dateStr: '2026-09-03', start: '22:00', end: '06:00' }],
   sub8: [{ dateStr: '2026-09-05', start: '06:45', end: '15:00' }, { dateStr: '2026-09-06', start: '06:45', end: '15:00' }],
 };
 
@@ -285,10 +297,6 @@ const SUBSTITUTE_UNITS = [
   { id: 'hemtjansten', label: 'Hemtjänsten' },
   { id: 'vardavdelning-1', label: 'Vårdavdelning 1' },
 ];
-const SUBSTITUTE_COMPETENCIES = [...new Set(Object.values(SUB_DETAILS).flatMap(details => details.competencies))]
-  .sort((a, b) => a.localeCompare(b, 'sv'))
-  .map(competency => ({ id: competency, label: competency }));
-
 const ALL_GROUPS: EmployeeGroup[] = [
   { id: 'alla',           label: 'Alla medarbetare',   category: 'team'       },
   { id: 'team1',          label: 'Team 1',             category: 'team'       },
@@ -613,6 +621,34 @@ const PRESCHOOL_ACTIVITY_TYPES: Record<ActivityKind, { label: string; className:
   meals: { label: 'Måltider', className: 'schema-activity-type-meals' },
   rest: { label: 'Vila och återhämtning', className: 'schema-activity-type-rest' },
 };
+const PRESCHOOL_ACTIVITY_FILTERS: Array<{ id: ActivityFilterKind; label: string }> = [
+  ...Object.entries(PRESCHOOL_ACTIVITY_TYPES).map(([id, type]) => ({ id: id as ActivityKind, label: type.label })),
+  { id: 'absence', label: 'Frånvaro' },
+];
+const INITIAL_REMAINING_PASSES: RemainingPass[] = [
+  {
+    id: 'remaining-pass-fjarilen',
+    dateStr: TODAY_STR,
+    unitId: 'solglantan-avdelning-2',
+    unit: 'Förskolan Solgläntan · Avdelning Fjärilen',
+    shift: { type: 'day', start: '07:00', end: '15:30' },
+    activities: [
+      { id: 'remaining-pass-fjarilen-activity-1', employeeId: 'remaining-pass-fjarilen', dateStr: TODAY_STR, kind: 'pedagogical', label: PRESCHOOL_ACTIVITY_TYPES.pedagogical.label, start: '07:30', end: '11:30' },
+      { id: 'remaining-pass-fjarilen-activity-2', employeeId: 'remaining-pass-fjarilen', dateStr: TODAY_STR, kind: 'outdoors', label: PRESCHOOL_ACTIVITY_TYPES.outdoors.label, start: '12:30', end: '15:30' },
+    ],
+  },
+  {
+    id: 'remaining-pass-myran',
+    dateStr: TODAY_STR,
+    unitId: 'skogsbrynet-avdelning-1',
+    unit: 'Förskolan Skogsbrynet · Avdelning Myran',
+    shift: { type: 'day', start: '08:00', end: '16:30' },
+    activities: [
+      { id: 'remaining-pass-myran-activity-1', employeeId: 'remaining-pass-myran', dateStr: TODAY_STR, kind: 'meals', label: PRESCHOOL_ACTIVITY_TYPES.meals.label, start: '11:30', end: '12:30' },
+      { id: 'remaining-pass-myran-activity-2', employeeId: 'remaining-pass-myran', dateStr: TODAY_STR, kind: 'pedagogical', label: PRESCHOOL_ACTIVITY_TYPES.pedagogical.label, start: '13:00', end: '16:00' },
+    ],
+  },
+];
 
 function isSchoolScenario(organisation: OrganisationScenario): boolean {
   return organisation !== 'clinic';
@@ -818,9 +854,16 @@ function suitabilityScore(
   return pct + atlCap * 10 - (booked ? 200 : 0);
 }
 
+function candidateRankScore(candidate: SubstituteCandidate, date: Date, shift: Shift, overrides: SubstituteAvailabilityOverrides, absences: SubstituteAbsences): number {
+  const costPreference = candidate.costLevel === 'Gratis' ? 12
+    : candidate.costLevel === 'Kostnadsnivå 1' ? 8
+      : candidate.costLevel === 'Kostnadsnivå 2' ? 4 : 0;
+  return suitabilityScore(candidate.id, date, shift, overrides, absences) + costPreference;
+}
+
 // ─── Shift cell sub-components ────────────────────────────────────────────────
 
-function ShiftDayCell({ shift, color, passInfo, isAkut, orderedBy, resourceNeedMode = false, resourceNeedCreatedBy, resourceNeedOrderedBy, assignmentFailure }: { shift: Shift; color: ColorScheme; passInfo?: string; isAkut?: boolean; orderedBy?: string; resourceNeedMode?: boolean; resourceNeedCreatedBy?: string; resourceNeedOrderedBy?: string; assignmentFailure?: string }) {
+function ShiftDayCell({ shift, color, passInfo, isAkut, orderedBy, orderStatus, orderHandledBy, resourceNeedMode = false, resourceNeedCreatedBy, resourceNeedDisplayStatus, resourceNeedHandler, assignmentFailure }: { shift: Shift; color: ColorScheme; passInfo?: string; isAkut?: boolean; orderedBy?: string; orderStatus?: ResourceOrderStatus; orderHandledBy?: string; resourceNeedMode?: boolean; resourceNeedCreatedBy?: string; resourceNeedDisplayStatus?: string; resourceNeedHandler?: string; assignmentFailure?: string }) {
   const cap  = `schema-col-${color}-cap`;
   const main = `schema-col-${color}-main`;
   return (
@@ -848,18 +891,28 @@ function ShiftDayCell({ shift, color, passInfo, isAkut, orderedBy, resourceNeedM
         )}
         {color === 'absence' && <span className="schema-absence-badge"><i className="fa-solid fa-user-clock" /> Frånvaro</span>}
         {color === 'vacant' && <span className="schema-vacancy-badge"><i className="fa-solid fa-user-plus" /> {resourceNeedMode ? 'Resursbehov' : 'Vakans'}</span>}
-        {resourceNeedMode && resourceNeedCreatedBy && <span className="schema-resource-need-badge"><i className="fa-solid fa-user-clock" /> Resursbehov · {resourceNeedCreatedBy}</span>}
-        {resourceNeedMode && resourceNeedOrderedBy && <span className="schema-resource-need-order-badge"><i className="fa-solid fa-cart-shopping" /> Beställd av {resourceNeedOrderedBy}</span>}
-        {orderedBy && <span className="schema-order-badge" title={`Beställd av ${orderedBy}`}><i className="fa-solid fa-cart-shopping" /><span className="schema-order-badge-text">Beställd av {orderedBy}</span></span>}
+        {resourceNeedMode && resourceNeedCreatedBy && <span className="schema-resource-need-badge"><i className="fa-solid fa-user-clock" /> {resourceNeedDisplayStatus ?? 'Resursbehov'} · {resourceNeedHandler ?? resourceNeedCreatedBy}</span>}
+        {orderedBy && <span className="schema-order-badge" title={resourceNeedMode ? `Beställning · ${orderStatus ?? 'Beställd'} · Hanteras av ${orderHandledBy ?? orderedBy}` : `Beställd av ${orderedBy}`}><i className="fa-solid fa-cart-shopping" /><span className="schema-order-badge-text">{resourceNeedMode ? `${orderStatus ?? 'Beställd'} · ${orderHandledBy ?? orderedBy}` : `Beställd av ${orderedBy}`}</span></span>}
         {assignmentFailure && <span className="schema-assignment-failure-badge" title={assignmentFailure}><i className="fa-solid fa-robot" /><i className="fa-solid fa-triangle-exclamation" /> Kunde inte tillsättas</span>}
       </div>
     </div>
   );
 }
 
-function ShiftMonthCell({ shift, color, passInfo, isAkut, orderedBy, resourceNeedMode = false, resourceNeedCreatedBy, resourceNeedOrderedBy, assignmentFailure }: { shift: Shift; color: ColorScheme; passInfo?: string; isAkut?: boolean; orderedBy?: string; resourceNeedMode?: boolean; resourceNeedCreatedBy?: string; resourceNeedOrderedBy?: string; assignmentFailure?: string }) {
+function ShiftMonthCell({ shift, color, passInfo, isAkut, orderedBy, orderStatus, orderHandledBy, resourceNeedMode = false, resourceNeedCreatedBy, resourceNeedDisplayStatus, resourceNeedHandler, assignmentFailure }: { shift: Shift; color: ColorScheme; passInfo?: string; isAkut?: boolean; orderedBy?: string; orderStatus?: ResourceOrderStatus; orderHandledBy?: string; resourceNeedMode?: boolean; resourceNeedCreatedBy?: string; resourceNeedDisplayStatus?: string; resourceNeedHandler?: string; assignmentFailure?: string }) {
   const cap  = `schema-col-${color}-cap`;
   const main = `schema-col-${color}-main`;
+  const compactStatus: Record<string, string> = {
+    'Under behandling': 'Påbörjat',
+    'Förfrågan skickad': 'Frågad',
+    'Besvarad': 'Svar',
+    'Tillsatt': 'Bokad',
+    'Borttaget': 'Borttaget',
+  };
+  const needStatusText = resourceNeedDisplayStatus ? compactStatus[resourceNeedDisplayStatus] ?? resourceNeedDisplayStatus : 'Öppet';
+  const needHandlerTag = resourceNeedHandler?.split(/\s+/).map(part => part[0]).join('') ?? '';
+  const orderStatusText = orderStatus ? compactStatus[orderStatus] ?? orderStatus : 'Beställd';
+  const orderHandlerTag = orderHandledBy?.split(/\s+/).map(part => part[0]).join('') ?? '';
   return (
     <div className="schema-month-shift">
       <div className="schema-timeline">
@@ -885,9 +938,8 @@ function ShiftMonthCell({ shift, color, passInfo, isAkut, orderedBy, resourceNee
         )}
         {color === 'absence' && <span className="schema-absence-badge schema-absence-badge-month" title="Frånvaro"><i className="fa-solid fa-user-clock" /></span>}
         {color === 'vacant' && <span className="schema-vacancy-badge schema-vacancy-badge-month" title={resourceNeedMode ? 'Resursbehov' : 'Vakans'}><i className="fa-solid fa-user-plus" /></span>}
-        {resourceNeedMode && resourceNeedCreatedBy && <span className="schema-resource-need-badge schema-resource-need-badge-month" title={`Resursbehov · ${resourceNeedCreatedBy}`}><i className="fa-solid fa-user-clock" /></span>}
-        {resourceNeedMode && resourceNeedOrderedBy && <span className="schema-resource-need-order-badge schema-resource-need-badge-month" title={`Beställd av ${resourceNeedOrderedBy}`}><i className="fa-solid fa-cart-shopping" /></span>}
-        {orderedBy && <span className="schema-order-badge schema-order-badge-month" title={`Beställd av ${orderedBy}`}><i className="fa-solid fa-cart-shopping" /><span className="schema-order-badge-text">Beställd av {orderedBy}</span></span>}
+        {resourceNeedMode && resourceNeedCreatedBy && <span className="schema-resource-need-badge schema-resource-need-badge-month" title={`${resourceNeedDisplayStatus ?? 'Resursbehov'} · Hanteras av ${resourceNeedHandler ?? resourceNeedCreatedBy}`}><i className="fa-solid fa-user-clock" /><span>{needStatusText}{needHandlerTag ? ` · ${needHandlerTag}` : ''}</span></span>}
+        {orderedBy && <span className="schema-order-badge schema-order-badge-month" title={resourceNeedMode ? `Beställning · ${orderStatus ?? 'Beställd'} · Hanteras av ${orderHandledBy ?? orderedBy}` : `Beställd av ${orderedBy}`}><i className="fa-solid fa-cart-shopping" /><span className="schema-order-badge-text">{resourceNeedMode ? `${orderStatusText}${orderHandlerTag ? ` · ${orderHandlerTag}` : ''}` : `Beställd av ${orderedBy}`}</span></span>}
         {assignmentFailure && <span className="schema-assignment-failure-badge schema-assignment-failure-badge-month" title={assignmentFailure}><i className="fa-solid fa-robot" /><i className="fa-solid fa-triangle-exclamation" /></span>}
       </div>
     </div>
@@ -899,17 +951,18 @@ function timeToMinutes(time: string): number {
   return hours * 60 + minutes;
 }
 
-function ActivityTimelineCell({ shift, color, passFill, activities, activityFills, availability, bookedAssignment, absenceLabel, onOpenPass, onOpenActivity, onPassDragOver, onPassDrop }: {
+function ActivityTimelineCell({ shift, activities, activityFills, availability, bookedAssignment, absenceLabel, vacancyLabel, statusLabel, assignedSubstituteName, isOrdered = false, isPast, onPassDragOver, onPassDrop }: {
   shift: Shift | null;
-  color: ColorScheme;
-  passFill?: ShiftFill;
   activities: ScheduleActivity[];
   activityFills: Record<string, ActivityFill>;
   availability: SubAvailability | null;
   bookedAssignment?: { start: string; end: string; name: string };
   absenceLabel?: string;
-  onOpenPass: () => void;
-  onOpenActivity: (activity: ScheduleActivity) => void;
+  vacancyLabel?: string;
+  statusLabel?: string;
+  assignedSubstituteName?: string;
+  isOrdered?: boolean;
+  isPast: boolean;
   onPassDragOver: (event: React.DragEvent) => void;
   onPassDrop: (event: React.DragEvent, shift: Shift) => void;
 }) {
@@ -922,39 +975,34 @@ function ActivityTimelineCell({ shift, color, passFill, activities, activityFill
   const totalTime = shift ? `${shift.start}–${shift.end}`
     : bookedAssignment ? `${bookedAssignment.start}–${bookedAssignment.end}`
       : availability ? fmtAvailTime(availability) : '';
+  const statusCaption = statusLabel ?? absenceLabel ?? vacancyLabel;
   return (
-    <div className="schema-activity-timeline" aria-label={`Schema ${totalTime}`}>
-      {shift
-        ? <button type="button" className="schema-activity-total-time schema-activity-pass-action" onClick={onOpenPass} title={`Välj vikarie för hela passet ${shift.start}–${shift.end}`}>{totalTime}</button>
-        : totalTime && <span className="schema-activity-total-time">{totalTime}</span>}
+    <div className={`schema-activity-timeline${isPast ? ' schema-activity-timeline-past' : ''}`} aria-label={`Schema ${totalTime}`}>
+      {totalTime && <span className="schema-activity-total-time">{totalTime}</span>}
       <div className="schema-activity-lanes">
-      {shift && <>
-        <button
-          type="button"
-          className={`schema-activity-pass-window schema-activity-pass-${color}`}
+      {shift && <div
+          aria-hidden="true"
+          className="schema-activity-pass-window"
           style={segmentStyle(shift.start, shift.end)}
-          aria-label={`${passFill ? 'Ändra vikarie för passet' : 'Välj vikarie för passet'} ${shift.start} till ${shift.end}`}
-          title={`${passFill ? `Tillsatt med ${passFill.person.name}. ` : ''}Välj vikarie för hela passet ${shift.start}–${shift.end}`}
-          onClick={onOpenPass}
           onDragOver={onPassDragOver}
           onDrop={event => onPassDrop(event, shift)}
-        />
-      </>}
+        />}
       {activities.map(activity => {
         const presentation = PRESCHOOL_ACTIVITY_TYPES[activity.kind];
         const assignment = activityFills[activity.id];
+        const assignedName = assignment?.substituteName ?? assignedSubstituteName;
         return (
           <div className="schema-activity-row" key={activity.id}>
-            <button
-              type="button"
-              className={`schema-activity-bar ${presentation.className}${absenceLabel ? ' schema-activity-bar-absence' : ''}${assignment ? ' schema-activity-bar-filled' : ''}`}
+            <div
+              role="img"
+              className={`schema-activity-bar ${presentation.className}${isOrdered && !assignedName ? ' schema-activity-bar-ordered' : absenceLabel ? ' schema-activity-bar-absence' : vacancyLabel && !assignedName ? ' schema-activity-bar-vacant' : ''}${assignedName ? ' schema-activity-bar-filled' : ''}`}
               style={segmentStyle(activity.start, activity.end)}
-              aria-label={`${activity.label}, ${activity.start} till ${activity.end}${assignment ? `, vikarie ${assignment.substituteName}` : ', välj vikarie för aktiviteten'}`}
-              title={`${activity.label} · ${activity.start}–${activity.end}${assignment ? ` · Tillsatt med ${assignment.substituteName}` : ' · Klicka för att välja vikarie för just aktiviteten'}`}
-              onClick={event => { event.stopPropagation(); onOpenActivity(activity); }}
+              aria-label={`${activity.label}, ${activity.start} till ${activity.end}${assignedName ? `, vikarie ${assignedName}` : ''}`}
+              title={`${activity.label} · ${activity.start}–${activity.end}${assignedName ? ` · Tillsatt med ${assignedName}` : ''}`}
             >
               <span>{activity.label.slice(0, 3)}</span>
-            </button>
+              {assignedName && <i className="fa-solid fa-check schema-activity-assignment-check" aria-hidden="true" />}
+            </div>
           </div>
         );
       })}
@@ -974,7 +1022,7 @@ function ActivityTimelineCell({ shift, color, passFill, activities, activityFill
       </div>}
       {!shift && !bookedAssignment && !availability && <div className="schema-activity-row" aria-hidden="true" />}
       </div>
-      {absenceLabel && <span className="schema-activity-absence-caption">{absenceLabel}</span>}
+      {statusCaption && <span className={`schema-activity-absence-caption${vacancyLabel ? ' schema-activity-vacancy-caption' : ''}`}>{statusCaption}</span>}
     </div>
   );
 }
@@ -1014,6 +1062,8 @@ function SubstitutePanel({
 }: SubstitutePanelProps) {
   const [filterRoles, setFilterRoles] = useState<string[]>([]);
   const [filterCategories, setFilterCategories] = useState<string[]>([]);
+  const [categoryFilterOpen, setCategoryFilterOpen] = useState(false);
+  const categoryFilterRef = useRef<HTMLDivElement>(null);
   const [filterCompetencies, setFilterCompetencies] = useState<string[]>([]);
   const [filterPass,  setFilterPass]  = useState('alla');
   const [timeFlexibility, setTimeFlexibility] = useState(1);
@@ -1037,12 +1087,22 @@ function SubstitutePanel({
   useEffect(() => {
     setFilterRoles([]);
     setFilterCategories([]);
+    setCategoryFilterOpen(false);
     setFilterCompetencies([]);
     setFilterPass('alla');
     setTimeFlexibility(1);
     setSelectedSubIds([]);
     setExpandedSubId(null);
   }, [browseAll, state?.dateStr, state?.personId, state?.targetActivityId, state?.targetType]);
+
+  useEffect(() => {
+    if (!categoryFilterOpen) return;
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!categoryFilterRef.current?.contains(event.target as Node)) setCategoryFilterOpen(false);
+    };
+    document.addEventListener('mousedown', closeOnOutsideClick);
+    return () => document.removeEventListener('mousedown', closeOnOutsideClick);
+  }, [categoryFilterOpen]);
 
   const toggleExpand = useCallback((id: string) => {
     setExpandedSubId(prev => prev === id ? null : id);
@@ -1059,13 +1119,16 @@ function SubstitutePanel({
   const candidateCategories = useMemo(() => [...new Set(candidates.map(candidate => candidate.category))]
     .sort((a, b) => a.localeCompare(b, 'sv'))
     .map(category => ({ id: category, label: category })), [candidates]);
+  const candidateCompetencies = useMemo(() => [...new Set(candidates.flatMap(candidate => candidate.competencies ?? SUB_DETAILS[candidate.id]?.competencies ?? []))]
+    .sort((a, b) => a.localeCompare(b, 'sv'))
+    .map(competency => ({ id: competency, label: competency })), [candidates]);
 
   const availSubs = useMemo(() => {
     const matchesFilters = (sub: SubstituteCandidate) => {
       if (filterRoles.length > 0 && !filterRoles.includes(sub.role)) return false;
       if (filterCategories.length > 0 && !filterCategories.includes(sub.category)) return false;
       if (filterCompetencies.length > 0) {
-        const competencies = SUB_DETAILS[sub.id]?.competencies ?? [];
+        const competencies = sub.competencies ?? SUB_DETAILS[sub.id]?.competencies ?? [];
         if (!filterCompetencies.some(competency => competencies.includes(competency))) return false;
       }
       return true;
@@ -1095,10 +1158,10 @@ function SubstitutePanel({
       });
       if (browseShift) {
         list = [...list].sort((a, b) => {
-          const bestScore = (substituteId: string) => Math.max(...columns.map(column =>
-            suitabilityScore(substituteId, column.date, browseShift, availabilityOverrides, absences)
+          const bestScore = (candidate: SubstituteCandidate) => Math.max(...columns.map(column =>
+            candidateRankScore(candidate, column.date, browseShift, availabilityOverrides, absences)
           ));
-          return bestScore(b.id) - bestScore(a.id);
+          return bestScore(b) - bestScore(a);
         });
       } else {
         list = [...list].sort((a, b) => a.name.localeCompare(b.name, 'sv'));
@@ -1110,8 +1173,8 @@ function SubstitutePanel({
       if (state && browseShift) {
         const date = parseDate(state.dateStr);
         list = [...list].sort((a, b) =>
-          suitabilityScore(b.id, date, browseShift, availabilityOverrides, absences)
-          - suitabilityScore(a.id, date, browseShift, availabilityOverrides, absences)
+          candidateRankScore(b, date, browseShift, availabilityOverrides, absences)
+          - candidateRankScore(a, date, browseShift, availabilityOverrides, absences)
         );
       }
     }
@@ -1234,21 +1297,27 @@ function SubstitutePanel({
             stylingMode="outlined"
             width={210}
           />
-          <TagBox
-            dataSource={candidateCategories}
-            displayExpr="label"
-            valueExpr="id"
-            value={filterCategories}
-            onValueChanged={e => setFilterCategories(current => preserveStringArrayWhenUnchanged(current, normalizeFilterValues(e.value)))}
-            placeholder="Filtrera på typ..."
-            hint="Typ"
-            showSelectionControls={true}
-            showClearButton={true}
-            applyValueMode="instantly"
-            multiline={false}
-            stylingMode="outlined"
-            width={190}
-          />
+          <div ref={categoryFilterRef} className={`schema-sub-category-filter${categoryFilterOpen ? ' schema-sub-category-filter-open' : ''}`}>
+            <label>Vikariekategori</label>
+            <button type="button" className="schema-sub-category-filter-button" aria-label="Välj vikariekategorier" aria-expanded={categoryFilterOpen} onClick={() => setCategoryFilterOpen(open => !open)}>
+              <span>{filterCategories.length === 0 ? 'Alla kategorier' : `${filterCategories.length} valda`}</span>
+              <i className={`fa-solid fa-chevron-${categoryFilterOpen ? 'up' : 'down'}`} aria-hidden="true" />
+            </button>
+            {categoryFilterOpen && <div className="schema-sub-category-filter-list" role="group" aria-label="Vikariekategorier">
+              {candidateCategories.map(category => <label key={category.id}>
+                <input
+                  type="checkbox"
+                  checked={filterCategories.includes(category.id)}
+                  onChange={() => setFilterCategories(current => current.includes(category.id)
+                    ? current.filter(value => value !== category.id)
+                    : [...current, category.id])}
+                />
+                <span>{category.label}</span>
+              </label>)}
+              {filterCategories.length > 0 && <button type="button" className="schema-sub-category-filter-clear" onClick={() => setFilterCategories([])}>Rensa kategorier</button>}
+            </div>}
+            {filterCategories.length > 0 && <span className="schema-sub-category-filter-count">Visar {availSubs.length} vikarier</span>}
+          </div>
           <SelectBox
             dataSource={PASS_TYPES}
             displayExpr="label"
@@ -1260,7 +1329,7 @@ function SubstitutePanel({
             stylingMode="outlined"
           />
           <TagBox
-            dataSource={SUBSTITUTE_COMPETENCIES}
+            dataSource={candidateCompetencies}
             displayExpr="label"
             valueExpr="id"
             value={filterCompetencies}
@@ -1363,7 +1432,11 @@ function SubstitutePanel({
             ) : (
               availSubs.map(sub => {
                 const isExpanded   = expandedSubId === sub.id;
-                const details      = SUB_DETAILS[sub.id];
+                const sourceDetails = SUB_DETAILS[sub.id];
+                const details = sourceDetails
+                  ? { ...sourceDetails, competencies: sub.competencies ?? sourceDetails.competencies }
+                  : undefined;
+                const competencies = sub.competencies ?? sourceDetails?.competencies ?? [];
                 const atlPct       = details ? Math.round(details.atlHours / details.maxAtlHours * 100) : 0;
                 const bookedShifts = bookingsByCandidate[sub.id] ?? [];
 
@@ -1407,7 +1480,11 @@ function SubstitutePanel({
                              {sub.category === 'Samverkanspass' && <i className="schema-pool-dot" title="Samverkanspass" />}
                              {sub.name}
                            </span>
-                           <span className="schema-employee-role">{sub.role} · {sub.category}</span>
+                           <span className="schema-employee-role">{sub.role}</span>
+                           <span className="schema-sub-category-cost">
+                             <span className="schema-sub-category-badge">{sub.category}</span>
+                             <span className={`schema-sub-cost-badge${sub.costLevel === 'Gratis' ? ' schema-sub-cost-free' : ''}`}>{sub.costLevel}</span>
+                           </span>
                           </div>
                         </div>
                       </td>
@@ -1517,11 +1594,11 @@ function SubstitutePanel({
                             )}
 
                             {/* Competencies */}
-                            {details && details.competencies.length > 0 && (
+                            {competencies.length > 0 && (
                               <div className="schema-sub-expand-section">
                                 <span className="schema-sub-expand-label">Kompetenser</span>
                                 <div className="schema-sub-comp-list">
-                                  {details.competencies.slice(0, 3).map(c => (
+                                  {competencies.slice(0, 3).map(c => (
                                     <span key={c} className="schema-sub-comp-badge">{c}</span>
                                   ))}
                                 </div>
@@ -1593,12 +1670,15 @@ function ConfirmAssignDialogInner({ state, onConfirm, onCancel }: {
 }) {
   const [msg, setMsg] = useState('');
   const [unit, setUnit] = useState(state.unit);
-  const title = state.targetActivityLabel
-    ? `Skicka förfrågan · ${state.targetActivityLabel}`
-    : state.fillType === 'substitute' ? 'Skicka förfrågan' : 'Boka extrapass';
+  const title = state.costApproval
+    ? 'Bekräfta kostnad'
+    : state.targetActivityLabel
+      ? `Skicka förfrågan · ${state.targetActivityLabel}`
+      : state.fillType === 'substitute' ? 'Skicka förfrågan' : 'Boka extrapass';
   return (
     <Popup visible={true} onHiding={onCancel} title={title} width={500} height="auto" showCloseButton={true} dragEnabled={false}>
       <div className="schema-dialog-content">
+        {state.costApproval && <p className="schema-cost-approval-note">Ingen kostnadsfri vikarie är tillgänglig. Vill du tillsätta kandidaten nedan trots kostnaden?</p>}
         <div className="schema-confirm-details">
           <div className="schema-confirm-row">
             <i className="fa-solid fa-calendar-days" />
@@ -1615,27 +1695,29 @@ function ConfirmAssignDialogInner({ state, onConfirm, onCancel }: {
               {state.substitutes.map((s, i) => (
                 <div key={i} className="schema-confirm-sub-item">
                   <strong>{s.name}</strong>
-                  <span> · {s.role}</span>
+                  <span> · {s.role} · {s.category} · {s.costLevel}</span>
                 </div>
               ))}
             </div>
           </div>
           <div className="schema-confirm-row">
             <i className="fa-solid fa-building" />
-            <label>Enhet<select value={unit} onChange={e => setUnit(e.currentTarget.value)}>{SUBSTITUTE_UNITS.map(option => <option key={option.id} value={option.label}>{option.label}</option>)}</select></label>
+            {state.unitLocked ? <span>Enhet · {state.unit}</span> : <label>Enhet<select value={unit} onChange={e => setUnit(e.currentTarget.value)}>{SUBSTITUTE_UNITS.map(option => <option key={option.id} value={option.label}>{option.label}</option>)}</select></label>}
           </div>
         </div>
-        <div className="schema-confirm-note-label">Ytterligare information</div>
-        <TextArea
-          value={msg}
-          onValueChanged={e => setMsg(e.value ?? '')}
-          height={90}
-          stylingMode="outlined"
-          placeholder="Skriv eventuell information till vikarien..."
-        />
+        {!state.costApproval && <>
+          <div className="schema-confirm-note-label">Ytterligare information</div>
+          <TextArea
+            value={msg}
+            onValueChanged={e => setMsg(e.value ?? '')}
+            height={90}
+            stylingMode="outlined"
+            placeholder="Skriv eventuell information till vikarien..."
+          />
+        </>}
         <div className="schema-dialog-actions">
-          <button className="btn-primary" disabled={!unit} onClick={() => onConfirm(msg)}>Skicka</button>
-          <button className="btn-secondary" onClick={onCancel}>Avbryt</button>
+          <button className="btn-primary" disabled={!state.unitLocked && !unit} onClick={() => onConfirm(msg)}>{state.costApproval ? 'Godkänn och tillsätt' : 'Skicka'}</button>
+          <button className="btn-secondary" onClick={onCancel}>{state.costApproval ? 'Avstå' : 'Avbryt'}</button>
         </div>
       </div>
     </Popup>
@@ -1758,7 +1840,7 @@ const SHIFT_LABELS: Record<ShiftType, string> = {
   morning: 'Morgonpass', day: 'Dagpass', evening: 'Kvällspass', night: 'Nattpass',
 };
 
-function PassDetailCard({ state, onSaveTime, onPrimaryAction, onCreateOrder, onCreateResourceNeed, onReportSick, onSimulate, resourceNeedMode = false, resourceNeed, resourceNeedOrder, assignedPerson, assignmentFailure, activitySchedule, organisation = 'clinic' }: {
+function PassDetailCard({ state, onSaveTime, onPrimaryAction, onCreateOrder, onCreateResourceNeed, onReportSick, onSimulate, resourceNeedMode = false, resourceNeed, resourceNeedOrder, assignedPerson, assignmentFailure, organisation = 'clinic' }: {
   state: DetailState;
   onSaveTime: (start: string, end: string) => void;
   onPrimaryAction?: () => void;
@@ -1771,7 +1853,6 @@ function PassDetailCard({ state, onSaveTime, onPrimaryAction, onCreateOrder, onC
   resourceNeedOrder?: ResourceOrder;
   assignedPerson?: { name: string; role: string };
   assignmentFailure?: string;
-  activitySchedule?: EmployeeDaySchedule;
   organisation?: OrganisationScenario;
 }) {
   const [start, setStart] = useState(state.shift.start);
@@ -1795,17 +1876,13 @@ function PassDetailCard({ state, onSaveTime, onPrimaryAction, onCreateOrder, onC
       <dl>
         <div><dt>Datum</dt><dd>{fmtDay(parseDate(state.dateStr))}</dd></div>
         <div><dt>Pass</dt><dd><div className="order-detail-time-editor"><label>Starttid<input type="time" value={start} onChange={event => setStart(event.currentTarget.value)} /></label><span>–</span><label>Sluttid<input type="time" value={end} onChange={event => setEnd(event.currentTarget.value)} /></label>{timeChanged && <button type="button" className="btn-secondary" onClick={() => onSaveTime(start, end)}>Spara tid</button>}</div></dd></div>
-        <div><dt>Passtyp</dt><dd>{SHIFT_LABELS[state.shift.type]}{passInfo ? ` · ${passInfo}` : ''}</dd></div>
+        {!isSchoolScenario(organisation) && <div><dt>Passtyp</dt><dd>{SHIFT_LABELS[state.shift.type]}{passInfo ? ` · ${passInfo}` : ''}</dd></div>}
         <div><dt>Status</dt><dd><span className={`schema-detail-status schema-detail-status-${state.color}${assignmentFailure ? ' schema-detail-status-assignment-failed' : ''}`}><i className={assignmentFailure ? 'fa-solid fa-robot' : undefined} />{statusLabel}</span></dd></div>
         {assignmentFailure && <div><dt>Orsak</dt><dd>{assignmentFailure}</dd></div>}
         {resourceNeed && <div><dt>Resursbehov</dt><dd>{resourceNeed.createdBy}{resourceNeed.reason ? ` · ${resourceNeed.reason}` : ''}</dd></div>}
-        {resourceNeedOrder && <div><dt>Beställning</dt><dd>Beställd av {resourceNeedOrder.orderedBy} · {resourceNeedOrder.status}</dd></div>}
+        {resourceNeedOrder && <div><dt>Beställning</dt><dd>Beställd av {resourceNeedOrder.orderedBy} · {resourceNeedOrder.status} · Hanteras av {resourceNeedOrder.handledBy}</dd></div>}
         {assignedPerson && <div><dt>Tillsatt med</dt><dd>{assignedPerson.name} · {assignedPerson.role}</dd></div>}
       </dl>
-      {activitySchedule && <div className="person-activity-schedule-panel pass-activity-schedule-panel">
-        <h4>Aktiviteter den här dagen</h4>
-        <ActivityScheduleDetail schedule={activitySchedule} />
-      </div>}
       {!isPast && <div className="order-detail-actions">
         {resourceNeedMode && onCreateResourceNeed && state.color === 'normal' && <button className="btn-primary" onClick={onCreateResourceNeed}><i className="fa-solid fa-user-clock" /> Skapa resursbehov</button>}
         {!resourceNeedMode && primaryLabel && onPrimaryAction && <button className="btn-primary" onClick={onPrimaryAction}><i className={`fa-solid ${primaryIcon}`} /> {primaryLabel}</button>}
@@ -1817,13 +1894,13 @@ function PassDetailCard({ state, onSaveTime, onPrimaryAction, onCreateOrder, onC
   );
 }
 
-function ActivityScheduleDetail({ schedule }: { schedule: EmployeeDaySchedule }) {
+function ActivityScheduleDetail({ schedule, activityFills = {}, assignedSubstituteName }: { schedule: EmployeeDaySchedule; activityFills?: Record<string, ActivityFill>; assignedSubstituteName?: string }) {
   const segmentStyle = (from: string, to: string): React.CSSProperties => ({
     left: `${timeToMinutes(from) / 1440 * 100}%`,
     width: `${Math.max(0, (timeToMinutes(to) - timeToMinutes(from)) / 1440 * 100)}%`,
   });
   return (
-    <section className="person-activity-schedule" aria-label={`Dagschema ${fmtDay(parseDate(schedule.dateStr))}`}>
+    <section className={`person-activity-schedule${schedule.dateStr < TODAY_STR ? ' person-activity-schedule-past' : ''}`} aria-label={`Dagschema ${fmtDay(parseDate(schedule.dateStr))}`}>
       <div className="person-activity-schedule-heading">
         <strong>{fmtDay(parseDate(schedule.dateStr))}</strong>
         <span>{schedule.shift.start}–{schedule.shift.end}</span>
@@ -1850,7 +1927,7 @@ function ActivityScheduleDetail({ schedule }: { schedule: EmployeeDaySchedule })
         {schedule.activities.map(activity => (
           <div key={activity.id}>
             <i className={`person-activity-schedule-swatch ${schedule.absenceLabel ? 'schema-activity-bar-absence' : PRESCHOOL_ACTIVITY_TYPES[activity.kind].className}`} />
-            <span>{activity.label}</span>
+            <span>{activity.label}{(activityFills[activity.id]?.substituteName ?? assignedSubstituteName) && <small> · {activityFills[activity.id]?.substituteName ?? assignedSubstituteName}</small>}</span>
             <time>{activity.start}–{activity.end}</time>
           </div>
         ))}
@@ -1913,6 +1990,7 @@ function SubstituteDetailCard({ substitute, details, dateStr, dateOptions, avail
   onSendRequest: () => void;
 }) {
   const formatTime = (hours: number, minutes: number) => `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  const competencies = details?.competencies ?? substitute.competencies ?? [];
   const [start, setStart] = useState(availability ? formatTime(availability.startH, availability.startM) : '08:00');
   const [end, setEnd] = useState(availability ? formatTime(availability.endH, availability.endM) : '17:00');
   useEffect(() => {
@@ -1938,11 +2016,11 @@ function SubstituteDetailCard({ substitute, details, dateStr, dateOptions, avail
     <div className="order-detail-card person-detail-card substitute-detail-card">
       <div className="order-detail-type"><i className="fa-solid fa-user-nurse" /> Vikarieuppgifter</div>
       <h3>{substitute.name}</h3>
-      <p className="order-detail-role">{substitute.role} · {substitute.category}</p>
+      <p className="order-detail-role">{substitute.role} · {substitute.category} · {substitute.costLevel}</p>
       <dl>
         {details && <div><dt>Kontakt</dt><dd><a href={`tel:${details.phone.replace(/\s/g, '')}`}>{details.phone}</a><br /><a href={`mailto:${details.email}`}>{details.email}</a></dd></div>}
         {details && <div><dt>ATL</dt><dd>{details.atlHours} av {details.maxAtlHours} timmar</dd></div>}
-        {details && <div><dt>Kompetenser</dt><dd><div className="person-detail-competencies">{details.competencies.map(competency => <span key={competency}>{competency}</span>)}</div></dd></div>}
+        {competencies.length > 0 && <div><dt>Kompetenser</dt><dd><div className="person-detail-competencies">{competencies.map(competency => <span key={competency}>{competency}</span>)}</div></dd></div>}
         <div><dt>Datum</dt><dd><select value={dateStr} onChange={event => onSelectDate(event.currentTarget.value)}>{dateOptions.map(option => <option key={option} value={option}>{fmtDay(parseDate(option))}</option>)}</select></dd></div>
         <div><dt>Status</dt><dd><span className={`schema-detail-status ${absenceReason ? 'schema-detail-status-absence' : booking ? 'schema-detail-status-filled' : availability ? 'schema-detail-status-normal' : ''}`}>{availabilityLabel}</span></dd></div>
         <div><dt>Tillgänglighet</dt><dd><div className="order-detail-time-editor"><label>Från<input type="time" value={start} disabled={!canEdit} onChange={event => setStart(event.currentTarget.value)} /></label><span>–</span><label>Till<input type="time" value={end} disabled={!canEdit} onChange={event => setEnd(event.currentTarget.value)} /></label>{canEdit && <button type="button" className="btn-secondary" onClick={saveAvailability}>Spara</button>}</div></dd></div>
@@ -1960,7 +2038,7 @@ function SubstituteDetailCard({ substitute, details, dateStr, dateOptions, avail
 }
 
 function getOrderContextActions(order: ResourceOrder): OrderContextAction[] {
-  if (order.status === 'Avbruten') return [];
+  if (order.status === 'Avbruten' || order.status === 'Tillsatt') return [];
   const actions: OrderContextAction[] = [];
   if (order.status === 'Beställd') {
     actions.push({ id: 'start-processing', text: 'Påbörja behandling', icon: 'user-gear' });
@@ -2140,11 +2218,177 @@ function ResourceOrdersList({ orders, onClose, onAction, onOpenDetails, onChoose
   );
 }
 
-function OrderDetailCard({ order, onChooseSubstitute, onAction, onSaveTime }: {
+const RESOURCE_ORDER_BOARD_COLUMNS: Array<{
+  id: 'needs' | 'ordered' | 'processing' | 'requested' | 'responded' | 'booked';
+  label: string;
+  icon: string;
+  status?: ResourceOrderStatus;
+}> = [
+  { id: 'needs', label: 'Resursbehov', icon: 'fa-user-clock' },
+  { id: 'ordered', label: 'Beställningar', icon: 'fa-cart-shopping', status: 'Beställd' },
+  { id: 'processing', label: 'Påbörjat', icon: 'fa-user-gear', status: 'Under behandling' },
+  { id: 'requested', label: 'Förfrågan skickad', icon: 'fa-paper-plane', status: 'Förfrågan skickad' },
+  { id: 'responded', label: 'Besvarad', icon: 'fa-comment-dots', status: 'Besvarad' },
+  { id: 'booked', label: 'Bokad', icon: 'fa-circle-check', status: 'Tillsatt' },
+];
+
+function ResourceOrdersKanban({ needs, orders, onClose, onAction, onOpenNeed, onOpenOrder, onChooseSubstitute, onShowSubstitutes, onMoveNeed, onMoveOrder, onReturnOrderToNeed, onRegisterResponses, onTakeBackNeed, onTakeBackOrder }: {
+  needs: ResourceNeed[];
+  orders: ResourceOrder[];
+  onClose: () => void;
+  onAction: (orderId: string, action: OrderContextAction) => void;
+  onOpenNeed: (need: ResourceNeed) => void;
+  onOpenOrder: (order: ResourceOrder) => void;
+  onChooseSubstitute: (order: ResourceOrder) => void;
+  onShowSubstitutes?: () => void;
+  onMoveNeed: (needId: string, status: ResourceOrderStatus) => void;
+  onMoveOrder: (orderId: string, status: ResourceOrderStatus) => void;
+  onReturnOrderToNeed: (orderId: string) => void;
+  onRegisterResponses: (orderId: string) => void;
+  onTakeBackNeed: (needId: string) => void;
+  onTakeBackOrder: (orderId: string) => void;
+}) {
+  const [needsHidden, setNeedsHidden] = useState(false);
+  const activeOrders = orders.filter(order => order.status !== 'Avbruten');
+  const activeOrderNeedIds = new Set(activeOrders
+    .filter(order => order.id.startsWith('resource-order-'))
+    .map(order => order.id.slice('resource-order-'.length)));
+  const openNeeds = needs.filter(need => need.status === 'Öppet' && !activeOrderNeedIds.has(need.id));
+  const directlyBookedNeeds = needs.filter(need => need.status === 'Tillsatt' && !activeOrderNeedIds.has(need.id));
+
+  const handleDrop = (event: React.DragEvent<HTMLDivElement>, columnId: typeof RESOURCE_ORDER_BOARD_COLUMNS[number]['id']) => {
+    event.preventDefault();
+    const payload = event.dataTransfer.getData('text/plain');
+    if (columnId === 'needs') {
+      if (payload.startsWith('order:')) onReturnOrderToNeed(payload.slice(6));
+      return;
+    }
+    const targetStatus = RESOURCE_ORDER_BOARD_COLUMNS.find(column => column.id === columnId)?.status;
+    if (!targetStatus || targetStatus === 'Tillsatt') return;
+    if (payload.startsWith('need:')) onMoveNeed(payload.slice(5), targetStatus);
+    if (payload.startsWith('order:')) onMoveOrder(payload.slice(6), targetStatus);
+  };
+
+  const handleDragStart = (event: React.DragEvent<HTMLElement>, payload: string) => {
+    event.dataTransfer.effectAllowed = 'move';
+    event.dataTransfer.setData('text/plain', payload);
+  };
+
+  const renderNeedCard = (need: ResourceNeed, isBooked = false) => (
+    <article
+      key={need.id}
+      className={`schema-kanban-card schema-kanban-need schema-kanban-need-${need.source === 'frånvaro' ? 'absence' : 'extra'}${isBooked ? ' schema-kanban-order-booked' : ''}`}
+      draggable={!isBooked}
+      onDragStart={isBooked ? undefined : event => handleDragStart(event, `need:${need.id}`)}
+      onDoubleClick={() => onOpenNeed(need)}
+      title="Dra behovet till Beställningar eller dubbelklicka för status och logg"
+    >
+      <div className="schema-kanban-card-topline">
+        <span className="schema-kanban-kind">{need.source === 'frånvaro' ? 'Frånvaro' : 'Extraresurs'}</span>
+        <span className="schema-kanban-status">{isBooked ? 'Bokad' : 'Resursbehov'}</span>
+      </div>
+      <strong className="schema-kanban-person">{need.personName}</strong>
+      <span className="schema-kanban-subtitle">{need.role}{need.reason ? ` · ${need.reason}` : ''}</span>
+      <div className="schema-kanban-meta"><span>{need.dateStr}</span><span>{need.shift.start}–{need.shift.end}</span></div>
+      {isBooked && need.assignedSubstituteName && <div className="schema-kanban-assignment"><i className="fa-solid fa-circle-check" /> {need.assignedSubstituteName}</div>}
+      <div className="schema-kanban-owner"><i className="fa-solid fa-user" /> Hanteras av {need.handledBy}</div>
+      {!isBooked && <div className="schema-kanban-card-actions">
+        <button className="btn-primary" onClick={event => { event.stopPropagation(); onMoveNeed(need.id, 'Beställd'); }}><i className="fa-solid fa-cart-shopping" /> Beställ</button>
+        {need.handledBy !== 'Maja Andersson' && <button className="btn-secondary" onClick={event => { event.stopPropagation(); onTakeBackNeed(need.id); }}>Ta tillbaka</button>}
+      </div>}
+    </article>
+  );
+
+  const renderOrderCard = (order: ResourceOrder) => {
+    const linkedNeed = order.id.startsWith('resource-order-');
+    const canTakeBack = order.status !== 'Tillsatt' && order.handledBy !== 'Maja Andersson';
+    const stageAction = order.status === 'Beställd'
+      ? <button className="btn-secondary" onClick={event => { event.stopPropagation(); onAction(order.id, { id: 'start-processing', text: 'Påbörja behandling', icon: 'user-gear' }); }}>Påbörja</button>
+      : order.status === 'Under behandling'
+        ? <button className="btn-secondary" onClick={event => { event.stopPropagation(); onAction(order.id, { id: 'send-order', text: 'Skicka förfrågan', icon: 'paper-plane' }); }}>Skicka förfrågan</button>
+        : order.status === 'Förfrågan skickad'
+          ? <button className="btn-secondary" onClick={event => { event.stopPropagation(); onRegisterResponses(order.id); }}>Registrera svar</button>
+          : order.status === 'Besvarad'
+            ? <button className="btn-primary" onClick={event => { event.stopPropagation(); onChooseSubstitute(order); }}><i className="fa-solid fa-user-plus" /> Välj vikarie</button>
+            : null;
+    return (
+      <article
+        key={order.id}
+        className={`schema-kanban-card schema-kanban-order schema-kanban-order-${order.status === 'Tillsatt' ? 'booked' : order.status === 'Besvarad' ? 'responded' : 'active'}`}
+        draggable={order.status !== 'Tillsatt'}
+        onDragStart={event => handleDragStart(event, `order:${order.id}`)}
+        onDoubleClick={() => onOpenOrder(order)}
+        title="Dubbelklicka för status och händelselogg"
+      >
+        <div className="schema-kanban-card-topline">
+          <span className="schema-kanban-kind"><i className={`fa-solid ${linkedNeed ? 'fa-user-clock' : 'fa-cart-shopping'}`} /> {linkedNeed ? 'Resursbehov' : order.resourceType === 'vikarie' ? 'Vikarie' : 'Extrapass'}</span>
+          <span className="schema-kanban-status">{order.status}</span>
+        </div>
+        <strong className="schema-kanban-person">{order.personName}</strong>
+        <span className="schema-kanban-subtitle">{order.role}</span>
+        <div className="schema-kanban-meta"><span>{order.dateStr}</span><span>{order.shift.start}–{order.shift.end}</span></div>
+        {order.acceptedSubstituteId && <div className="schema-kanban-assignment"><i className="fa-solid fa-circle-check" /> {SUBSTITUTE_CANDIDATES.find(candidate => candidate.id === order.acceptedSubstituteId)?.name ?? 'Vikarie bokad'}</div>}
+        <div className="schema-kanban-owner"><i className="fa-solid fa-user" /> Hanteras av {order.handledBy}</div>
+        <div className="schema-kanban-card-actions">
+          {stageAction}
+          {canTakeBack && <button className="btn-secondary" onClick={event => { event.stopPropagation(); onTakeBackOrder(order.id); }}>Ta tillbaka</button>}
+        </div>
+      </article>
+    );
+  };
+
+  return (
+    <section className="schema-orders-list schema-orders-kanban" aria-live="polite">
+      <div className="schema-orders-list-header">
+        <div>
+          <h2>Beställningar</h2>
+          <p>Följ resursbehov från registrering till bokning. Dubbelklicka på ett kort för loggen.</p>
+        </div>
+        <div className="schema-orders-header-actions">
+          {onShowSubstitutes && <button className="btn-secondary schema-vikarie-open-btn" onClick={onShowSubstitutes}><i className="fa-solid fa-user-group" /> Visa vikarier</button>}
+          <span className="schema-orders-count">{openNeeds.length + activeOrders.length + directlyBookedNeeds.length}</span>
+          <button className="schema-orders-close" onClick={onClose} aria-label="Stäng beställningar"><i className="fa-solid fa-xmark" /></button>
+        </div>
+      </div>
+      <div className={`schema-kanban-board${needsHidden ? ' schema-kanban-needs-hidden' : ''}`}>
+        {RESOURCE_ORDER_BOARD_COLUMNS.map(column => {
+          const columnOrders = column.status ? activeOrders.filter(order => order.status === column.status) : [];
+          const count = column.id === 'needs' ? openNeeds.length : column.id === 'booked' ? columnOrders.length + directlyBookedNeeds.length : columnOrders.length;
+          if (column.id === 'needs' && needsHidden) {
+            return <button key={column.id} className="schema-kanban-collapsed-needs" onClick={() => setNeedsHidden(false)} title="Visa resursbehov"><i className="fa-solid fa-chevron-right" /><span>Resursbehov</span><b>{count}</b></button>;
+          }
+          return (
+            <div
+              key={column.id}
+              className={`schema-kanban-column schema-kanban-column-${column.id}`}
+              onDragOver={event => { if (column.id !== 'booked') { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; } }}
+              onDrop={event => handleDrop(event, column.id)}
+            >
+              <header className="schema-kanban-column-header">
+                <div><i className={`fa-solid ${column.icon}`} /><h3>{column.label}</h3><span>{count}</span></div>
+              {column.id === 'needs' && <button className="schema-kanban-collapse" onClick={() => setNeedsHidden(true)} aria-label="Dölj resursbehov"><i className="fa-solid fa-chevron-left" /></button>}
+              </header>
+              <div className="schema-kanban-column-content">
+                {column.id === 'needs' ? openNeeds.map(need => renderNeedCard(need)) : <>
+                  {columnOrders.map(renderOrderCard)}
+                  {column.id === 'booked' && directlyBookedNeeds.map(need => renderNeedCard(need, true))}
+                </>}
+                {count === 0 && <div className="schema-kanban-empty">{column.id === 'needs' ? 'Inga nya resursbehov' : 'Inga beställningar'}</div>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function OrderDetailCard({ order, onChooseSubstitute, onAction, onSaveTime, onTakeBack }: {
   order: ResourceOrder;
   onChooseSubstitute: (order: ResourceOrder) => void;
   onAction: (orderId: string, action: OrderContextAction) => void;
   onSaveTime: (orderId: string, start: string, end: string) => void;
+  onTakeBack?: () => void;
 }) {
   const [start, setStart] = useState(order.shift.start);
   const [end, setEnd] = useState(order.shift.end);
@@ -2164,6 +2408,7 @@ function OrderDetailCard({ order, onChooseSubstitute, onAction, onSaveTime }: {
         <div><dt>Handläggare</dt><dd>{order.handledBy}</dd></div>
       </dl>
       <div className="order-detail-actions">
+        {onTakeBack && order.status !== 'Tillsatt' && order.handledBy !== 'Maja Andersson' && <button className="btn-secondary" onClick={onTakeBack}><i className="fa-solid fa-arrow-rotate-left" /> Ta tillbaka kontrollen</button>}
         {order.status !== 'Tillsatt' && order.status !== 'Avbruten' && <button className="btn-primary" onClick={() => onChooseSubstitute(order)}><i className="fa-solid fa-user-plus" /> Välj vikarie</button>}
         {getOrderContextActions(order).map(action => <button key={action.id + (action.substituteId ?? '')} className="btn-secondary" onClick={() => onAction(order.id, action)}><i className={`fa-solid fa-${action.icon}`} /> {action.text}</button>)}
       </div>
@@ -2172,7 +2417,7 @@ function OrderDetailCard({ order, onChooseSubstitute, onAction, onSaveTime }: {
 }
 
 function getResourceNeedActions(need: ResourceNeed): ResourceNeedAction[] {
-  if (need.status === 'Borttaget') return [];
+  if (need.status === 'Borttaget' || need.status === 'Tillsatt') return [];
   return [
     { id: 'open' as const, text: 'Öppna', icon: 'arrow-up-right-from-square' },
     ...(need.status !== 'Tillsatt' ? [{ id: 'assign-direct' as const, text: 'Tillsätt direkt', icon: 'robot' }] : []),
@@ -2233,7 +2478,7 @@ function ResourceNeedsList({ needs, onClose, onOpenDetails, onAction, onDropPass
                 <td><span className="schema-resource-need-kind">{need.source === 'frånvaro' ? 'Frånvaro' : 'Extrapass'}</span>{need.dateStr}</td>
                 <td><strong>{need.personName}</strong><span className="schema-order-person-role">{need.role}</span></td>
                 <td>{need.reason ?? 'Pass'}</td>
-                <td><span className={`schema-order-status schema-resource-need-status-${need.status === 'Tillsatt' ? 'filled' : 'open'}`}>{need.status}</span></td>
+                <td><span className={`schema-order-status schema-resource-need-status-${need.workflowStatus === 'Tillsatt' || need.status === 'Tillsatt' ? 'filled' : 'open'}`}>{need.workflowStatus ?? need.status}</span></td>
                 <td>{need.shift.start}–{need.shift.end}</td>
               </tr>
             ))}
@@ -2260,10 +2505,11 @@ function ResourceNeedsList({ needs, onClose, onOpenDetails, onAction, onDropPass
   );
 }
 
-function ResourceNeedDetailCard({ need, order, onAction }: {
+function ResourceNeedDetailCard({ need, order, onAction, onTakeBack }: {
   need: ResourceNeed;
   order?: ResourceOrder;
   onAction: (needId: string, action: ResourceNeedAction) => void;
+  onTakeBack?: (needId: string) => void;
 }) {
   return (
     <div className="order-detail-card">
@@ -2274,12 +2520,13 @@ function ResourceNeedDetailCard({ need, order, onAction }: {
         <div><dt>Datum</dt><dd>{need.dateStr}</dd></div>
         <div><dt>Pass</dt><dd>{need.shift.start}–{need.shift.end}</dd></div>
         <div><dt>Orsak</dt><dd>{need.reason ?? 'Skapat från pass'}</dd></div>
-        <div><dt>Status</dt><dd><span className={`schema-order-status schema-resource-need-status-${need.status === 'Tillsatt' ? 'filled' : 'open'}`}>{need.status}</span></dd></div>
+        <div><dt>Status</dt><dd><span className={`schema-order-status schema-resource-need-status-${need.workflowStatus === 'Tillsatt' || need.status === 'Tillsatt' ? 'filled' : 'open'}`}>{need.workflowStatus ?? need.status}</span></dd></div>
         <div><dt>Skapat av</dt><dd>{need.createdBy}</dd></div>
         <div><dt>Hanteras av</dt><dd>{need.handledBy}</dd></div>
-        {order && <div><dt>Beställning</dt><dd>Beställd av {order.orderedBy} · {order.status}</dd></div>}
+        {order && <div><dt>Beställning</dt><dd>Beställd av {order.orderedBy} · {order.status} · Hanteras av {order.handledBy}</dd></div>}
       </dl>
       <div className="order-detail-actions">
+        {onTakeBack && need.status !== 'Tillsatt' && need.handledBy !== 'Maja Andersson' && <button className="btn-secondary" onClick={() => onTakeBack(need.id)}><i className="fa-solid fa-arrow-rotate-left" /> Ta tillbaka kontrollen</button>}
         {getResourceNeedActions(need).map(action => (
           <button key={action.id} className={action.id === 'assign' ? 'btn-primary' : 'btn-secondary'} onClick={() => onAction(need.id, action)}>
             <i className={`fa-solid fa-${action.icon}`} /> {action.text}
@@ -2317,6 +2564,7 @@ export const Schema = ({
 
   // ── Filter state ──
   const [selectedGroups, setSelectedGroups] = useState<string[]>([]);
+  const [selectedActivityFilters, setSelectedActivityFilters] = useState<ActivityFilterKind[]>([]);
   const [selectedPass,   setSelectedPass]   = useState('alla');
   const [textFilter,     setTextFilter]     = useState('');
   const [period,         setPeriod]         = useState<PeriodType>('vecka');
@@ -2334,6 +2582,7 @@ export const Schema = ({
       return next.length === current.length ? current : next;
     });
   }, []);
+  const [remainingPasses, setRemainingPasses] = useState<RemainingPass[]>(INITIAL_REMAINING_PASSES);
   const [activityFills, setActivityFills] = useState<Record<string, ActivityFill>>({});
   const [assignmentFailures, setAssignmentFailures] = useState<Record<string, string>>({});
   const [resourceOrders, setResourceOrders] = useState<ResourceOrder[]>([]);
@@ -2385,6 +2634,30 @@ export const Schema = ({
       ...current,
       [needId]: [...(current[needId] ?? []), { ...activity, id: Date.now() + Math.floor(Math.random() * 1000) }],
     }));
+  }, []);
+  const updateLinkedNeedAfterBooking = useCallback((order: ResourceOrder, substituteId: string, substituteName: string) => {
+    const needId = order.id.startsWith('resource-order-') ? order.id.slice('resource-order-'.length) : '';
+    const need = resourceNeeds.find(item => item.id === needId);
+    if (!need) return;
+    setResourceNeeds(current => current.map(item => item.id === needId
+      ? { ...item, status: 'Tillsatt' as const, workflowStatus: 'Tillsatt', assignedSubstituteId: substituteId, assignedSubstituteName: substituteName, handledBy: order.handledBy }
+      : item));
+    addResourceNeedActivity(needId, {
+      type: 'assignment', author: 'Du', initials: 'JV', time: 'Just nu',
+      text: 'Resursbehovet bokades', detail: `${substituteName} · ${order.shift.start}–${order.shift.end}`,
+    });
+  }, [addResourceNeedActivity, resourceNeeds]);
+  const updateLinkedNeedWorkflowStatus = useCallback((orderId: string, workflowStatus?: ResourceOrderStatus, handledBy?: string) => {
+    const needId = orderId.startsWith('resource-order-') ? orderId.slice('resource-order-'.length) : '';
+    if (!needId) return;
+    setResourceNeeds(current => current.map(need => need.id === needId
+      ? {
+          ...need,
+          workflowStatus,
+          ...(workflowStatus === 'Tillsatt' ? { status: 'Tillsatt' as const } : workflowStatus ? {} : { status: 'Öppet' as const }),
+          ...(handledBy ? { handledBy } : {}),
+        }
+      : need));
   }, []);
   const addPassActivity = useCallback((passKey: string, activity: Omit<CaseActivity, 'id'>) => {
     setPassActivities(current => ({
@@ -2480,15 +2753,26 @@ export const Schema = ({
           type:     el.dataset.ctxType as ContextTargetType,
         };
         const passKey = `${ctxRef.current.personId}|${ctxRef.current.dateStr}`;
-        const isAssigned = fills.some(fill => `${fill.personId}|${fill.dateStr}` === passKey);
-        setContextActions(getContextActions(ctxRef.current.type, resourceNeedPrototype, isAssigned));
+        const remainingPass = remainingPasses.find(pass => pass.id === ctxRef.current?.personId && pass.dateStr === ctxRef.current?.dateStr);
+        const isAssigned = fills.some(fill => `${fill.personId}|${fill.dateStr}` === passKey)
+          || Boolean(remainingPass?.assignedSubstituteId);
+        if (remainingPass && !isAssigned) {
+          setContextActions([
+            { id: 'primary', text: 'Hitta vikarie', icon: 'user' },
+            { id: 'order-resource', text: 'Beställ resurs', icon: 'cart-shopping' },
+            ...(resourceNeedPrototype ? [{ id: 'assign-direct' as const, text: 'Tillsätt direkt', icon: 'robot', beginGroup: true }] : []),
+            { id: 'show-details', text: 'Visa passdetaljer', icon: 'circle-info', beginGroup: true },
+          ]);
+        } else {
+          setContextActions(getContextActions(ctxRef.current.type, resourceNeedPrototype, isAssigned));
+        }
       } else {
         ctxRef.current = null;
       }
     };
     document.addEventListener('contextmenu', onCtx, true);
     return () => document.removeEventListener('contextmenu', onCtx, true);
-  }, [fills, resourceNeedPrototype]);
+  }, [fills, remainingPasses, resourceNeedPrototype]);
 
   // ── Employees ──
   const employees = useMemo<ScheduleEmployee[]>(() =>
@@ -2539,30 +2823,42 @@ export const Schema = ({
       .filter(([, reason]) => reason === 'Sjuk')
       .map(([key]) => key);
     setVacancyKeys(current => Array.from(new Set([...current, ...seededNeedKeys])));
-    setResourceNeeds(current => {
-      if (current.length > 0) return current;
-      return Object.entries(RUNTIME_ABSENCE_REASONS)
-        .filter(([, reason]) => reason === 'Sjuk')
-        .map(([key, reason]) => {
-          const [personId, dateStr] = key.split('|');
-          const employee = employees.find(item => item.id === personId);
-          const shift = getScheduleShift(personId, parseDate(dateStr), 'alla');
-          if (!employee || !shift) return null;
-          return {
-            id: `resource-need-${key}`,
-            personId,
-            personName: employee.name,
-            role: employee.role,
-            dateStr,
-            shift,
-            reason,
-            source: 'frånvaro' as const,
-            status: 'Öppet' as const,
-            createdBy: 'Systemet',
-            handledBy: 'Lena Sjöberg',
-          };
-        })
-        .filter(Boolean) as ResourceNeed[];
+    const seededNeeds = Object.entries(RUNTIME_ABSENCE_REASONS)
+      .filter(([, reason]) => reason === 'Sjuk')
+      .map(([key, reason]) => {
+        const [personId, dateStr] = key.split('|');
+        const employee = employees.find(item => item.id === personId);
+        const shift = getScheduleShift(personId, parseDate(dateStr), 'alla');
+        if (!employee || !shift) return null;
+        return {
+          id: `resource-need-${key}`,
+          personId,
+          personName: employee.name,
+          role: employee.role,
+          dateStr,
+          shift,
+          reason,
+          source: 'frånvaro' as const,
+          status: 'Öppet' as const,
+          createdBy: 'Systemet',
+          handledBy: 'Lena Sjöberg',
+        };
+      })
+      .filter(Boolean) as ResourceNeed[];
+    setResourceNeeds(current => current.length > 0 ? current : seededNeeds);
+    setResourceNeedActivities(current => {
+      let changed = false;
+      const next = { ...current };
+      seededNeeds.forEach(need => {
+        if (next[need.id]) return;
+        next[need.id] = [{
+          id: Date.now() + Math.floor(Math.random() * 1000),
+          type: 'system', author: 'Systemet', initials: 'S', time: 'Vid registrering',
+          text: 'Resursbehov registrerades', detail: `${need.personName} · ${need.dateStr} · ${need.shift.start}–${need.shift.end} · ${need.reason ?? 'Frånvaro'}`,
+        }];
+        changed = true;
+      });
+      return changed ? next : current;
     });
   }, [employees, getScheduleShift, resourceNeedPrototype]);
 
@@ -2591,15 +2887,40 @@ export const Schema = ({
   }, [columns, viewStart, period, selectedOrganisation]);
   const viewColumnWidth = isActivityTimelineScenario && viewType === 'month-columns' ? 130 : VIEW_COLUMN_WIDTH[viewType];
   const scheduleTableMinWidth = EMPLOYEE_COLUMN_WIDTH + viewColumnWidth * columns.length;
+  const scenarioSubstituteCandidates = useMemo(() => isSchoolScenario(selectedOrganisation)
+    ? SUBSTITUTE_CANDIDATES.map(candidate => ({ ...candidate, ...PRESCHOOL_SUBSTITUTE_PROFILES[candidate.id] }))
+    : SUBSTITUTE_CANDIDATES.map(candidate => SUB_DETAILS[candidate.id] ? candidate : ({
+        ...candidate,
+        competencies: candidate.role === 'Sjuksköterska'
+          ? ['Omvårdnad', 'Läkemedelshantering', 'Dokumentation']
+          : ['Basal omvårdnad', 'Förflyttning', 'Dokumentation'],
+      })),
+  [selectedOrganisation]);
   const internalSubstituteCandidates = useMemo<SubstituteCandidate[]>(() => isActivityTimelineScenario
-    ? employees.map(employee => ({
-        id: internalCandidateId(employee.id),
-        name: employee.name,
-        role: employee.role,
-        category: 'Tillgänglig medarbetare',
-      }))
+    ? employees.map((employee, index) => {
+        const isPoolEmployee = POOL_PERSON_INDICES.has(index);
+        const role = PRESCHOOL_ROLES[index] ?? employee.role;
+        return {
+          id: internalCandidateId(employee.id),
+          name: employee.name,
+          role,
+          category: isPoolEmployee ? 'Samverkanspass' : 'Tillgänglig medarbetare',
+          costLevel: isPoolEmployee ? 'Gratis' : 'Kostnadsnivå 2',
+          competencies: isPoolEmployee ? ['Pool i verksamheten', 'Barnsäkerhet'] : ['Barnsäkerhet', 'Första hjälpen'],
+        };
+      })
     : [], [employees, isActivityTimelineScenario]);
-  const panelCandidates = useMemo(() => [...SUBSTITUTE_CANDIDATES, ...internalSubstituteCandidates], [internalSubstituteCandidates]);
+  const panelCandidates = useMemo(() => [...scenarioSubstituteCandidates, ...internalSubstituteCandidates], [internalSubstituteCandidates, scenarioSubstituteCandidates]);
+  const scenarioCandidateAvailabilityOverrides = useMemo<SubstituteAvailabilityOverrides>(() => {
+    if (!isSchoolScenario(selectedOrganisation)) return {};
+    const overrides: SubstituteAvailabilityOverrides = {};
+    scenarioSubstituteCandidates.forEach(candidate => columns.forEach(column => {
+      const dateStr = toDateStr(column.date);
+      const key = substituteAvailabilityKey(candidate.id, dateStr);
+      overrides[key] = isWknd(column.date) ? null : { startH: 7, startM: 0, endH: 17, endM: 0 };
+    }));
+    return overrides;
+  }, [columns, scenarioSubstituteCandidates, selectedOrganisation]);
   const internalAvailabilityOverrides = useMemo<SubstituteAvailabilityOverrides>(() => {
     if (!isActivityTimelineScenario) return {};
     const overrides: SubstituteAvailabilityOverrides = {};
@@ -2607,19 +2928,22 @@ export const Schema = ({
       const candidateId = internalCandidateId(employee.id);
       columns.forEach(column => {
         const dateStr = toDateStr(column.date);
-        const isBookedBySchedule = Boolean(getScheduleShift(employee.id, column.date, 'alla'));
+        const hasPoolDutyToday = !isWknd(column.date) && hasPoolDuty(index, column.date);
+        const isBookedBySchedule = Boolean(getScheduleShift(employee.id, column.date, 'alla')) && !hasPoolDutyToday;
         const isAssigned = fills.some(fill => fill.substituteId === candidateId && fill.dateStr === dateStr)
-          || Object.values(activityFills).some(fill => fill.substituteId === candidateId && fill.dateStr === dateStr);
-        const isAvailable = !isBookedBySchedule && !isAssigned && isSelfAvailablePreschoolEmployee(index, column.date);
+          || Object.values(activityFills).some(fill => fill.substituteId === candidateId && fill.dateStr === dateStr)
+          || remainingPasses.some(pass => pass.assignedSubstituteId === candidateId && pass.dateStr === dateStr);
+        const isAvailable = !isBookedBySchedule && !isAssigned
+          && (hasPoolDutyToday || isSelfAvailablePreschoolEmployee(index, column.date));
         overrides[substituteAvailabilityKey(candidateId, dateStr)] = isAvailable
           ? { startH: 7, startM: 0, endH: 17, endM: 0 }
           : null;
       });
     });
     return overrides;
-  }, [activityFills, columns, employees, fills, getScheduleShift, isActivityTimelineScenario]);
+  }, [activityFills, columns, employees, fills, getScheduleShift, isActivityTimelineScenario, remainingPasses]);
   const effectiveAvailabilityOverrides = useMemo<SubstituteAvailabilityOverrides>(() => {
-    const overrides = { ...internalAvailabilityOverrides, ...substituteAvailabilityOverrides };
+    const overrides = { ...scenarioCandidateAvailabilityOverrides, ...internalAvailabilityOverrides, ...substituteAvailabilityOverrides };
     if (isActivityTimelineScenario) {
       const newlyAssigned = [
         ...fills.filter(fill => fill.substituteId).map(fill => ({
@@ -2627,6 +2951,7 @@ export const Schema = ({
           dateStr: fill.dateStr,
         })),
         ...Object.values(activityFills).map(fill => ({ candidateId: fill.substituteId, dateStr: fill.dateStr })),
+        ...remainingPasses.filter(pass => pass.assignedSubstituteId).map(pass => ({ candidateId: pass.assignedSubstituteId!, dateStr: pass.dateStr })),
       ];
       newlyAssigned.forEach(({ candidateId, dateStr }) => {
         if (candidateId) overrides[substituteAvailabilityKey(candidateId, dateStr)] = null;
@@ -2635,7 +2960,8 @@ export const Schema = ({
         const candidateId = internalCandidateId(employee.id);
         columns.forEach(column => {
           const dateStr = toDateStr(column.date);
-          const isBookedBySchedule = Boolean(getScheduleShift(employee.id, column.date, 'alla'));
+          const employeeIndex = employees.findIndex(item => item.id === employee.id);
+          const isBookedBySchedule = Boolean(getScheduleShift(employee.id, column.date, 'alla')) && !hasPoolDuty(employeeIndex, column.date);
           const isAssigned = fills.some(fill => fill.substituteId === candidateId && fill.dateStr === dateStr)
             || Object.values(activityFills).some(fill => fill.substituteId === candidateId && fill.dateStr === dateStr);
           if (isBookedBySchedule || isAssigned) overrides[substituteAvailabilityKey(candidateId, dateStr)] = null;
@@ -2643,13 +2969,14 @@ export const Schema = ({
       });
     }
     return overrides;
-  }, [activityFills, columns, employees, fills, getScheduleShift, internalAvailabilityOverrides, isActivityTimelineScenario, substituteAvailabilityOverrides]);
+  }, [activityFills, columns, employees, fills, getScheduleShift, internalAvailabilityOverrides, isActivityTimelineScenario, remainingPasses, scenarioCandidateAvailabilityOverrides, substituteAvailabilityOverrides]);
   const candidateBookings = useMemo<Record<string, SubBookedShift[]>>(() => {
     if (!isActivityTimelineScenario) return SUB_BOOKED_SHIFTS;
     const bookings: Record<string, SubBookedShift[]> = { ...SUB_BOOKED_SHIFTS };
-    employees.forEach(employee => {
+    employees.forEach((employee, employeeIndex) => {
       const candidateId = internalCandidateId(employee.id);
       const scheduled = columns.flatMap(column => {
+        if (!isWknd(column.date) && hasPoolDuty(employeeIndex, column.date)) return [];
         const shift = getScheduleShift(employee.id, column.date, 'alla');
         return shift ? [{ dateStr: toDateStr(column.date), start: shift.start, end: shift.end }] : [];
       });
@@ -2664,8 +2991,12 @@ export const Schema = ({
     Object.values(activityFills).forEach(fill => {
       bookings[fill.substituteId] = [...(bookings[fill.substituteId] ?? []), { dateStr: fill.dateStr, start: fill.shift.start, end: fill.shift.end }];
     });
+    remainingPasses.forEach(pass => {
+      if (!pass.assignedSubstituteId) return;
+      bookings[pass.assignedSubstituteId] = [...(bookings[pass.assignedSubstituteId] ?? []), { dateStr: pass.dateStr, start: pass.shift.start, end: pass.shift.end }];
+    });
     return bookings;
-  }, [activityFills, columns, employees, fills, getScheduleShift, isActivityTimelineScenario]);
+  }, [activityFills, columns, employees, fills, getScheduleShift, isActivityTimelineScenario, remainingPasses]);
 
   const personDetailEmployee = personDetailId
     ? employees.find(employee => employee.id === personDetailId) ?? null
@@ -2703,17 +3034,27 @@ export const Schema = ({
   const passDetailAssignedFill = detailState
     ? fills.find(fill => fill.personId === detailState.empId && fill.dateStr === detailState.dateStr)
     : undefined;
+  const passDetailRemainingPass = detailState
+    ? remainingPasses.find(pass => pass.id === detailState.empId)
+    : undefined;
+  const passDetailAssignedPerson = passDetailAssignedFill?.person ?? (passDetailRemainingPass?.assignedSubstituteId
+    ? {
+        name: passDetailRemainingPass.assignedSubstituteName ?? panelCandidates.find(candidate => candidate.id === passDetailRemainingPass.assignedSubstituteId)?.name ?? 'Vikarie',
+        role: panelCandidates.find(candidate => candidate.id === passDetailRemainingPass.assignedSubstituteId)?.role ?? 'Vikarie',
+      }
+    : undefined);
   const passDetailSchedule = useMemo<EmployeeDaySchedule | undefined>(() => {
     if (!detailState || !isActivityTimelineScenario) return undefined;
     return {
       dateStr: detailState.dateStr,
       shift: detailState.shift,
-      activities: getCellActivities(detailState.empId, parseDate(detailState.dateStr)),
-      absenceLabel: getAbsenceCaption(detailState.empId, detailState.dateStr),
+      activities: passDetailRemainingPass?.activities ?? getCellActivities(detailState.empId, parseDate(detailState.dateStr)),
+      absenceLabel: passDetailRemainingPass ? (passDetailRemainingPass.assignedSubstituteId ? undefined : 'Vakans') : getAbsenceCaption(detailState.empId, detailState.dateStr),
     };
-  }, [detailState, getCellActivities, isActivityTimelineScenario]);
+  }, [detailState, getCellActivities, isActivityTimelineScenario, passDetailRemainingPass]);
   const passDetailActivities = useMemo<CaseActivity[]>(() => {
     if (!detailState) return [];
+    const passOrder = resourceOrders.find(order => order.personId === detailState.empId && order.dateStr === detailState.dateStr);
     const activities: CaseActivity[] = [{
       id: -1,
       type: 'system',
@@ -2734,8 +3075,24 @@ export const Schema = ({
         detail: RUNTIME_ABSENCE_REASONS[passDetailKey] ?? 'Frånvaro',
       });
     }
-    return [...activities, ...(passActivities[passDetailKey] ?? [])];
-  }, [detailState, passActivities, passDetailKey]);
+    if (passDetailRemainingPass) {
+      activities.push({
+        id: -3,
+        type: passDetailRemainingPass.assignedSubstituteId ? 'assignment' : 'status',
+        author: 'Systemet',
+        initials: 'S',
+        time: 'Aktuell status',
+        text: passDetailRemainingPass.assignedSubstituteName ? 'Pass kvar tillsattes' : 'Vakans – pass kvar',
+        detail: `${passDetailRemainingPass.unit}${passDetailRemainingPass.assignedSubstituteName ? ` · ${passDetailRemainingPass.assignedSubstituteName}` : ''}`,
+      });
+    }
+    return [
+      ...activities,
+      ...(passActivities[passDetailKey] ?? []),
+      ...(passDetailResourceNeed ? resourceNeedActivities[passDetailResourceNeed.id] ?? [] : []),
+      ...(passOrder ? orderActivities[passOrder.id] ?? [] : []),
+    ];
+  }, [detailState, orderActivities, passActivities, passDetailKey, passDetailRemainingPass, passDetailResourceNeed, resourceNeedActivities, resourceOrders]);
   const personDetailActivities = useMemo<CaseActivity[]>(() => {
     if (!personDetailEmployee) return [];
     return [{
@@ -2751,7 +3108,10 @@ export const Schema = ({
   const substituteDetail = substituteDetailState
     ? panelCandidates.find(substitute => substitute.id === substituteDetailState.substituteId) ?? null
     : null;
-  const substituteDetailInfo = substituteDetail ? SUB_DETAILS[substituteDetail.id] : null;
+  const substituteDetailSource = substituteDetail ? SUB_DETAILS[substituteDetail.id] : null;
+  const substituteDetailInfo = substituteDetailSource
+    ? { ...substituteDetailSource, competencies: substituteDetail?.competencies ?? substituteDetailSource.competencies }
+    : null;
   const substituteDetailDates = useMemo(() => {
     const visibleDates = columns.map(column => toDateStr(column.date));
     if (substituteDetailState?.dateStr && !visibleDates.includes(substituteDetailState.dateStr)) {
@@ -3019,14 +3379,26 @@ export const Schema = ({
 
   type ScheduleRow =
     | { type: 'group'; group: OrganisationGroup }
-    | { type: 'employee'; employee: typeof employees[number] };
+    | { type: 'employee'; employee: typeof employees[number] }
+    | { type: 'remaining-pass'; pass: RemainingPass };
 
   // Build the visible rows as a real tree projection. This keeps sibling branches intact
   // regardless of which department or team is opened or closed.
   const scheduleRows: ScheduleRow[] = [];
   const rootId = selectedOrganisation === 'clinic' ? ORGANISATION.clinic.id : SCHOOL_ORGANISATION.id;
+  const visibleRemainingPasses = isActivityTimelineScenario && viewType !== 'year-columns'
+    ? remainingPasses.filter(pass => columns.some(column => toDateStr(column.date) === pass.dateStr))
+    : [];
+  const groupsContainingRemainingPasses = new Set<string>();
+  visibleRemainingPasses.forEach(pass => {
+    let groupId: string | undefined = pass.unitId;
+    while (groupId) {
+      groupsContainingRemainingPasses.add(groupId);
+      groupId = organisationGroups.find(group => group.id === groupId)?.parentId;
+    }
+  });
   const appendGroup = (group: OrganisationGroup) => {
-    if (group.personIds.length === 0) return;
+    if (group.personIds.length === 0 && !groupsContainingRemainingPasses.has(group.id)) return;
     scheduleRows.push({ type: 'group', group });
     if (collapsedGroups.includes(group.id)) return;
     if (group.kind === 'activity') {
@@ -3041,13 +3413,15 @@ export const Schema = ({
         const employee = filteredEmployees.find(item => item.id === personId);
         if (employee) scheduleRows.push({ type: 'employee', employee });
       });
+      visibleRemainingPasses
+        .filter(pass => pass.unitId === group.id)
+        .forEach(pass => scheduleRows.push({ type: 'remaining-pass', pass }));
       return;
     }
     organisationGroups.filter(child => child.parentId === group.id).forEach(appendGroup);
   };
   const rootGroup = organisationGroups.find(group => group.id === rootId);
   if (rootGroup) appendGroup(rootGroup);
-
   // ── Handlers: navigation / filters ──
   const navigate = (dir: 1|-1) => setViewStart(prev => {
     let next = navStep(period, dir, prev);
@@ -3120,25 +3494,44 @@ export const Schema = ({
     setSubPanelOpen(true);
   }, [employees, getScheduleShift]);
 
-  const handleOpenActivitySubstitutePanel = useCallback((activity: ScheduleActivity) => {
-    const employee = employees.find(item => item.id === activity.employeeId);
-    if (!employee) return;
+  const handleOpenRemainingPassPanel = useCallback((pass: RemainingPass) => {
     setResourceNeedAssignmentId(null);
     setOrderAssignment(null);
     setSubPanelState({
-      personId: activity.employeeId,
-      dateStr: activity.dateStr,
-      shift: { type: 'day', start: activity.start, end: activity.end },
+      personId: pass.id,
+      dateStr: pass.dateStr,
+      shift: pass.shift,
       fillType: 'substitute',
-      targetPersonName: employee.name,
-      targetUnit: employee.department,
-      targetType: 'activity',
-      targetActivityId: activity.id,
-      targetActivityLabel: activity.label,
+      targetPersonName: 'Vakans',
+      targetUnit: pass.unit,
+      targetType: 'pass',
+      targetRemainingPassId: pass.id,
+      unitLocked: true,
     });
     setSubPanelBrowseAll(false);
     setSubPanelOpen(true);
-  }, [employees]);
+    setDetailState(null);
+  }, []);
+
+  const handleOpenScheduleActivityPanel = useCallback((personId: string, dateStr: string, activity: ScheduleActivity, targetPersonName: string, targetUnit: string) => {
+    setResourceNeedAssignmentId(null);
+    setOrderAssignment(null);
+    setSubPanelState({
+      personId,
+      dateStr,
+      shift: { type: 'day', start: activity.start, end: activity.end },
+      fillType: 'substitute',
+      targetPersonName,
+      targetUnit,
+      targetType: 'activity',
+      targetActivityId: activity.id,
+      targetActivityLabel: activity.label,
+      unitLocked: true,
+    });
+    setSubPanelBrowseAll(false);
+    setSubPanelOpen(true);
+    setDetailState(null);
+  }, []);
 
   const handleOpenExtraPanel = useCallback((personId: string, dateStr: string) => {
     const emp   = employees.find(e => e.id === personId);
@@ -3232,6 +3625,7 @@ export const Schema = ({
   }, []);
 
   const handleOpenResourceNeedAssignment = useCallback((need: ResourceNeed) => {
+    const employee = employees.find(item => item.id === need.personId);
     setResourceNeedAssignmentId(need.id);
     setSubPanelState({
       personId: need.personId,
@@ -3239,11 +3633,11 @@ export const Schema = ({
       shift: need.shift,
       fillType: 'substitute',
       targetPersonName: need.personName,
-      targetUnit: need.role,
+      targetUnit: employee?.department ?? need.role,
     });
     setSubPanelBrowseAll(false);
     setSubPanelOpen(true);
-  }, []);
+  }, [employees]);
 
   const handleCreateResourceOrderForNeed = useCallback((need: ResourceNeed) => {
     setResourceNeedOrderTargetId(need.id);
@@ -3258,10 +3652,19 @@ export const Schema = ({
   }, []);
 
   // ── Handlers: assign ──
-  const openConfirm = useCallback((subs: SubstituteCandidate[], personId: string, dateStr: string, shift: Shift, fillType: 'substitute'|'extra', target?: Pick<SubPanelState, 'targetType'|'targetActivityId'|'targetActivityLabel'>) => {
+  const openConfirm = useCallback((subs: SubstituteCandidate[], personId: string, dateStr: string, shift: Shift, fillType: 'substitute'|'extra', target?: Pick<SubPanelState, 'targetType'|'targetActivityId'|'targetActivityLabel'|'targetRemainingPassId'|'targetUnit'|'unitLocked'>) => {
     const employee = employees.find(item => item.id === personId);
-    setConfirmState({ substitutes: subs, targetPersonId: personId, targetDateStr: dateStr, targetShift: shift, fillType, unit: employee?.department ?? SUBSTITUTE_UNITS[0].label, ...target });
-  }, [employees]);
+    setConfirmState({
+      substitutes: subs,
+      targetPersonId: personId,
+      targetDateStr: dateStr,
+      targetShift: shift,
+      fillType,
+      ...target,
+      unit: target?.targetUnit ?? employee?.department ?? SUBSTITUTE_UNITS[0].label,
+      unitLocked: target?.unitLocked ?? isSchoolScenario(selectedOrganisation),
+    });
+  }, [employees, selectedOrganisation]);
 
   const handleSendRequest = useCallback((selectedIds: string[]) => {
     if (selectedIds.length === 0) return;
@@ -3292,6 +3695,16 @@ export const Schema = ({
 
   const handleConfirm = useCallback((_msg: string) => {
     if (!confirmState) return;
+    if (confirmState.targetRemainingPassId) {
+      const substitute = confirmState.substitutes[0];
+      if (!substitute) return;
+      setRemainingPasses(previous => previous.map(pass => pass.id === confirmState.targetRemainingPassId
+        ? { ...pass, assignedSubstituteId: substitute.id, assignedSubstituteName: substitute.name }
+        : pass));
+      setConfirmState(null);
+      setSubPanelOpen(false);
+      return;
+    }
     if (confirmState.targetType === 'activity' && confirmState.targetActivityId) {
       const substitute = confirmState.substitutes[0];
       if (!substitute) return;
@@ -3326,7 +3739,7 @@ export const Schema = ({
         })),
       ]);
       setResourceNeeds(previous => previous.map(item => item.id === need.id
-        ? { ...item, status: 'Tillsatt' as const, assignedSubstituteId: confirmState.substitutes[0]?.id }
+        ? { ...item, status: 'Tillsatt' as const, workflowStatus: 'Tillsatt', assignedSubstituteId: confirmState.substitutes[0]?.id, assignedSubstituteName: confirmState.substitutes[0]?.name }
         : item));
       addResourceNeedActivity(need.id, {
         type: 'assignment', author: 'Du', initials: 'JV', time: 'Just nu',
@@ -3354,6 +3767,8 @@ export const Schema = ({
       setResourceOrders(previous => previous.map(item => item.id === orderAssignment.id
         ? { ...item, status: 'Tillsatt', acceptedSubstituteId: confirmState.substitutes[0]?.id }
         : item));
+      const acceptedSubstitute = confirmState.substitutes[0];
+      if (acceptedSubstitute) updateLinkedNeedAfterBooking(orderAssignment, acceptedSubstitute.id, acceptedSubstitute.name);
       addOrderActivity(orderAssignment.id, {
         type: 'assignment', author: 'Du', initials: 'JV', time: 'Just nu',
         text: confirmState.substitutes.length === 1 ? 'Vikarie vald' : 'Vikarier valda',
@@ -3380,9 +3795,12 @@ export const Schema = ({
     ]);
     setConfirmState(null);
     setSubPanelOpen(false);
-  }, [addOrderActivity, addResourceNeedActivity, confirmState, isActivityTimelineScenario, orderAssignment, resourceNeedAssignmentId, resourceNeeds]);
+  }, [addOrderActivity, addResourceNeedActivity, confirmState, isActivityTimelineScenario, orderAssignment, resourceNeedAssignmentId, resourceNeeds, updateLinkedNeedAfterBooking]);
 
-  const handleCancelConfirm = useCallback(() => setConfirmState(null), []);
+  const handleCancelConfirm = useCallback(() => {
+    setConfirmState(null);
+    setResourceNeedAssignmentId(null);
+  }, []);
 
   const handleSelectOrderCandidates = useCallback((candidateIds: string[]) => {
     if (!orderDetail || candidateIds.length === 0) return;
@@ -3404,12 +3822,13 @@ export const Schema = ({
     setResourceOrders(previous => previous.map(item => item.id === order.id
       ? { ...item, status: 'Tillsatt', acceptedSubstituteId: selected[0].substituteId }
       : item));
+    updateLinkedNeedAfterBooking(order, selected[0].substituteId, selected[0].name);
     addOrderActivity(order.id, {
       type: 'assignment', author: 'Du', initials: 'JV', time: 'Just nu',
       text: selected.length === 1 ? 'Vikarie vald' : 'Vikarier valda',
       detail: `${selected.map(invite => invite.name).join(' · ')} · ${order.shift.start}–${order.shift.end}`,
     });
-  }, [orderDetail, resourceOrders, addOrderActivity, isActivityTimelineScenario]);
+  }, [orderDetail, resourceOrders, addOrderActivity, isActivityTimelineScenario, updateLinkedNeedAfterBooking]);
 
   // ── Handlers: shift detail dialog ──
   const handleOpenDetail = useCallback((
@@ -3460,18 +3879,23 @@ export const Schema = ({
   // ── Context-menu actions ──
   const handleOpenResourceOrderDialog = useCallback((target: NonNullable<typeof ctxRef.current>) => {
     const employee = employees.find(emp => emp.id === target.personId);
-    const shift = getScheduleShift(target.personId, parseDate(target.dateStr), 'alla');
-    if (!employee || !shift) return;
+    const remainingPass = remainingPasses.find(pass => pass.id === target.personId && pass.dateStr === target.dateStr);
+    const shift = remainingPass?.shift ?? getScheduleShift(target.personId, parseDate(target.dateStr), 'alla');
+    if ((!employee && !remainingPass) || !shift) return;
+    const linkedNeed = resourceNeedPrototype
+      ? resourceNeeds.find(need => need.personId === target.personId && need.dateStr === target.dateStr && need.status !== 'Borttaget')
+      : undefined;
+    setResourceNeedOrderTargetId(linkedNeed?.id ?? null);
 
     setResourceOrderDialogState({
       personId: target.personId,
-      personName: employee.name,
-      role: employee.role,
+      personName: employee?.name ?? 'Pass kvar',
+      role: employee?.role ?? remainingPass?.unit ?? 'Förskola',
       dateStr: target.dateStr,
       shift,
       resourceType: target.type === 'normal' ? 'extrapass' : 'vikarie',
     });
-  }, [employees, getScheduleShift]);
+  }, [employees, getScheduleShift, remainingPasses, resourceNeedPrototype, resourceNeeds]);
 
   const handleConfirmResourceOrder = useCallback((orderedShift: Shift, _msg: string) => {
     if (!resourceOrderDialogState) return;
@@ -3480,7 +3904,7 @@ export const Schema = ({
       const need = resourceNeeds.find(item => item.id === resourceNeedOrderTargetId);
       if (!need) return;
       const id = `resource-order-${need.id}`;
-      setResourceOrders(previous => previous.some(order => order.id === id) ? previous : [...previous, {
+      const order: ResourceOrder = {
         id,
         personId: need.personId,
         personName: need.personName,
@@ -3492,10 +3916,18 @@ export const Schema = ({
         orderedBy: 'Maja Andersson',
         handledBy: 'Lena Sjöberg',
         invitedSubstitutes: [],
-      }]);
+      };
+      setResourceOrders(previous => previous.some(item => item.id === id)
+        ? previous.map(item => item.id === id ? order : item)
+        : [...previous, order]);
+      updateLinkedNeedWorkflowStatus(id, 'Beställd', order.handledBy);
       addResourceNeedActivity(need.id, {
         type: 'status', author: 'Du', initials: 'JV', time: 'Just nu',
         text: 'Resurs beställd', detail: `${need.personName} · ${need.dateStr} · ${orderedShift.start}–${orderedShift.end}`,
+      });
+      addOrderActivity(id, {
+        type: 'system', author: 'Du', initials: 'JV', time: 'Just nu',
+        text: 'Beställningen skapades från ett resursbehov', detail: `${need.personName} · ${need.dateStr} · ${orderedShift.start}–${orderedShift.end}`,
       });
       setResourceNeedOrderTargetId(null);
       setResourceOrderDialogState(null);
@@ -3523,9 +3955,12 @@ export const Schema = ({
       text: 'Beställningen skapades', detail: `${personName} · ${dateStr} · ${orderedShift.start}–${orderedShift.end}`,
     });
     setResourceOrderDialogState(null);
-  }, [addOrderActivity, addResourceNeedActivity, resourceNeedOrderTargetId, resourceNeedPrototype, resourceNeeds, resourceOrderDialogState]);
+  }, [addOrderActivity, addResourceNeedActivity, resourceNeedOrderTargetId, resourceNeedPrototype, resourceNeeds, resourceOrderDialogState, updateLinkedNeedWorkflowStatus]);
 
-  const handleCancelResourceOrder = useCallback(() => setResourceOrderDialogState(null), []);
+  const handleCancelResourceOrder = useCallback(() => {
+    setResourceOrderDialogState(null);
+    setResourceNeedOrderTargetId(null);
+  }, []);
 
   const handleUpdateOrderTime = useCallback((orderId: string, start: string, end: string) => {
     const order = resourceOrders.find(item => item.id === orderId);
@@ -3620,9 +4055,10 @@ export const Schema = ({
       { personId: order.personId, dateStr: order.dateStr, fillType: order.resourceType === 'vikarie' ? 'substitute' : 'extra', person: { name: substitute.name, role: substitute.role }, substituteId: substitute.id, shift: order.shift },
     ]);
     setResourceOrders(previous => previous.map(item => item.id === order.id ? { ...item, status: 'Tillsatt', acceptedSubstituteId: substitute.id } : item));
+    updateLinkedNeedAfterBooking(order, substitute.id, substitute.name);
     addOrderActivity(order.id, { type: 'assignment', author: 'Du', initials: 'JV', time: 'Just nu', text: 'Vikarie vald', detail: `${substitute.name} · ${order.shift.start}–${order.shift.end}` });
     setOrderAssignment(null);
-  }, [orderAssignment, addOrderActivity]);
+  }, [orderAssignment, addOrderActivity, updateLinkedNeedAfterBooking]);
 
   const handleOrderAction = useCallback((orderId: string, action: OrderContextAction) => {
     const order = resourceOrders.find(item => item.id === orderId);
@@ -3630,26 +4066,37 @@ export const Schema = ({
 
     if (action.id === 'cancel-order') {
       setResourceOrders(previous => previous.map(item => item.id === orderId ? { ...item, status: 'Avbruten' } : item));
+      updateLinkedNeedWorkflowStatus(orderId, undefined);
+      const needId = order.id.startsWith('resource-order-') ? order.id.slice('resource-order-'.length) : '';
+      if (resourceNeeds.some(need => need.id === needId)) addResourceNeedActivity(needId, {
+        type: 'status', author: 'Du', initials: 'JV', time: 'Just nu',
+        text: 'Beställningen avbröts', detail: 'Resursbehovet är öppet för ny hantering.',
+      });
       addOrderActivity(orderId, { type: 'status', author: 'Du', initials: 'JV', time: 'Just nu', text: 'Beställningen avbröts', detail: `${order.personName} · ${order.dateStr}` });
       return;
     }
 
     if (action.id === 'start-processing') {
-      setResourceOrders(previous => previous.map(item => item.id === orderId ? { ...item, status: 'Under behandling' } : item));
+      setResourceOrders(previous => previous.map(item => item.id === orderId ? { ...item, status: 'Under behandling', handledBy: 'Lena Sjöberg' } : item));
+      updateLinkedNeedWorkflowStatus(orderId, 'Under behandling', 'Lena Sjöberg');
       addOrderActivity(orderId, { type: 'status', author: 'Lena Sjöberg', initials: 'LS', time: 'Just nu', text: 'Behandling påbörjad', detail: 'Beställningen har tagits över för handläggning.' });
       return;
     }
 
     if (action.id === 'send-order') {
+      const invites = resourceNeedPrototype
+        ? DEFAULT_ORDER_INVITES.map(invite => ({ ...invite, response: 'Avvaktar' as const, responseText: undefined }))
+        : DEFAULT_ORDER_INVITES.map(invite => ({ ...invite }));
       setResourceOrders(previous => previous.map(item => item.id === orderId
-        ? { ...item, status: 'Förfrågan skickad', invitedSubstitutes: DEFAULT_ORDER_INVITES.map(invite => ({ ...invite })) }
+        ? { ...item, status: 'Förfrågan skickad', handledBy: 'Lena Sjöberg', invitedSubstitutes: invites }
         : item));
-      addOrderActivity(orderId, { type: 'status', author: 'Lena Sjöberg', initials: 'LS', time: 'Just nu', text: 'Förfrågan skickad till vikarier', detail: DEFAULT_ORDER_INVITES.map(invite => invite.name).join(' · ') });
-      const responseItems: CaseActivityResponse[] = DEFAULT_ORDER_INVITES.map(invite => ({
+      updateLinkedNeedWorkflowStatus(orderId, 'Förfrågan skickad', 'Lena Sjöberg');
+      addOrderActivity(orderId, { type: 'status', author: 'Lena Sjöberg', initials: 'LS', time: 'Just nu', text: 'Förfrågan skickad till vikarier', detail: invites.map(invite => invite.name).join(' · ') });
+      const responseItems: CaseActivityResponse[] = invites.map(invite => ({
         id: invite.substituteId,
         name: invite.name,
         role: invite.role,
-        response: invite.response === 'Tillgänglig' ? 'Ja' : invite.response === 'Kan inte' ? 'Nej' : invite.response === 'Avvaktar' ? 'Kanske' : 'Inget svar',
+        response: invite.response === 'Tillgänglig' ? 'Ja' : invite.response === 'Kan inte' ? 'Nej' : invite.response === 'Avvaktar' ? (resourceNeedPrototype ? 'Inget svar' : 'Kanske') : 'Inget svar',
         detail: invite.responseText,
       }));
       addOrderActivity(orderId, {
@@ -3678,17 +4125,172 @@ export const Schema = ({
       setResourceOrders(previous => previous.map(item => item.id === orderId
         ? { ...item, status: 'Tillsatt', acceptedSubstituteId: invite.substituteId }
         : item));
+      updateLinkedNeedAfterBooking(order, invite.substituteId, invite.name);
       addOrderActivity(orderId, { type: 'assignment', author: 'Du', initials: 'JV', time: 'Just nu', text: 'Vikarie vald', detail: `${invite.name} · ${order.shift.start}–${order.shift.end}` });
     }
-  }, [resourceOrders, addOrderActivity]);
+  }, [resourceOrders, resourceNeeds, addOrderActivity, addResourceNeedActivity, updateLinkedNeedAfterBooking, updateLinkedNeedWorkflowStatus, resourceNeedPrototype]);
+
+  const handleRegisterOrderResponses = useCallback((orderId: string) => {
+    const order = resourceOrders.find(item => item.id === orderId);
+    if (!order || order.status !== 'Förfrågan skickad') return;
+    const invites = DEFAULT_ORDER_INVITES.map(invite => ({ ...invite }));
+    setResourceOrders(previous => previous.map(item => item.id === orderId
+      ? { ...item, status: 'Besvarad', invitedSubstitutes: invites }
+      : item));
+    updateLinkedNeedWorkflowStatus(orderId, 'Besvarad');
+    addOrderActivity(orderId, {
+      type: 'status', author: 'Systemet', initials: 'S', time: 'Just nu',
+      text: 'Svar mottagna från vikarier', detail: invites.map(invite => `${invite.name}: ${invite.response}`).join(' · '),
+      responseGroup: { responses: invites.map(invite => ({
+        id: invite.substituteId,
+        name: invite.name,
+        role: invite.role,
+        response: invite.response === 'Tillgänglig' ? 'Ja' : invite.response === 'Kan inte' ? 'Nej' : 'Kanske',
+        detail: invite.responseText,
+      })) },
+    });
+    const needId = order.id.startsWith('resource-order-') ? order.id.slice('resource-order-'.length) : '';
+    if (resourceNeeds.some(need => need.id === needId)) addResourceNeedActivity(needId, {
+      type: 'status', author: 'Systemet', initials: 'S', time: 'Just nu',
+      text: 'Svar mottagna på beställningen', detail: 'Resursbehovet inväntar att vikarie väljs.',
+    });
+  }, [addOrderActivity, addResourceNeedActivity, resourceNeeds, resourceOrders, updateLinkedNeedWorkflowStatus]);
+
+  const handleMoveOrderOnBoard = useCallback((orderId: string, status: ResourceOrderStatus) => {
+    if (status === 'Tillsatt' || status === 'Avbruten') return;
+    const order = resourceOrders.find(item => item.id === orderId);
+    if (!order || order.status === 'Tillsatt' || order.status === status) return;
+    const invites = status === 'Besvarad'
+      ? DEFAULT_ORDER_INVITES.map(invite => ({ ...invite }))
+      : status === 'Förfrågan skickad'
+        ? DEFAULT_ORDER_INVITES.map(invite => ({ ...invite, response: 'Avvaktar' as const, responseText: undefined }))
+        : [];
+    setResourceOrders(previous => previous.map(item => item.id === orderId
+      ? { ...item, status, invitedSubstitutes: invites }
+      : item));
+    updateLinkedNeedWorkflowStatus(orderId, status);
+    const activityText: Record<Exclude<ResourceOrderStatus, 'Tillsatt' | 'Avbruten'>, string> = {
+      'Beställd': 'Beställningen återfördes till beställd',
+      'Under behandling': 'Behandling påbörjad',
+      'Förfrågan skickad': 'Förfrågan skickad',
+      'Besvarad': 'Svar mottagna från vikarier',
+    };
+    addOrderActivity(orderId, {
+      type: 'status', author: 'Du', initials: 'JV', time: 'Just nu',
+      text: activityText[status], detail: `Status ändrad till ${status} · Hanteras av ${order.handledBy}`,
+    });
+    const needId = order.id.startsWith('resource-order-') ? order.id.slice('resource-order-'.length) : '';
+    if (resourceNeeds.some(need => need.id === needId)) addResourceNeedActivity(needId, {
+      type: 'status', author: 'Du', initials: 'JV', time: 'Just nu',
+      text: `Beställningen flyttades till ${status}`, detail: `Hanteras av ${order.handledBy}`,
+    });
+  }, [addOrderActivity, addResourceNeedActivity, resourceNeeds, resourceOrders, updateLinkedNeedWorkflowStatus]);
+
+  const handleMoveNeedOnBoard = useCallback((needId: string, status: ResourceOrderStatus) => {
+    if (status === 'Tillsatt' || status === 'Avbruten') return;
+    const need = resourceNeeds.find(item => item.id === needId);
+    if (!need || need.status === 'Borttaget' || need.status === 'Tillsatt') return;
+    const id = `resource-order-${need.id}`;
+    const existingOrder = resourceOrders.find(order => order.id === id);
+    const invites = status === 'Besvarad'
+      ? DEFAULT_ORDER_INVITES.map(invite => ({ ...invite }))
+      : status === 'Förfrågan skickad'
+        ? DEFAULT_ORDER_INVITES.map(invite => ({ ...invite, response: 'Avvaktar' as const, responseText: undefined }))
+        : [];
+    const order: ResourceOrder = {
+      id,
+      personId: need.personId,
+      personName: need.personName,
+      role: need.role,
+      dateStr: need.dateStr,
+      shift: need.shift,
+      resourceType: 'vikarie',
+      status,
+      orderedBy: existingOrder?.orderedBy ?? 'Maja Andersson',
+      handledBy: existingOrder?.handledBy ?? need.handledBy,
+      invitedSubstitutes: invites,
+    };
+    setResourceOrders(previous => existingOrder
+      ? previous.map(item => item.id === id ? order : item)
+      : [...previous, order]);
+    updateLinkedNeedWorkflowStatus(id, status, order.handledBy);
+    const activityText: Record<Exclude<ResourceOrderStatus, 'Tillsatt' | 'Avbruten'>, string> = {
+      'Beställd': 'Resurs beställd',
+      'Under behandling': 'Behandling påbörjad',
+      'Förfrågan skickad': 'Förfrågan skickad',
+      'Besvarad': 'Svar mottagna från vikarier',
+    };
+    addResourceNeedActivity(need.id, {
+      type: 'status', author: 'Du', initials: 'JV', time: 'Just nu',
+      text: activityText[status], detail: `${need.personName} · ${need.dateStr} · ${need.shift.start}–${need.shift.end}`,
+    });
+    addOrderActivity(id, {
+      type: 'status', author: 'Du', initials: 'JV', time: 'Just nu',
+      text: activityText[status], detail: `Resursbehovet flyttades till ${status} · Hanteras av ${order.handledBy}`,
+    });
+  }, [addOrderActivity, addResourceNeedActivity, resourceNeeds, resourceOrders, updateLinkedNeedWorkflowStatus]);
+
+  const handleReturnOrderToNeed = useCallback((orderId: string) => {
+    const order = resourceOrders.find(item => item.id === orderId);
+    const needId = order?.id.startsWith('resource-order-') ? order.id.slice('resource-order-'.length) : '';
+    const need = resourceNeeds.find(item => item.id === needId);
+    if (!order || !need || order.status === 'Tillsatt') return;
+    setResourceOrders(previous => previous.map(item => item.id === orderId ? { ...item, status: 'Avbruten' } : item));
+    setResourceNeeds(previous => previous.map(item => item.id === needId
+      ? { ...item, status: 'Öppet', workflowStatus: undefined, assignedSubstituteId: undefined, assignedSubstituteName: undefined }
+      : item));
+    updateLinkedNeedWorkflowStatus(orderId, undefined);
+    addOrderActivity(orderId, {
+      type: 'status', author: 'Du', initials: 'JV', time: 'Just nu',
+      text: 'Beställningen avbröts', detail: 'Resursbehovet återfördes till kolumnen Resursbehov.',
+    });
+    addResourceNeedActivity(needId, {
+      type: 'status', author: 'Du', initials: 'JV', time: 'Just nu',
+      text: 'Resursbehovet återöppnades', detail: 'Beställningen avbröts och behovet kan beställas på nytt.',
+    });
+  }, [addOrderActivity, addResourceNeedActivity, resourceNeeds, resourceOrders, updateLinkedNeedWorkflowStatus]);
+
+  const handleTakeBackNeed = useCallback((needId: string) => {
+    const need = resourceNeeds.find(item => item.id === needId);
+    if (!need || need.status === 'Tillsatt') return;
+    setResourceNeeds(previous => previous.map(item => item.id === needId ? { ...item, handledBy: 'Maja Andersson' } : item));
+    const orderId = `resource-order-${needId}`;
+    const linkedOrder = resourceOrders.find(order => order.id === orderId && order.status !== 'Avbruten');
+    if (linkedOrder && linkedOrder.status !== 'Tillsatt') {
+      setResourceOrders(previous => previous.map(order => order.id === orderId ? { ...order, handledBy: 'Maja Andersson' } : order));
+      addOrderActivity(orderId, {
+        type: 'status', author: 'Maja Andersson', initials: 'MA', time: 'Just nu',
+        text: 'Beställaren tog tillbaka kontrollen', detail: 'Beställningen hanteras åter av beställaren.',
+      });
+    }
+    addResourceNeedActivity(needId, {
+      type: 'status', author: 'Maja Andersson', initials: 'MA', time: 'Just nu',
+      text: 'Beställaren tog tillbaka kontrollen', detail: 'Resursbehovet hanteras åter av beställaren.',
+    });
+  }, [addOrderActivity, addResourceNeedActivity, resourceNeeds, resourceOrders]);
+
+  const handleTakeBackOrder = useCallback((orderId: string) => {
+    const order = resourceOrders.find(item => item.id === orderId);
+    if (!order || order.status === 'Tillsatt') return;
+    setResourceOrders(previous => previous.map(item => item.id === orderId ? { ...item, handledBy: 'Maja Andersson' } : item));
+    addOrderActivity(orderId, {
+      type: 'status', author: 'Maja Andersson', initials: 'MA', time: 'Just nu',
+      text: 'Beställaren tog tillbaka kontrollen', detail: 'Beställningen hanteras åter av beställaren.',
+    });
+    const needId = order.id.startsWith('resource-order-') ? order.id.slice('resource-order-'.length) : '';
+    if (resourceNeeds.some(need => need.id === needId)) {
+      setResourceNeeds(previous => previous.map(need => need.id === needId ? { ...need, handledBy: 'Maja Andersson' } : need));
+      addResourceNeedActivity(needId, {
+        type: 'status', author: 'Maja Andersson', initials: 'MA', time: 'Just nu',
+        text: 'Beställaren tog tillbaka kontrollen', detail: 'Resursbehovet hanteras åter av beställaren.',
+      });
+    }
+  }, [addOrderActivity, addResourceNeedActivity, resourceNeeds, resourceOrders]);
 
   const handleOrderAllResourceNeeds = useCallback(() => {
     const openNeeds = resourceNeeds.filter(need => need.status === 'Öppet');
     if (openNeeds.length === 0) return;
-    setResourceOrders(previous => {
-      const existingIds = new Set(previous.map(order => order.id));
-      const newOrders = openNeeds
-        .map(need => ({
+    const newOrders = openNeeds.map(need => ({
           id: `resource-order-${need.id}`,
           personId: need.personId,
           personName: need.personName,
@@ -3700,15 +4302,22 @@ export const Schema = ({
           orderedBy: 'Maja Andersson',
           handledBy: 'Lena Sjöberg',
           invitedSubstitutes: [],
-        }))
-        .filter(order => !existingIds.has(order.id));
-      return [...previous, ...newOrders];
+        }));
+    setResourceOrders(previous => {
+      const ordersById = new Map(previous.map(order => [order.id, order]));
+      newOrders.forEach(order => ordersById.set(order.id, order));
+      return Array.from(ordersById.values());
     });
+    openNeeds.forEach(need => updateLinkedNeedWorkflowStatus(`resource-order-${need.id}`, 'Beställd', 'Lena Sjöberg'));
     openNeeds.forEach(need => addResourceNeedActivity(need.id, {
       type: 'status', author: 'Du', initials: 'JV', time: 'Just nu',
       text: 'Resurs beställd', detail: `${need.personName} · ${need.dateStr} · ${need.shift.start}–${need.shift.end}`,
     }));
-  }, [addResourceNeedActivity, resourceNeeds]);
+    newOrders.forEach(order => addOrderActivity(order.id, {
+      type: 'system', author: 'Du', initials: 'JV', time: 'Just nu',
+      text: 'Beställningen skapades från ett resursbehov', detail: `${order.personName} · ${order.dateStr} · ${order.shift.start}–${order.shift.end}`,
+    }));
+  }, [addOrderActivity, addResourceNeedActivity, resourceNeeds, updateLinkedNeedWorkflowStatus]);
 
   const handleAssignAllResourceNeeds = useCallback(() => {
     const openNeeds = resourceNeeds.filter(need => need.status === 'Öppet');
@@ -3728,7 +4337,7 @@ export const Schema = ({
     ]);
     setResourceNeeds(previous => previous.map(need => {
       const assignment = assignments.find(item => item.need.id === need.id);
-      return assignment ? { ...need, status: 'Tillsatt' as const, assignedSubstituteId: assignment.substitute.id } : need;
+      return assignment ? { ...need, status: 'Tillsatt' as const, workflowStatus: 'Tillsatt', assignedSubstituteId: assignment.substitute.id, assignedSubstituteName: assignment.substitute.name } : need;
     }));
     assignments.forEach(({ need, substitute }) => addResourceNeedActivity(need.id, {
       type: 'assignment', author: 'Systemet', initials: 'AI', time: 'Just nu',
@@ -3736,23 +4345,25 @@ export const Schema = ({
     }));
   }, [addResourceNeedActivity, resourceNeeds]);
 
-  const handleDirectAssignment = useCallback((personId: string, dateStr: string, shift: Shift, fillType: 'substitute' | 'extra') => {
+  const handleDirectAssignment = useCallback((personId: string, dateStr: string, shift: Shift, fillType: 'substitute' | 'extra', preferredCandidate?: SubstituteCandidate, remainingPassId?: string) => {
     if (!resourceNeedPrototype) return;
     const employee = employees.find(item => item.id === personId);
-    if (!employee) return;
+    const remainingPass = remainingPassId ? remainingPasses.find(pass => pass.id === remainingPassId) : undefined;
+    if (!employee && !remainingPass) return;
     const date = parseDate(dateStr);
     const candidates = getAvailableSubs(shift, date, 1, effectiveAvailabilityOverrides, substituteAbsences, panelCandidates)
-      .sort((a, b) => suitabilityScore(b.id, date, shift, effectiveAvailabilityOverrides, substituteAbsences)
-        - suitabilityScore(a.id, date, shift, effectiveAvailabilityOverrides, substituteAbsences));
-    const invited = candidates.slice(0, isActivityTimelineScenario ? 1 : 3);
+      .sort((a, b) => candidateRankScore(b, date, shift, effectiveAvailabilityOverrides, substituteAbsences)
+        - candidateRankScore(a, date, shift, effectiveAvailabilityOverrides, substituteAbsences));
+    const invited = preferredCandidate ? [preferredCandidate] : candidates.slice(0, isActivityTimelineScenario ? 1 : 3);
     const key = `${personId}|${dateStr}`;
+    const targetName = employee?.name ?? 'Pass kvar';
 
     addPassActivity(key, {
       type: 'system', author: 'Systemet', initials: 'AI', time: 'Just nu',
       text: 'Tillsätt direkt startades',
       detail: invited.length ? `Automatiken rangordnade ${invited.length} lämpliga vikarier.` : 'Inga tillgängliga vikarier hittades.',
     });
-    addPersonActivity(personId, {
+    if (employee) addPersonActivity(personId, {
       type: 'system', author: 'Systemet', initials: 'AI', time: 'Just nu',
       text: 'Automatisk tillsättning startades',
       detail: `${dateStr} · ${shift.start}–${shift.end}`,
@@ -3762,83 +4373,118 @@ export const Schema = ({
       const failureReason = 'Ingen lämplig vikarie var tillgänglig.';
       setAssignmentFailures(previous => ({ ...previous, [key]: failureReason }));
       addPassActivity(key, { type: 'status', author: 'Systemet', initials: 'AI', time: 'Just nu', text: 'Ingen vikarie kunde förfrågas', detail: 'Passet är fortfarande otillsatt.' });
-      addPersonActivity(personId, { type: 'status', author: 'Systemet', initials: 'AI', time: 'Just nu', text: 'Tillsättning kunde inte genomföras', detail: failureReason });
+      if (employee) addPersonActivity(personId, { type: 'status', author: 'Systemet', initials: 'AI', time: 'Just nu', text: 'Tillsättning kunde inte genomföras', detail: failureReason });
       return;
     }
 
-    const responses = invited.map((candidate, index) => ({
-      candidate,
-      response: index === 0 ? 'Tillgänglig' : index === 1 ? 'Kan inte' : 'Avvaktar',
-    }));
-    const accepted = responses.find(item => item.response === 'Tillgänglig');
+    const substitute = invited[0];
     addPassActivity(key, {
       type: 'status', author: 'Systemet', initials: 'AI', time: 'Just nu',
-      text: 'Förfrågan skickad till vikarier',
-      detail: invited.map(candidate => candidate.name).join(' · '),
+      text: 'Förfrågan skickad till vikarie',
+      detail: substitute.name,
     });
-    addPersonActivity(personId, {
+    if (employee) addPersonActivity(personId, {
       type: 'status', author: 'Systemet', initials: 'AI', time: 'Just nu',
-      text: 'Förfrågan skickad till vikarier',
-      detail: invited.map(candidate => candidate.name).join(' · '),
+      text: 'Förfrågan skickad till vikarie',
+      detail: substitute.name,
     });
-    responses.forEach(({ candidate, response }) => {
-      addSubstituteActivity(candidate.id, {
-        type: 'status', author: 'Systemet', initials: 'AI', time: 'Just nu',
-        text: `Förfrågan om ${fillType === 'extra' ? 'extrapass' : 'vikariepass'}`,
-        detail: `${dateStr} · ${shift.start}–${shift.end} · ${response}`,
-      });
+    addSubstituteActivity(substitute.id, {
+      type: 'status', author: 'Systemet', initials: 'AI', time: 'Just nu',
+      text: `Förfrågan om ${fillType === 'extra' ? 'extrapass' : 'vikariepass'}`,
+      detail: `${dateStr} · ${shift.start}–${shift.end} · Tillgänglig`,
     });
 
-    if (!accepted) {
-      const failureReason = 'Ingen av de tillfrågade vikarierna tackade ja.';
-      setAssignmentFailures(previous => ({ ...previous, [key]: failureReason }));
-      addPassActivity(key, { type: 'status', author: 'Systemet', initials: 'AI', time: 'Just nu', text: 'Tillsättning kunde inte genomföras', detail: failureReason });
-      addPersonActivity(personId, { type: 'status', author: 'Systemet', initials: 'AI', time: 'Just nu', text: 'Tillsättning kunde inte genomföras', detail: failureReason });
-      return;
-    }
-    const substitute = accepted.candidate;
     setAssignmentFailures(previous => {
       if (!previous[key]) return previous;
       const next = { ...previous };
       delete next[key];
       return next;
     });
-    setFills(previous => [
-      ...previous.filter(fill => !(fill.personId === personId && fill.dateStr === dateStr)),
-      { personId, dateStr, fillType, person: { name: substitute.name, role: substitute.role }, substituteId: substitute.id, shift },
-    ]);
-    setResourceNeeds(previous => previous.map(need =>
-      need.personId === personId && need.dateStr === dateStr && need.status === 'Öppet'
-        ? { ...need, status: 'Tillsatt' as const, assignedSubstituteId: substitute.id }
-        : need,
-    ));
+    if (remainingPassId) {
+      setRemainingPasses(previous => previous.map(pass => pass.id === remainingPassId
+        ? { ...pass, assignedSubstituteId: substitute.id, assignedSubstituteName: substitute.name }
+        : pass));
+    } else {
+      setFills(previous => [
+        ...previous.filter(fill => !(fill.personId === personId && fill.dateStr === dateStr)),
+        { personId, dateStr, fillType, person: { name: substitute.name, role: substitute.role }, substituteId: substitute.id, shift },
+      ]);
+      const assignedNeed = resourceNeeds.find(need => need.personId === personId && need.dateStr === dateStr && need.status === 'Öppet');
+      setResourceNeeds(previous => previous.map(need =>
+        need.personId === personId && need.dateStr === dateStr && need.status === 'Öppet'
+          ? { ...need, status: 'Tillsatt' as const, workflowStatus: 'Tillsatt', assignedSubstituteId: substitute.id, assignedSubstituteName: substitute.name }
+          : need,
+      ));
+      if (assignedNeed) addResourceNeedActivity(assignedNeed.id, {
+        type: 'assignment', author: 'Systemet', initials: 'AI', time: 'Just nu',
+        text: 'Resursbehov tillsattes automatiskt', detail: `${substitute.name} · ${substitute.role}`,
+      });
+    }
     addPassActivity(key, {
       type: 'assignment', author: 'Systemet', initials: 'AI', time: 'Just nu',
       text: 'Passet tillsattes automatiskt', detail: `${substitute.name} · ${substitute.role}`,
     });
-    addPersonActivity(personId, {
+    if (employee) addPersonActivity(personId, {
       type: 'assignment', author: 'Systemet', initials: 'AI', time: 'Just nu',
       text: 'Passet tillsattes automatiskt', detail: `${dateStr} · ${shift.start}–${shift.end} · ${substitute.name}`,
     });
     addSubstituteActivity(substitute.id, {
       type: 'assignment', author: 'Systemet', initials: 'AI', time: 'Just nu',
-      text: 'Tackade ja och tillsattes', detail: `${employee.name} · ${dateStr} · ${shift.start}–${shift.end}`,
+      text: 'Tackade ja och tillsattes', detail: `${targetName} · ${dateStr} · ${shift.start}–${shift.end}`,
     });
-  }, [addPassActivity, addPersonActivity, addSubstituteActivity, effectiveAvailabilityOverrides, employees, isActivityTimelineScenario, panelCandidates, resourceNeedPrototype, substituteAbsences]);
+  }, [addPassActivity, addPersonActivity, addResourceNeedActivity, addSubstituteActivity, effectiveAvailabilityOverrides, employees, isActivityTimelineScenario, panelCandidates, remainingPasses, resourceNeedPrototype, resourceNeeds, setResourceNeeds, substituteAbsences]);
 
   useEffect(() => {
     if (!resourceNeedPrototype || !automation?.isAutomationActive) {
       automationProcessedNeedIdsRef.current.clear();
       return;
     }
-    resourceNeeds
-      .filter(need => need.status === 'Öppet' && !automationProcessedNeedIdsRef.current.has(need.id))
-      .slice(0, isActivityTimelineScenario ? 1 : undefined)
-      .forEach(need => {
-        automationProcessedNeedIdsRef.current.add(need.id);
-        handleDirectAssignment(need.personId, need.dateStr, need.shift, need.source === 'frånvaro' ? 'substitute' : 'extra');
-      });
-  }, [automation?.isAutomationActive, handleDirectAssignment, isActivityTimelineScenario, resourceNeedPrototype, resourceNeeds]);
+    if (confirmState) return;
+    const openNeed = resourceNeeds.find(need => need.status === 'Öppet' && !automationProcessedNeedIdsRef.current.has(need.id));
+    const openRemainingPass = isActivityTimelineScenario
+      ? remainingPasses.find(pass => !pass.assignedSubstituteId && !automationProcessedNeedIdsRef.current.has(pass.id))
+      : undefined;
+    if (!openNeed && !openRemainingPass) return;
+    const target = openNeed ?? openRemainingPass!;
+    const isRemainingPass = !openNeed;
+    const personId = isRemainingPass ? target.id : (target as ResourceNeed).personId;
+    const targetDate = target.dateStr;
+    const targetShift = target.shift;
+    const targetFillType = isRemainingPass ? 'substitute' : (target as ResourceNeed).source === 'frånvaro' ? 'substitute' : 'extra';
+    automationProcessedNeedIdsRef.current.add(target.id);
+
+    if (automation.automationMode !== 'free-then-confirm') {
+      handleDirectAssignment(personId, targetDate, targetShift, targetFillType, undefined, isRemainingPass ? target.id : undefined);
+      return;
+    }
+    const date = parseDate(targetDate);
+    const available = getAvailableSubs(targetShift, date, 1, effectiveAvailabilityOverrides, substituteAbsences, panelCandidates)
+      .sort((a, b) => candidateRankScore(b, date, targetShift, effectiveAvailabilityOverrides, substituteAbsences)
+        - candidateRankScore(a, date, targetShift, effectiveAvailabilityOverrides, substituteAbsences));
+    const freeCandidate = available.find(candidate => candidate.costLevel === 'Gratis');
+    if (freeCandidate) {
+      handleDirectAssignment(personId, targetDate, targetShift, targetFillType, freeCandidate, isRemainingPass ? target.id : undefined);
+      return;
+    }
+    const paidCandidate = available[0];
+    if (!paidCandidate) {
+      handleDirectAssignment(personId, targetDate, targetShift, targetFillType, undefined, isRemainingPass ? target.id : undefined);
+      return;
+    }
+    if (!isRemainingPass) setResourceNeedAssignmentId((target as ResourceNeed).id);
+    const targetEmployee = isRemainingPass ? undefined : employees.find(employee => employee.id === personId);
+    setConfirmState({
+      substitutes: [paidCandidate],
+      targetPersonId: personId,
+      targetDateStr: targetDate,
+      targetShift,
+      fillType: targetFillType,
+      unit: isRemainingPass ? (target as RemainingPass).unit : targetEmployee?.department ?? (target as ResourceNeed).role,
+      targetRemainingPassId: isRemainingPass ? target.id : undefined,
+      unitLocked: isRemainingPass || isSchoolScenario(selectedOrganisation),
+      costApproval: true,
+    });
+  }, [automation, confirmState, effectiveAvailabilityOverrides, employees, handleDirectAssignment, isActivityTimelineScenario, panelCandidates, remainingPasses, resourceNeedPrototype, resourceNeeds, selectedOrganisation, substituteAbsences]);
 
   const handleResourceNeedAction = useCallback((needId: string, action: ResourceNeedAction) => {
     const need = resourceNeeds.find(item => item.id === needId);
@@ -3908,6 +4554,19 @@ export const Schema = ({
     const target = ctxRef.current;
     const action = event.itemData?.id;
     if (!target || !action) return;
+    const remainingPass = remainingPasses.find(pass => pass.id === target.personId && pass.dateStr === target.dateStr);
+    if (remainingPass) {
+      if (action === 'primary' || action === 'find-substitute') {
+        handleOpenRemainingPassPanel(remainingPass);
+      } else if (action === 'assign-direct') {
+        handleDirectAssignment(remainingPass.id, remainingPass.dateStr, remainingPass.shift, 'substitute', undefined, remainingPass.id);
+      } else if (action === 'order-resource') {
+        handleOpenResourceOrderDialog(target);
+      } else if (action === 'show-details') {
+        handleOpenDetail(remainingPass.id, 'Pass kvar', remainingPass.unit, remainingPass.dateStr, remainingPass.shift, 'vacant');
+      }
+      return;
+    }
 
     if (action === 'make-vacancy') {
       const key = `${target.personId}|${target.dateStr}`;
@@ -3986,7 +4645,7 @@ export const Schema = ({
         getColorScheme(target.personId, target.dateStr, fills, vacancyKeys),
       );
     }
-  }, [addPassActivity, createResourceNeed, employees, fills, getScheduleShift, handleDirectAssignment, handleOpenDetail, handleOpenExtraPanel, handleOpenVacancyPanel, handleOpenResourceOrderDialog, navigateTo, openSicknessDialog, resourceNeedPrototype, selectedOrganisation, vacancyKeys]);
+  }, [addPassActivity, createResourceNeed, employees, fills, getScheduleShift, handleDirectAssignment, handleOpenDetail, handleOpenExtraPanel, handleOpenRemainingPassPanel, handleOpenVacancyPanel, handleOpenResourceOrderDialog, navigateTo, openSicknessDialog, remainingPasses, resourceNeedPrototype, selectedOrganisation, vacancyKeys]);
 
   const handlePersonContextAction = useCallback((event: { itemData?: { id?: string } }) => {
     if (!personContextId) return;
@@ -4031,9 +4690,19 @@ export const Schema = ({
     const requestedIds = isActivityTimelineScenario ? ids.slice(0, 1) : ids;
     const selected = panelCandidates.filter(sub => requestedIds.includes(sub.id) || (!ids.length && sub.id === fallbackId));
     if (!selected.length) return;
+    const remainingPass = remainingPasses.find(pass => pass.id === personId && pass.dateStr === dateStr);
+    if (remainingPass) {
+      openConfirm(selected, personId, dateStr, remainingPass.shift, 'substitute', {
+        targetType: 'pass',
+        targetUnit: remainingPass.unit,
+        targetRemainingPassId: remainingPass.id,
+        unitLocked: true,
+      });
+      return;
+    }
     const fillType = vacancyKeys.includes(`${personId}|${dateStr}`) ? 'substitute' : 'extra';
     openConfirm(selected, personId, dateStr, shift, fillType, { targetType: 'pass' });
-  }, [subPanelOpen, openConfirm, vacancyKeys, isActivityTimelineScenario, panelCandidates]);
+  }, [subPanelOpen, openConfirm, vacancyKeys, isActivityTimelineScenario, panelCandidates, remainingPasses]);
 
   const handleSchedulePassDragStart = useCallback((event: React.DragEvent, personId: string, dateStr: string, shift: Shift) => {
     if (!resourceNeedPrototype) return;
@@ -4064,6 +4733,10 @@ export const Schema = ({
       .filter(Boolean) as Array<{ key:string; name:string; role:string; dateStr:string; shift:Shift }>,
   [fills, getScheduleShift]);
 
+  const resourceNeedBoardCount = resourceOrders.filter(order => order.status !== 'Avbruten').length
+    + resourceNeeds.filter(need => need.status !== 'Borttaget'
+      && !resourceOrders.some(order => order.id === `resource-order-${need.id}` && order.status !== 'Avbruten')).length;
+
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
@@ -4073,13 +4746,29 @@ export const Schema = ({
 
           <div className="schema-view-switcher" role="tablist" aria-label="Välj vy">
             <button className={activeView === 'schema' ? 'active' : ''} onClick={() => setActiveView('schema')}><i className="fa-solid fa-calendar-days" /> Schema</button>
-            <button className={activeView === 'orders' ? 'active' : ''} onClick={() => setActiveView('orders')}><i className="fa-solid fa-cart-shopping" /> Beställningar <span>{resourceOrders.length}</span></button>
-            {resourceNeedPrototype && <button className={activeView === 'resource-needs' ? 'active' : ''} onClick={() => setActiveView('resource-needs')}><i className="fa-solid fa-user-clock" /> Resursbehov <span>{resourceNeeds.filter(need => need.status !== 'Borttaget').length}</span></button>}
+            <button className={activeView === 'orders' ? 'active' : ''} onClick={() => setActiveView('orders')}><i className="fa-solid fa-cart-shopping" /> Beställningar <span>{resourceNeedPrototype ? resourceNeedBoardCount : resourceOrders.length}</span></button>
           </div>
 
           {activeView === 'orders' ? (
             <div className="schema-orders-page-view">
-              <ResourceOrdersList orders={resourceOrders} onClose={() => setActiveView('schema')} onAction={handleOrderAction} onOpenDetails={setOrderDetail} onChooseSubstitute={handleOpenOrderSubstitutePanel} onShowSubstitutes={handleOpenAllSubstitutes} />
+              {resourceNeedPrototype
+                ? <ResourceOrdersKanban
+                    needs={resourceNeeds}
+                    orders={resourceOrders}
+                    onClose={() => setActiveView('schema')}
+                    onAction={handleOrderAction}
+                    onOpenNeed={setResourceNeedDetail}
+                    onOpenOrder={setOrderDetail}
+                    onChooseSubstitute={handleOpenOrderSubstitutePanel}
+                    onShowSubstitutes={handleOpenAllSubstitutes}
+                    onMoveNeed={handleMoveNeedOnBoard}
+                    onMoveOrder={handleMoveOrderOnBoard}
+                    onReturnOrderToNeed={handleReturnOrderToNeed}
+                    onRegisterResponses={handleRegisterOrderResponses}
+                    onTakeBackNeed={handleTakeBackNeed}
+                    onTakeBackOrder={handleTakeBackOrder}
+                  />
+                : <ResourceOrdersList orders={resourceOrders} onClose={() => setActiveView('schema')} onAction={handleOrderAction} onOpenDetails={setOrderDetail} onChooseSubstitute={handleOpenOrderSubstitutePanel} onShowSubstitutes={handleOpenAllSubstitutes} />}
             </div>
           ) : activeView === 'resource-needs' ? (
             <div className="schema-orders-page-view">
@@ -4103,6 +4792,23 @@ export const Schema = ({
                 width={310}
               />
             </div>
+            {isActivityTimelineScenario && <TagBox
+              dataSource={PRESCHOOL_ACTIVITY_FILTERS}
+              displayExpr="label"
+              valueExpr="id"
+              inputAttr={{ 'aria-label': 'Filtrera aktivitetstyper' }}
+              value={selectedActivityFilters}
+              onValueChanged={event => setSelectedActivityFilters((event.value ?? []) as ActivityFilterKind[])}
+              placeholder="Aktiviteter"
+              showSelectionControls={true}
+              showClearButton={true}
+              showDropDownButton={true}
+              maxDisplayedTags={1}
+              applyValueMode="instantly"
+              multiline={false}
+              stylingMode="outlined"
+              width={165}
+            />}
             <button
               className="btn-secondary schema-vikarie-open-btn"
               onClick={handleOpenAllSubstitutes}
@@ -4140,9 +4846,7 @@ export const Schema = ({
 
           {/* Checkboxes */}
           <div className="schema-filter-checks">
-            {isActivityTimelineScenario ? (
-              <span className="schema-staffing-focus-note">Klicka på en aktivitetsstapel för vikarie till aktiviteten, eller på tidsspannet ovanför för vikarie till hela passet. Dubbelklicka på dagen för detaljer.</span>
-            ) : <span className="schema-staffing-focus-note">Bemanning följs per aktivitet; pass och frånvaro visas som underlag.</span>}
+            {!isActivityTimelineScenario && <span className="schema-staffing-focus-note">Bemanning följs per aktivitet; pass och frånvaro visas som underlag.</span>}
             {resourceNeedPrototype && automation && (
               <label className="schema-automation-control">
                 <i className="fa-solid fa-robot" />
@@ -4150,11 +4854,12 @@ export const Schema = ({
                 <select
                   aria-label="Automatikläge"
                   value={automation.automationMode}
-                  onChange={event => automation.setAutomationMode(event.target.value as 'off' | 'always' | 'off-hours')}
+                  onChange={event => automation.setAutomationMode(event.target.value as 'off' | 'always' | 'off-hours' | 'free-then-confirm')}
                 >
                   <option value="off">Av</option>
                   <option value="always">Alltid på</option>
                   <option value="off-hours">Utanför kontorstid</option>
+                  <option value="free-then-confirm">Gratis automatiskt, fråga om kostnad</option>
                 </select>
                 <span className={`automation-status-dot ${automation.isAutomationActive ? 'active' : ''}`} title={automation.isAutomationActive ? 'Automatik aktiv' : 'Automatik av'} />
               </label>
@@ -4203,7 +4908,8 @@ export const Schema = ({
           </div>
 
           {/* Schedule table with an optional right-hand orders panel. */}
-          <div className="schema-schedule-area">
+          <div className={`schema-schedule-area${resourceNeedPrototype && showResourceNeeds ? ' schema-schedule-has-resource-needs' : ''}`}>
+          <div className="schema-schedule-main">
           <div ref={mainWrapperRef} className="schema-table-wrapper">
             <table className="schema-table" style={{ minWidth: scheduleTableMinWidth }}>
               <colgroup>
@@ -4252,6 +4958,50 @@ export const Schema = ({
               <tbody>
                 {scheduleRows.map(row => {
                   if (row.type === 'group') return renderOrganisationRow(row.group);
+                  if (row.type === 'remaining-pass') {
+                    const pass = row.pass;
+                    const isVacant = !pass.assignedSubstituteId;
+                    const passActivities = pass.activities.filter(activity => selectedActivityFilters.length === 0
+                      || selectedActivityFilters.includes(activity.kind)
+                      || selectedActivityFilters.includes('absence'));
+                    return (
+                      <tr key={pass.id} className="schema-table-row">
+                        <td className="schema-employee-cell schema-org-employee-cell" style={{ paddingLeft: 106 }}>
+                          <span className="schema-employee-name">Vakans</span>
+                          <span className="schema-employee-role">Pass kvar</span>
+                        </td>
+                        {columns.map((column, index) => {
+                          const dateStr = toDateStr(column.date);
+                          const isTargetDay = dateStr === pass.dateStr;
+                          const isPast = dateStr < TODAY_STR;
+                          return <td key={`${pass.id}-${index}`} className={[
+                            'schema-day-cell', 'schema-activity-timeline-cell',
+                            viewType === 'month-columns' ? 'schema-month-col-cell' : '',
+                            column.isWeekend ? 'schema-weekend-cell' : '',
+                            dateStr === TODAY_STR ? 'schema-today-col' : '',
+                            isTargetDay && isVacant ? 'schema-ctx-cell' : '',
+                          ].filter(Boolean).join(' ')}
+                            data-person-id={isTargetDay && isVacant ? pass.id : undefined}
+                            data-date-str={isTargetDay && isVacant ? dateStr : undefined}
+                            data-ctx-type={isTargetDay && isVacant ? 'vacant' : undefined}
+                            onDoubleClick={isTargetDay ? () => handleOpenDetail(pass.id, 'Pass kvar', pass.unit, dateStr, pass.shift, isVacant ? 'vacant' : 'filled') : undefined}>
+                            {isTargetDay && <ActivityTimelineCell
+                              shift={pass.shift}
+                              activities={passActivities}
+                              activityFills={activityFills}
+                              availability={null}
+                              vacancyLabel={pass.assignedSubstituteId ? undefined : 'Vakans'}
+                              statusLabel={pass.assignedSubstituteId ? `Tillsatt · ${pass.assignedSubstituteName ?? ''}` : undefined}
+                              assignedSubstituteName={pass.assignedSubstituteName}
+                              isPast={isPast}
+                              onPassDragOver={handleCellDragOver}
+                              onPassDrop={(event, targetShift) => handleCellDrop(event, pass.id, dateStr, targetShift)}
+                            />}
+                          </td>;
+                        })}
+                      </tr>
+                    );
+                  }
                   const emp = row.employee;
                   const subRows = viewType === 'day-columns' ? getSubRows(emp.id) : [];
                   const employeeIndex = employees.findIndex(employee => employee.id === emp.id);
@@ -4332,6 +5082,19 @@ export const Schema = ({
                           const resourceNeedOrder = resourceNeed
                             ? resourceOrders.find(order => order.id === `resource-order-${resourceNeed.id}`)
                             : undefined;
+                          const activeResourceNeedOrder = resourceNeedOrder?.status !== 'Avbruten' ? resourceNeedOrder : undefined;
+                          const activeScheduleOrder = activeResourceNeedOrder
+                            ?? (resourceNeedPrototype && resourceOrder?.status !== 'Avbruten' ? resourceOrder : undefined);
+                          const cellColor: ColorScheme = resourceNeedPrototype && ds < TODAY_STR
+                            ? 'past'
+                            : activeScheduleOrder && activeScheduleOrder.status !== 'Tillsatt'
+                              ? 'ordered'
+                              : color;
+                          const resourceNeedDisplayStatus = activeScheduleOrder?.status ?? resourceNeed?.workflowStatus ?? resourceNeed?.status;
+                          const resourceNeedHandler = activeScheduleOrder?.handledBy ?? resourceNeed?.handledBy;
+                          const scheduleStatusLabel = resourceNeed
+                            ? `${absenceCaption ?? 'Resursbehov'} · ${resourceNeedDisplayStatus ?? 'Öppet'} · ${resourceNeedHandler ?? resourceNeed.createdBy}`
+                            : resourceOrder ? `Beställning · ${resourceOrder.status} · ${resourceOrder.handledBy}` : undefined;
 
                           if (isActivityTimelineScenario && viewType !== 'year-columns') {
                             const candidateId = internalCandidateId(emp.id);
@@ -4345,8 +5108,13 @@ export const Schema = ({
                               : assignedPass?.shift
                                 ? { start: assignedPass.shift.start, end: assignedPass.shift.end, name: assignedPass.person.name }
                                 : undefined;
-                            const passFill = fills.find(fill => fill.personId === emp.id && fill.dateStr === ds);
-                            const activities = shift ? getCellActivities(emp.id, col.date) : [];
+                            const activities = shift
+                              ? getCellActivities(emp.id, col.date).filter(activity =>
+                                selectedActivityFilters.length === 0
+                                  || selectedActivityFilters.includes(activity.kind)
+                                  || (isAbsent && selectedActivityFilters.includes('absence')),
+                              )
+                              : [];
                             return (
                               <td
                                 key={ci}
@@ -4365,15 +5133,16 @@ export const Schema = ({
                               >
                                 <ActivityTimelineCell
                                   shift={shift}
-                                  color={color}
-                                  passFill={passFill}
                                   activities={activities}
                                   activityFills={activityFills}
                                   availability={selfAvailability}
                                   bookedAssignment={bookedAssignment}
                                   absenceLabel={absenceCaption}
-                                  onOpenPass={() => handleOpenVacancyPanel(emp.id, ds)}
-                                  onOpenActivity={handleOpenActivitySubstitutePanel}
+                                  vacancyLabel={resourceNeed && !isAbsent ? 'Resursbehov' : undefined}
+                                  statusLabel={scheduleStatusLabel}
+                                  assignedSubstituteName={resourceNeed?.assignedSubstituteName}
+                                  isOrdered={Boolean(activeScheduleOrder && activeScheduleOrder.status !== 'Tillsatt')}
+                                  isPast={ds < TODAY_STR}
                                   onPassDragOver={handleCellDragOver}
                                   onPassDrop={(event, targetShift) => handleCellDrop(event, emp.id, ds, targetShift)}
                                 />
@@ -4412,7 +5181,7 @@ export const Schema = ({
                                     onDragOver={handleCellDragOver}
                                     onDrop={e => handleCellDrop(e, emp.id, ds, shift)}
                                   >
-                                    <ShiftMonthCell shift={shift} color={color} passInfo={passInfo} isAkut={akut} orderedBy={resourceOrder?.orderedBy} resourceNeedMode={resourceNeedPrototype} resourceNeedCreatedBy={resourceNeed?.createdBy} resourceNeedOrderedBy={resourceNeedOrder?.orderedBy} assignmentFailure={assignmentFailures[`${emp.id}|${ds}`]} />
+                                    <ShiftMonthCell shift={shift} color={cellColor} passInfo={passInfo} isAkut={akut} orderedBy={resourceNeed ? undefined : resourceOrder?.orderedBy} orderStatus={resourceNeed ? undefined : resourceOrder?.status} orderHandledBy={resourceNeed ? undefined : resourceOrder?.handledBy} resourceNeedMode={resourceNeedPrototype} resourceNeedCreatedBy={resourceNeed?.createdBy} resourceNeedDisplayStatus={resourceNeedDisplayStatus} resourceNeedHandler={resourceNeedHandler} assignmentFailure={assignmentFailures[`${emp.id}|${ds}`]} />
                                   </div>
                                 )}
                               </td>
@@ -4453,7 +5222,7 @@ export const Schema = ({
                                   onDragOver={handleCellDragOver}
                                   onDrop={e => handleCellDrop(e, emp.id, ds, shift)}
                                 >
-                                  <ShiftDayCell shift={shift} color={color} passInfo={passInfo} isAkut={akut} orderedBy={resourceOrder?.orderedBy} resourceNeedMode={resourceNeedPrototype} resourceNeedCreatedBy={resourceNeed?.createdBy} resourceNeedOrderedBy={resourceNeedOrder?.orderedBy} assignmentFailure={assignmentFailures[`${emp.id}|${ds}`]} />
+                                  <ShiftDayCell shift={shift} color={cellColor} passInfo={passInfo} isAkut={akut} orderedBy={resourceNeed ? undefined : resourceOrder?.orderedBy} orderStatus={resourceNeed ? undefined : resourceOrder?.status} orderHandledBy={resourceNeed ? undefined : resourceOrder?.handledBy} resourceNeedMode={resourceNeedPrototype} resourceNeedCreatedBy={resourceNeed?.createdBy} resourceNeedDisplayStatus={resourceNeedDisplayStatus} resourceNeedHandler={resourceNeedHandler} assignmentFailure={assignmentFailures[`${emp.id}|${ds}`]} />
                                 </div>
                               )}
                             </td>
@@ -4502,6 +5271,7 @@ export const Schema = ({
             <span><i className="schema-activity-legend-swatch schema-activity-availability-swatch" />Tillgänglig vikarie</span>
             <span><i className="schema-activity-legend-swatch schema-activity-absence-swatch" />Frånvaro</span>
           </div>}
+          </div>
           {showOrders && <ResourceOrdersList orders={resourceOrders} onClose={() => setShowOrders(false)} onAction={handleOrderAction} onOpenDetails={setOrderDetail} onChooseSubstitute={handleOpenOrderSubstitutePanel} onShowSubstitutes={handleOpenAllSubstitutes} />}
           {resourceNeedPrototype && showResourceNeeds && <ResourceNeedsList needs={resourceNeeds} onClose={() => setShowResourceNeeds(false)} onOpenDetails={setResourceNeedDetail} onAction={handleResourceNeedAction} onDropPass={handleResourceNeedDrop} onOrderAll={handleOrderAllResourceNeeds} onAssignAll={isActivityTimelineScenario ? undefined : handleAssignAllResourceNeeds} />}
           </div>
@@ -4707,7 +5477,7 @@ export const Schema = ({
           description={orderDetail ? `${orderDetail.dateStr} · ${orderDetail.shift.start}–${orderDetail.shift.end}` : ''}
           activities={orderDetail ? orderActivities[orderDetail.id] ?? [] : []}
           includeDefaultActivities={false}
-          details={orderDetail ? <OrderDetailCard order={orderDetail} onChooseSubstitute={handleOpenOrderSubstitutePanel} onAction={handleOrderAction} onSaveTime={handleUpdateOrderTime} /> : null}
+          details={orderDetail ? <OrderDetailCard order={orderDetail} onChooseSubstitute={handleOpenOrderSubstitutePanel} onAction={handleOrderAction} onSaveTime={handleUpdateOrderTime} onTakeBack={resourceNeedPrototype ? () => handleTakeBackOrder(orderDetail.id) : undefined} /> : null}
           onSelectCandidates={orderDetail ? handleSelectOrderCandidates : undefined}
           onPostMessage={orderDetail ? activity => addOrderActivity(orderDetail.id, activity) : undefined}
         />
@@ -4719,6 +5489,27 @@ export const Schema = ({
           kicker={detailState ? `Pass ${detailState.dateStr}` : 'Pass'}
           title={detailState ? `${detailState.empName} – passdetaljer` : 'Passdetaljer'}
           description={detailState ? `${detailState.dateStr} · ${detailState.shift.start}–${detailState.shift.end}` : ''}
+          aboveToolbar={passDetailSchedule ? <div className="person-activity-schedule-panel pass-activity-schedule-panel">
+            <h4>Aktiviteter den här dagen</h4>
+            <ActivityScheduleDetail
+              schedule={passDetailSchedule}
+              activityFills={activityFills}
+              assignedSubstituteName={passDetailRemainingPass?.assignedSubstituteName ?? passDetailAssignedFill?.person.name}
+            />
+            {!passDetailAssignedFill && !passDetailRemainingPass?.assignedSubstituteId && passDetailSchedule.activities.some(activity => !activityFills[activity.id]) && <div className="schema-remaining-pass-activity-actions">
+              <strong>Tillsätt vikarie för en aktivitet</strong>
+              {passDetailSchedule.activities.filter(activity => !activityFills[activity.id]).map(activity => <button key={activity.id} type="button" className="btn-secondary" onClick={() => handleOpenScheduleActivityPanel(
+                detailState!.empId,
+                detailState!.dateStr,
+                activity,
+                passDetailRemainingPass ? 'Vakans' : detailState!.empName,
+                passDetailRemainingPass?.unit ?? employees.find(employee => employee.id === detailState!.empId)?.department ?? detailState!.empRole,
+              )}>
+                <span>{activity.label}</span>
+                <time>{activity.start}–{activity.end}</time>
+              </button>)}
+            </div>}
+          </div> : undefined}
           activities={passDetailActivities}
           includeDefaultActivities={false}
           details={detailState ? (
@@ -4733,9 +5524,8 @@ export const Schema = ({
               resourceNeedMode={resourceNeedPrototype}
               resourceNeed={passDetailResourceNeed}
               resourceNeedOrder={passDetailResourceNeedOrder}
-              assignedPerson={passDetailAssignedFill?.person}
+              assignedPerson={passDetailAssignedPerson}
               assignmentFailure={passDetailAssignmentFailure}
-              activitySchedule={passDetailSchedule}
               organisation={selectedOrganisation}
             />
           ) : null}
@@ -4751,7 +5541,7 @@ export const Schema = ({
           description={resourceNeedDetail ? `${resourceNeedDetail.dateStr} · ${resourceNeedDetail.shift.start}–${resourceNeedDetail.shift.end}` : ''}
           activities={resourceNeedDetail ? resourceNeedActivities[resourceNeedDetail.id] ?? [] : []}
           includeDefaultActivities={false}
-          details={resourceNeedDetail ? <ResourceNeedDetailCard need={resourceNeedDetail} order={resourceOrders.find(order => order.id === `resource-order-${resourceNeedDetail.id}`)} onAction={handleResourceNeedAction} /> : null}
+          details={resourceNeedDetail ? <ResourceNeedDetailCard need={resourceNeedDetail} order={resourceOrders.find(order => order.id === `resource-order-${resourceNeedDetail.id}`)} onAction={handleResourceNeedAction} onTakeBack={resourceNeedPrototype ? handleTakeBackNeed : undefined} /> : null}
           onPostMessage={resourceNeedDetail ? activity => addResourceNeedActivity(resourceNeedDetail.id, activity) : undefined}
         />
 

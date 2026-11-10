@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useMemo, useState } from 'react';
 
-export type AutomationMode = 'off' | 'always' | 'off-hours';
+export type AutomationMode = 'off' | 'always' | 'off-hours' | 'free-then-confirm';
 
 interface AutomationContextValue {
   automationMode: AutomationMode;
@@ -19,7 +19,9 @@ function isOutsideOfficeHours(): boolean {
 
 export const AutomationProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [automationMode, setAutomationMode] = useState<AutomationMode>('off');
-  const isAutomationActive = automationMode === 'always' || (automationMode === 'off-hours' && isOutsideOfficeHours());
+  const isAutomationActive = automationMode === 'always'
+    || automationMode === 'free-then-confirm'
+    || (automationMode === 'off-hours' && isOutsideOfficeHours());
   const value = useMemo(() => ({ automationMode, setAutomationMode, isAutomationActive }), [automationMode, isAutomationActive]);
   return <AutomationContext.Provider value={value}>{children}</AutomationContext.Provider>;
 };

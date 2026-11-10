@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router';
 import { useRole } from './RoleContext';
 
 /**
@@ -7,6 +8,7 @@ import { useRole } from './RoleContext';
  * with a check on the active one. Opening user settings stays on the separate user-icon button.
  */
 export const RoleSelector: React.FC = () => {
+  const navigate = useNavigate();
   const { roles, selectedRoleId, selectedRole, setSelectedRoleId, selectedOrganisation, setSelectedOrganisation } = useRole();
   const [isOpen, setIsOpen] = useState(false);
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -76,6 +78,18 @@ export const RoleSelector: React.FC = () => {
                   <span>{organisation.label}</span>
                 </button>
               ))}
+              <div className="role-selector-organisation-heading">Admin</div>
+              <button
+                className="employee-actions-item"
+                role="menuitem"
+                onClick={() => {
+                  navigate('/vikariehantering/avdelningsvy');
+                  setIsOpen(false);
+                }}
+              >
+                <i className="fa-solid fa-people-roof me-2" aria-hidden="true" />
+                <span>Bemanning på avdelningen</span>
+              </button>
             </div>
           )}
         </div>

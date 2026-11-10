@@ -6,6 +6,8 @@ import { Personer } from "./pages/Personer";
 import { Schema } from "./pages/Schema";
 import { SchemaPrototype } from "./pages/SchemaPrototype";
 import { VikarieUrvalTest } from "./pages/VikarieUrvalTest";
+import { StaffingAnalytics } from "./pages/StaffingAnalytics";
+import { DepartmentStaffingView } from "./pages/DepartmentStaffingView";
 
 export const router = createBrowserRouter([
   {
@@ -35,5 +37,13 @@ export const router = createBrowserRouter([
   {
     path: "/vikariehantering/urvalstest",
     Component: VikarieUrvalTest,
+  },
+  {
+    path: "/vikariehantering/statistik",
+    Component: StaffingAnalytics,
+  },
+  {
+    path: "/vikariehantering/avdelningsvy",
+    Component: DepartmentStaffingView,
   },
 ]);

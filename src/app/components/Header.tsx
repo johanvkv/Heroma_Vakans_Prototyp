@@ -183,6 +183,7 @@ export const Header = ({ hideCaseActivityButton = false, showAutomationControls 
                 <option value="off">Av</option>
                 <option value="always">Alltid på</option>
                 <option value="off-hours">Utanför kontorstid</option>
+                <option value="free-then-confirm">Gratis automatiskt, fråga om kostnad</option>
               </select>
               <span className={`automation-status-dot ${automation.isAutomationActive ? 'active' : ''}`} title={automation.isAutomationActive ? 'Automatik aktiv' : 'Automatik av'} />
             </div>
