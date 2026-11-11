@@ -2279,8 +2279,8 @@ function ResourceOrdersKanban({ needs, orders, orgOptions, activityKinds, select
   const activeOrderNeedIds = new Set(activeOrders
     .filter(order => order.id.startsWith('resource-order-'))
     .map(order => order.id.slice('resource-order-'.length)));
-  const openNeeds = needs.filter(need => need.status === 'Öppet' && !activeOrderNeedIds.has(need.id) && matchesBoardFilters(need.personId, need.dateStr));
-  const directlyBookedNeeds = needs.filter(need => need.status === 'Tillsatt' && !activeOrderNeedIds.has(need.id) && matchesBoardFilters(need.personId, need.dateStr));
+  const openNeeds = needs.filter(need => need.status === 'Öppet' && isAcuteNeed(need) && !activeOrderNeedIds.has(need.id) && matchesBoardFilters(need.personId, need.dateStr));
+  const directlyBookedNeeds = needs.filter(need => need.status === 'Tillsatt' && isAcuteNeed(need) && !activeOrderNeedIds.has(need.id) && matchesBoardFilters(need.personId, need.dateStr));
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>, columnId: typeof RESOURCE_ORDER_BOARD_COLUMNS[number]['id']) => {
     event.preventDefault();
@@ -2300,16 +2300,16 @@ function ResourceOrdersKanban({ needs, orders, orgOptions, activityKinds, select
     event.dataTransfer.setData('text/plain', payload);
   };
 
-  const activitySummary = (personId: string, dateStr: string) => {
+  const activitySummary = (personId: string, dateStr: string, compact = false) => {
     const activities = getActivitiesForPerson(personId, dateStr)
       .filter(activity => selectedActivities.length === 0 || selectedActivities.includes(activity.kind));
     if (activities.length === 0) return null;
     const shortLabels: Record<ActivityKind, string> = {
       pedagogical: 'Pedagogisk', outdoors: 'Utevistelse', meals: 'Måltider', rest: 'Vila',
     };
-    return <div className="schema-kanban-activities" aria-label="Aktiviteter">
+    return <div className={`schema-kanban-activities${compact ? ' schema-kanban-activities-compact' : ''}`} aria-label="Aktiviteter">
       {activities.map(activity => <span key={activity.id} className={`schema-kanban-activity schema-kanban-activity-${activity.kind}`} title={`${activity.label} · ${activity.start}–${activity.end}`}>
-        <i />{shortLabels[activity.kind]} <time>{activity.start}–{activity.end}</time>
+        <i />{shortLabels[activity.kind]} {!compact && <time>{activity.start}–{activity.end}</time>}
       </span>)}
     </div>;
   };
@@ -2323,19 +2323,22 @@ function ResourceOrdersKanban({ needs, orders, orgOptions, activityKinds, select
       onDoubleClick={() => onOpenNeed(need)}
       title="Dra behovet till Beställningar eller dubbelklicka för status och logg"
     >
-      <div className="schema-kanban-card-topline">
-        <span className="schema-kanban-kind">Resursbehov</span>
+      <div className="schema-kanban-card-topline schema-kanban-need-topline">
+        <strong className="schema-kanban-person" title={need.personName}>{need.personName}</strong>
         <span className="schema-kanban-card-badges">
           <span className={`schema-kanban-urgency${isAcuteNeed(need) ? ' is-acute' : ''}`}>{isAcuteNeed(need) ? 'Akut' : 'Ej akut'}</span>
           {isBooked && <span className="schema-kanban-status">Bokad</span>}
         </span>
       </div>
-      <strong className="schema-kanban-person">{need.personName}</strong>
-      <span className="schema-kanban-subtitle">{need.role}</span>
-      {activitySummary(need.personId, need.dateStr)}
-      <div className="schema-kanban-meta"><span>{need.dateStr}</span><span>{need.shift.start}–{need.shift.end}</span></div>
+      <div className="schema-kanban-need-info">
+        <span className="schema-kanban-subtitle" title={need.role}>{need.role}</span>
+        {activitySummary(need.personId, need.dateStr, true)}
+      </div>
+      <div className="schema-kanban-meta schema-kanban-need-meta">
+        <span>{need.dateStr} · {need.shift.start}–{need.shift.end}</span>
+        <span className="schema-kanban-need-owner" title={`Hanteras av ${need.handledBy}`}><i className="fa-solid fa-user" />{need.handledBy}</span>
+      </div>
       {isBooked && need.assignedSubstituteName && <div className="schema-kanban-assignment"><i className="fa-solid fa-circle-check" /> {need.assignedSubstituteName}</div>}
-      <div className="schema-kanban-owner"><i className="fa-solid fa-user" /> Hanteras av {need.handledBy}</div>
     </article>
   );
 
@@ -4840,8 +4843,11 @@ export const Schema = ({
       .filter(Boolean) as Array<{ key:string; name:string; role:string; dateStr:string; shift:Shift }>,
   [fills, getScheduleShift]);
 
+  const isResourceNeedAcute = useCallback((need: ResourceNeed) =>
+    need.dateStr === TODAY_STR || isAkutShift(need.personId, need.dateStr, selectedOrganisation),
+  [selectedOrganisation]);
   const resourceNeedBoardCount = resourceOrders.filter(order => order.status !== 'Avbruten').length
-    + resourceNeeds.filter(need => need.status !== 'Borttaget'
+    + resourceNeeds.filter(need => need.status !== 'Borttaget' && isResourceNeedAcute(need)
       && !resourceOrders.some(order => order.id === `resource-order-${need.id}` && order.status !== 'Avbruten')).length;
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -4866,7 +4872,7 @@ export const Schema = ({
                     activityKinds={resourceBoardActivityKinds}
                     selectedRoleId={selectedRoleId}
                     getActivitiesForPerson={(personId, dateStr) => getCellActivities(personId, parseDate(dateStr))}
-                    isAcuteNeed={need => need.dateStr === TODAY_STR || isAkutShift(need.personId, need.dateStr, selectedOrganisation)}
+                    isAcuteNeed={isResourceNeedAcute}
                     onClose={() => setActiveView('schema')}
                     onAction={handleOrderAction}
                     onOpenNeed={setResourceNeedDetail}
