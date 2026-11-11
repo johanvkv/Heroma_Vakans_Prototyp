@@ -12093,3 +12093,87 @@ input.schema-sub-checkbox:checked::after {
   .schema-kanban-board.schema-kanban-needs-hidden .schema-kanban-collapsed-needs { min-height: 44px; flex-direction: row; justify-content: center; }
   .schema-kanban-board.schema-kanban-needs-hidden .schema-kanban-collapsed-needs > span { writing-mode: initial; transform: none; }
 }
+
+/* Compact filters and need cards in the test-copy order board. */
+.schema-kanban-filters {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  min-height: 46px;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border-bottom: 1px solid #e7e3eb;
+  background: #fff;
+}
+.schema-kanban-org-filter { display: flex; align-items: center; gap: 7px; color: #5d5665; font-size: 11px; font-weight: 700; }
+.schema-kanban-org-filter select {
+  min-width: 220px;
+  max-width: min(340px, 42vw);
+  height: 30px;
+  padding: 3px 26px 3px 8px;
+  border: 1px solid #d9d4df;
+  border-radius: 3px;
+  background: #fff;
+  color: #38323f;
+  font-size: 11px;
+}
+.schema-kanban-activity-filter { position: relative; color: #514b58; font-size: 11px; }
+.schema-kanban-activity-filter > summary {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 7px;
+  padding: 0 9px;
+  border: 1px solid #d9d4df;
+  border-radius: 3px;
+  background: #fff;
+  cursor: pointer;
+  list-style: none;
+}
+.schema-kanban-activity-filter > summary::-webkit-details-marker { display: none; }
+.schema-kanban-activity-filter > summary::after { content: '\f0d7'; font: 900 10px 'Font Awesome 6 Free'; color: #746b7c; }
+.schema-kanban-activity-filter > summary span { display: inline-flex; width: 17px; height: 17px; align-items: center; justify-content: center; border-radius: 50%; background: #eeeaf5; color: #574b75; font-size: 10px; font-weight: 700; }
+.schema-kanban-activity-filter-options {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 0;
+  display: flex;
+  min-width: 220px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid #ded9e5;
+  border-radius: 4px;
+  background: #fff;
+  box-shadow: 0 6px 18px rgba(40, 32, 53, .15);
+}
+.schema-kanban-activity-filter-options label { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+.schema-kanban-activity-filter-options input { accent-color: #6752a1; }
+.schema-kanban-activity-filter-options button { align-self: flex-start; padding: 2px 0; border: 0; background: none; color: #5e4a98; font-size: 11px; text-decoration: underline; cursor: pointer; }
+.schema-kanban-filter-hint { margin-left: auto; color: #8a8490; font-size: 10px; }
+.schema-kanban-column-content { gap: 6px; padding: 7px; }
+.schema-kanban-card { gap: 4px; padding: 8px; }
+.schema-kanban-need { border-left-width: 3px; }
+.schema-kanban-card-topline { gap: 4px; }
+.schema-kanban-card-badges { display: inline-flex; align-items: center; gap: 4px; }
+.schema-kanban-urgency { flex: 0 0 auto; padding: 2px 5px; border-radius: 3px; background: #edf0f2; color: #5f6265; font-size: 9px; font-weight: 700; }
+.schema-kanban-urgency.is-acute { background: #fde6e3; color: #9d3830; }
+.schema-kanban-card-badges .schema-kanban-status { padding: 2px 5px; font-size: 9px; }
+.schema-kanban-person { font-size: 13px; }
+.schema-kanban-subtitle { font-size: 10px; }
+.schema-kanban-meta { padding-top: 4px; font-size: 10px; }
+.schema-kanban-activities { display: flex; flex-direction: column; gap: 2px; }
+.schema-kanban-activity { display: flex; min-width: 0; align-items: center; gap: 4px; overflow: hidden; color: #514b58; font-size: 9px; line-height: 1.25; white-space: nowrap; }
+.schema-kanban-activity > i { width: 6px; height: 6px; flex: 0 0 6px; border-radius: 1px; background: currentColor; }
+.schema-kanban-activity time { margin-left: auto; color: #77717d; font-variant-numeric: tabular-nums; }
+.schema-kanban-activity-pedagogical { color: #6650a2; }
+.schema-kanban-activity-outdoors { color: #39805a; }
+.schema-kanban-activity-meals { color: #a76c25; }
+.schema-kanban-activity-rest { color: #5c7694; }
+@media (max-width: 760px) {
+  .schema-kanban-filters { align-items: flex-start; flex-wrap: wrap; }
+  .schema-kanban-org-filter { align-items: flex-start; flex-direction: column; }
+  .schema-kanban-org-filter select { min-width: min(220px, 72vw); max-width: 72vw; }
+  .schema-kanban-filter-hint { display: none; }
+}

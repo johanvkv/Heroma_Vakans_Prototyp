@@ -86,6 +86,8 @@ function getScheduleTableMinWidth(viewType: ViewType, columnCount: number): numb
 interface Shift            { type: ShiftType; start: string; end: string; }
 interface EmployeeGroup    { id: string; label: string; category: 'team'|'role'|'department'|'functional'; }
 interface OrganisationGroup { id: string; label: string; kind: 'clinic'|'department'|'team'|'activity'; personIds: string[]; parentId?: string; depth?: number; }
+type ResourceBoardOrgLevel = 'education' | 'rectorate' | 'preschool' | 'team' | 'department' | 'organisation';
+interface ResourceBoardOrgOption { id: string; label: string; level: ResourceBoardOrgLevel; personIds: string[]; }
 interface ViewColumn       { date: Date; header: string; subHeader?: string; isWeekend?: boolean; }
 interface ShiftFill        { personId: string; dateStr: string; fillType: 'substitute'|'extra'; person: { name: string; role: string }; substituteId?: string; shift?: Shift; }
 interface ScheduleEmployee { id: string; name: string; role: string; organisation: string; department: string; fmgGroup: string; }
@@ -2232,9 +2234,14 @@ const RESOURCE_ORDER_BOARD_COLUMNS: Array<{
   { id: 'booked', label: 'Bokad', icon: 'fa-circle-check', status: 'Tillsatt' },
 ];
 
-function ResourceOrdersKanban({ needs, orders, onClose, onAction, onOpenNeed, onOpenOrder, onChooseSubstitute, onShowSubstitutes, onMoveNeed, onMoveOrder, onReturnOrderToNeed, onRegisterResponses, onTakeBackNeed, onTakeBackOrder }: {
+function ResourceOrdersKanban({ needs, orders, orgOptions, activityKinds, selectedRoleId, getActivitiesForPerson, isAcuteNeed, onClose, onAction, onOpenNeed, onOpenOrder, onChooseSubstitute, onShowSubstitutes, onMoveNeed, onMoveOrder, onReturnOrderToNeed, onRegisterResponses, onTakeBackOrder }: {
   needs: ResourceNeed[];
   orders: ResourceOrder[];
+  orgOptions: ResourceBoardOrgOption[];
+  activityKinds: ActivityKind[];
+  selectedRoleId: string;
+  getActivitiesForPerson: (personId: string, dateStr: string) => ScheduleActivity[];
+  isAcuteNeed: (need: ResourceNeed) => boolean;
   onClose: () => void;
   onAction: (orderId: string, action: OrderContextAction) => void;
   onOpenNeed: (need: ResourceNeed) => void;
@@ -2245,16 +2252,35 @@ function ResourceOrdersKanban({ needs, orders, onClose, onAction, onOpenNeed, on
   onMoveOrder: (orderId: string, status: ResourceOrderStatus) => void;
   onReturnOrderToNeed: (orderId: string) => void;
   onRegisterResponses: (orderId: string) => void;
-  onTakeBackNeed: (needId: string) => void;
   onTakeBackOrder: (orderId: string) => void;
 }) {
   const [needsHidden, setNeedsHidden] = useState(false);
-  const activeOrders = orders.filter(order => order.status !== 'Avbruten');
+  const [selectedOrgId, setSelectedOrgId] = useState('all');
+  const [selectedActivities, setSelectedActivities] = useState<ActivityKind[]>([]);
+  const allowedOrgLevels = useMemo<ResourceBoardOrgLevel[]>(() => selectedRoleId === 'admin'
+    ? ['education', 'rectorate', 'preschool', 'team', 'department', 'organisation']
+    : selectedRoleId === 'chef'
+      ? ['rectorate', 'preschool', 'team', 'department', 'organisation']
+      : ['preschool', 'team', 'department'], [selectedRoleId]);
+  const visibleOrgOptions = useMemo(() => orgOptions.filter(option => allowedOrgLevels.includes(option.level)), [allowedOrgLevels, orgOptions]);
+  useEffect(() => {
+    if (selectedOrgId !== 'all' && !visibleOrgOptions.some(option => option.id === selectedOrgId)) setSelectedOrgId('all');
+  }, [selectedOrgId, visibleOrgOptions]);
+  useEffect(() => {
+    setSelectedActivities(current => current.filter(kind => activityKinds.includes(kind)));
+  }, [activityKinds]);
+  const selectedOrg = visibleOrgOptions.find(option => option.id === selectedOrgId);
+  const matchesBoardFilters = (personId: string, dateStr: string) => {
+    if (selectedOrg && !selectedOrg.personIds.includes(personId)) return false;
+    if (selectedActivities.length > 0 && !getActivitiesForPerson(personId, dateStr).some(activity => selectedActivities.includes(activity.kind))) return false;
+    return true;
+  };
+  const activeOrders = orders.filter(order => order.status !== 'Avbruten' && matchesBoardFilters(order.personId, order.dateStr));
   const activeOrderNeedIds = new Set(activeOrders
     .filter(order => order.id.startsWith('resource-order-'))
     .map(order => order.id.slice('resource-order-'.length)));
-  const openNeeds = needs.filter(need => need.status === 'Öppet' && !activeOrderNeedIds.has(need.id));
-  const directlyBookedNeeds = needs.filter(need => need.status === 'Tillsatt' && !activeOrderNeedIds.has(need.id));
+  const openNeeds = needs.filter(need => need.status === 'Öppet' && !activeOrderNeedIds.has(need.id) && matchesBoardFilters(need.personId, need.dateStr));
+  const directlyBookedNeeds = needs.filter(need => need.status === 'Tillsatt' && !activeOrderNeedIds.has(need.id) && matchesBoardFilters(need.personId, need.dateStr));
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>, columnId: typeof RESOURCE_ORDER_BOARD_COLUMNS[number]['id']) => {
     event.preventDefault();
@@ -2274,28 +2300,42 @@ function ResourceOrdersKanban({ needs, orders, onClose, onAction, onOpenNeed, on
     event.dataTransfer.setData('text/plain', payload);
   };
 
+  const activitySummary = (personId: string, dateStr: string) => {
+    const activities = getActivitiesForPerson(personId, dateStr)
+      .filter(activity => selectedActivities.length === 0 || selectedActivities.includes(activity.kind));
+    if (activities.length === 0) return null;
+    const shortLabels: Record<ActivityKind, string> = {
+      pedagogical: 'Pedagogisk', outdoors: 'Utevistelse', meals: 'Måltider', rest: 'Vila',
+    };
+    return <div className="schema-kanban-activities" aria-label="Aktiviteter">
+      {activities.map(activity => <span key={activity.id} className={`schema-kanban-activity schema-kanban-activity-${activity.kind}`} title={`${activity.label} · ${activity.start}–${activity.end}`}>
+        <i />{shortLabels[activity.kind]} <time>{activity.start}–{activity.end}</time>
+      </span>)}
+    </div>;
+  };
+
   const renderNeedCard = (need: ResourceNeed, isBooked = false) => (
     <article
       key={need.id}
-      className={`schema-kanban-card schema-kanban-need schema-kanban-need-${need.source === 'frånvaro' ? 'absence' : 'extra'}${isBooked ? ' schema-kanban-order-booked' : ''}`}
+      className={`schema-kanban-card schema-kanban-need${isBooked ? ' schema-kanban-order-booked' : ''}`}
       draggable={!isBooked}
       onDragStart={isBooked ? undefined : event => handleDragStart(event, `need:${need.id}`)}
       onDoubleClick={() => onOpenNeed(need)}
       title="Dra behovet till Beställningar eller dubbelklicka för status och logg"
     >
       <div className="schema-kanban-card-topline">
-        <span className="schema-kanban-kind">{need.source === 'frånvaro' ? 'Frånvaro' : 'Extraresurs'}</span>
-        <span className="schema-kanban-status">{isBooked ? 'Bokad' : 'Resursbehov'}</span>
+        <span className="schema-kanban-kind">Resursbehov</span>
+        <span className="schema-kanban-card-badges">
+          <span className={`schema-kanban-urgency${isAcuteNeed(need) ? ' is-acute' : ''}`}>{isAcuteNeed(need) ? 'Akut' : 'Ej akut'}</span>
+          {isBooked && <span className="schema-kanban-status">Bokad</span>}
+        </span>
       </div>
       <strong className="schema-kanban-person">{need.personName}</strong>
-      <span className="schema-kanban-subtitle">{need.role}{need.reason ? ` · ${need.reason}` : ''}</span>
+      <span className="schema-kanban-subtitle">{need.role}</span>
+      {activitySummary(need.personId, need.dateStr)}
       <div className="schema-kanban-meta"><span>{need.dateStr}</span><span>{need.shift.start}–{need.shift.end}</span></div>
       {isBooked && need.assignedSubstituteName && <div className="schema-kanban-assignment"><i className="fa-solid fa-circle-check" /> {need.assignedSubstituteName}</div>}
       <div className="schema-kanban-owner"><i className="fa-solid fa-user" /> Hanteras av {need.handledBy}</div>
-      {!isBooked && <div className="schema-kanban-card-actions">
-        <button className="btn-primary" onClick={event => { event.stopPropagation(); onMoveNeed(need.id, 'Beställd'); }}><i className="fa-solid fa-cart-shopping" /> Beställ</button>
-        {need.handledBy !== 'Maja Andersson' && <button className="btn-secondary" onClick={event => { event.stopPropagation(); onTakeBackNeed(need.id); }}>Ta tillbaka</button>}
-      </div>}
     </article>
   );
 
@@ -2326,6 +2366,7 @@ function ResourceOrdersKanban({ needs, orders, onClose, onAction, onOpenNeed, on
         </div>
         <strong className="schema-kanban-person">{order.personName}</strong>
         <span className="schema-kanban-subtitle">{order.role}</span>
+        {activitySummary(order.personId, order.dateStr)}
         <div className="schema-kanban-meta"><span>{order.dateStr}</span><span>{order.shift.start}–{order.shift.end}</span></div>
         {order.acceptedSubstituteId && <div className="schema-kanban-assignment"><i className="fa-solid fa-circle-check" /> {SUBSTITUTE_CANDIDATES.find(candidate => candidate.id === order.acceptedSubstituteId)?.name ?? 'Vikarie bokad'}</div>}
         <div className="schema-kanban-owner"><i className="fa-solid fa-user" /> Hanteras av {order.handledBy}</div>
@@ -2342,13 +2383,41 @@ function ResourceOrdersKanban({ needs, orders, onClose, onAction, onOpenNeed, on
       <div className="schema-orders-list-header">
         <div>
           <h2>Beställningar</h2>
-          <p>Följ resursbehov från registrering till bokning. Dubbelklicka på ett kort för loggen.</p>
+          <p>Följ resursbehov från registrering till bokning. Dubbelklicka på ett kort för status och logg.</p>
         </div>
         <div className="schema-orders-header-actions">
           {onShowSubstitutes && <button className="btn-secondary schema-vikarie-open-btn" onClick={onShowSubstitutes}><i className="fa-solid fa-user-group" /> Visa vikarier</button>}
           <span className="schema-orders-count">{openNeeds.length + activeOrders.length + directlyBookedNeeds.length}</span>
           <button className="schema-orders-close" onClick={onClose} aria-label="Stäng beställningar"><i className="fa-solid fa-xmark" /></button>
         </div>
+      </div>
+      <div className="schema-kanban-filters">
+        <label className="schema-kanban-org-filter">Organisation
+          <select value={selectedOrgId} onChange={event => setSelectedOrgId(event.currentTarget.value)}>
+            <option value="all">Alla organisationer</option>
+            {(['education', 'rectorate', 'preschool', 'team', 'department', 'organisation'] as ResourceBoardOrgLevel[]).map(level => {
+              const levelOptions = visibleOrgOptions.filter(option => option.level === level);
+              if (levelOptions.length === 0) return null;
+              const levelLabels: Record<ResourceBoardOrgLevel, string> = {
+                education: 'Förvaltning', rectorate: 'Rektorsområde', preschool: 'Förskola', team: 'Team', department: 'Avdelning', organisation: 'Organisation',
+              };
+              return <optgroup key={level} label={levelLabels[level]}>{levelOptions.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}</optgroup>;
+            })}
+          </select>
+        </label>
+        {activityKinds.length > 0 && <details className="schema-kanban-activity-filter">
+          <summary>Aktiviteter{selectedActivities.length > 0 && <span>{selectedActivities.length}</span>}</summary>
+          <div className="schema-kanban-activity-filter-options">
+            {activityKinds.map(kind => (
+              <label key={kind}><input type="checkbox" checked={selectedActivities.includes(kind)} onChange={event => {
+                const checked = event.currentTarget.checked;
+                setSelectedActivities(current => checked ? [...current, kind] : current.filter(item => item !== kind));
+              }} />{PRESCHOOL_ACTIVITY_TYPES[kind].label}</label>
+            ))}
+            {selectedActivities.length > 0 && <button type="button" onClick={() => setSelectedActivities([])}>Rensa</button>}
+          </div>
+        </details>}
+        <span className="schema-kanban-filter-hint">Filter följer den valda rollen</span>
       </div>
       <div className={`schema-kanban-board${needsHidden ? ' schema-kanban-needs-hidden' : ''}`}>
         {RESOURCE_ORDER_BOARD_COLUMNS.map(column => {
@@ -2554,7 +2623,7 @@ export const Schema = ({
 }: SchemaProps) => {
   const navigateTo = useNavigate();
   const automation = useOptionalAutomation();
-  const { selectedOrganisation } = useRole();
+  const { selectedOrganisation, selectedRoleId } = useRole();
   const isActivityTimelineScenario = selectedOrganisation === 'schoolTimeline';
   const breadcrumbItems: BreadcrumbItem[] = [
     { label: 'Heroma', href: '/' },
@@ -3234,6 +3303,44 @@ export const Schema = ({
     }
     return result;
   }, [employees, filteredEmployees, isActivityTimelineScenario, selectedOrganisation]);
+
+  const resourceBoardOrgOptions = useMemo<ResourceBoardOrgOption[]>(() => {
+    const allPersonIds = employees.map(employee => employee.id);
+    const options: ResourceBoardOrgOption[] = [];
+    if (selectedOrganisation === 'clinic') {
+      options.push({ id: ORGANISATION.clinic.id, label: ORGANISATION.clinic.label, level: 'organisation', personIds: allPersonIds });
+      ORGANISATION.departments.forEach((department, departmentIndex) => {
+        const departmentMembers = employees.slice(departmentIndex * 10, (departmentIndex + 1) * 10).map(employee => employee.id);
+        options.push({ id: department.id, label: department.label, level: 'department', personIds: departmentMembers });
+        [0, 1].forEach(teamIndex => options.push({
+          id: `${department.id}-team-${teamIndex + 1}`,
+          label: `Team ${teamIndex + 1}`,
+          level: 'team',
+          personIds: employees.slice(departmentIndex * 10 + teamIndex * 5, departmentIndex * 10 + (teamIndex + 1) * 5).map(employee => employee.id),
+        }));
+      });
+    } else {
+      options.push({ id: 'education-administration', label: 'Utbildningsförvaltningen', level: 'education', personIds: allPersonIds });
+      options.push({ id: SCHOOL_ORGANISATION.id, label: SCHOOL_ORGANISATION.label, level: 'rectorate', personIds: allPersonIds });
+      SCHOOL_ORGANISATION.preschools.forEach((preschool, preschoolIndex) => {
+        const preschoolMembers = employees.slice(preschoolIndex * 10, (preschoolIndex + 1) * 10).map(employee => employee.id);
+        options.push({ id: preschool.id, label: preschool.label, level: 'preschool', personIds: preschoolMembers });
+        preschool.departments.forEach((departmentLabel, departmentIndex) => {
+          const groupIndex = preschoolIndex * 2 + departmentIndex;
+          options.push({
+            id: `${preschool.id}-avdelning-${departmentIndex + 1}`,
+            label: `Avdelning ${departmentLabel}`,
+            level: 'department',
+            personIds: employees.slice(groupIndex * 5, (groupIndex + 1) * 5).map(employee => employee.id),
+          });
+        });
+      });
+    }
+    return options;
+  }, [employees, selectedOrganisation]);
+  const resourceBoardActivityKinds = useMemo<ActivityKind[]>(() =>
+    isActivityTimelineScenario ? Object.keys(PRESCHOOL_ACTIVITY_TYPES) as ActivityKind[] : [],
+  [isActivityTimelineScenario]);
 
   const [collapsedGroups, setCollapsedGroups] = useState<string[]>([]);
   useEffect(() => {
@@ -4755,6 +4862,11 @@ export const Schema = ({
                 ? <ResourceOrdersKanban
                     needs={resourceNeeds}
                     orders={resourceOrders}
+                    orgOptions={resourceBoardOrgOptions}
+                    activityKinds={resourceBoardActivityKinds}
+                    selectedRoleId={selectedRoleId}
+                    getActivitiesForPerson={(personId, dateStr) => getCellActivities(personId, parseDate(dateStr))}
+                    isAcuteNeed={need => need.dateStr === TODAY_STR || isAkutShift(need.personId, need.dateStr, selectedOrganisation)}
                     onClose={() => setActiveView('schema')}
                     onAction={handleOrderAction}
                     onOpenNeed={setResourceNeedDetail}
@@ -4765,7 +4877,6 @@ export const Schema = ({
                     onMoveOrder={handleMoveOrderOnBoard}
                     onReturnOrderToNeed={handleReturnOrderToNeed}
                     onRegisterResponses={handleRegisterOrderResponses}
-                    onTakeBackNeed={handleTakeBackNeed}
                     onTakeBackOrder={handleTakeBackOrder}
                   />
                 : <ResourceOrdersList orders={resourceOrders} onClose={() => setActiveView('schema')} onAction={handleOrderAction} onOpenDetails={setOrderDetail} onChooseSubstitute={handleOpenOrderSubstitutePanel} onShowSubstitutes={handleOpenAllSubstitutes} />}
