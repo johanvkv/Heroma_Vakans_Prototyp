@@ -57,6 +57,13 @@
     "_new": true,
     "_overviewCards": []
   },
+  "Vikariehantering": {
+    "_id": "vikariehantering-app",
+    "_icon": "fa-person-circle-check",
+    "_new": true,
+    "_overviewCards": [],
+    "Vikariehantering": { "options": ["Schema", "Inställningar"] }
+  },
   "Testa urval": {
     "_id": "vikariehantering",
     "_icon": "fa-user-clock",

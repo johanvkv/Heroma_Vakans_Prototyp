@@ -300,7 +300,13 @@ export const MegaMenu: React.FC<MegaMenuProps> = ({ isOpen, onClose, searchQuery
 
   // Handle search result item click
   const handleSearchItemClick = (itemText: string) => {
-    if (itemText === 'Zooma in') {
+    if (itemText === 'Schema' && selectedMenu === 'vikariehantering-app') {
+      navigate('/vikariehantering/schema');
+      onClose();
+    } else if (itemText === 'Inställningar' && selectedMenu === 'vikariehantering-app') {
+      navigate('/vikariehantering/installningar');
+      onClose();
+    } else if (itemText === 'Zooma in') {
       // Enable zoom in accessibility
       document.documentElement.classList.add('accessibility-zoom');
       onClose(); // Close mega menu

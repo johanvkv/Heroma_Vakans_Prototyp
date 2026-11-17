@@ -12,9 +12,10 @@ export interface Role {
 }
 
 export const ROLES: Role[] = [
+  { id: 'medarbetare', label: 'Medarbetare' },
+  { id: 'bestallare', label: 'Beställare' },
+  { id: 'bemannare', label: 'Bemannare' },
   { id: 'admin', label: 'Admin' },
-  { id: 'anstalld', label: 'Anställd' },
-  { id: 'chef', label: 'Chef' },
 ];
 
 /** Admin is pre-selected. */

@@ -8,6 +8,9 @@ import { SchemaPrototype } from "./pages/SchemaPrototype";
 import { VikarieUrvalTest } from "./pages/VikarieUrvalTest";
 import { StaffingAnalytics } from "./pages/StaffingAnalytics";
 import { DepartmentStaffingView } from "./pages/DepartmentStaffingView";
+import { VikariehanteringSchema } from "./pages/VikariehanteringSchema";
+import { VikariehanteringSettings } from "./pages/VikariehanteringSettings";
+import { AutomationProvider } from "./components/AutomationContext";
 
 export const router = createBrowserRouter([
   {
@@ -33,6 +36,14 @@ export const router = createBrowserRouter([
   {
     path: "/tid/schema-prototyp",
     Component: SchemaPrototype,
+  },
+  {
+    path: "/vikariehantering/schema",
+    Component: VikariehanteringSchema,
+  },
+  {
+    path: "/vikariehantering/installningar",
+    Component: () => <AutomationProvider><VikariehanteringSettings /></AutomationProvider>,
   },
   {
     path: "/vikariehantering/urvalstest",
