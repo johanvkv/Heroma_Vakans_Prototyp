@@ -12421,7 +12421,9 @@ input.schema-sub-checkbox:checked::after {
 .schema-kanban-need-owner { min-width: 0; overflow: hidden; color: #726b79; text-overflow: ellipsis; white-space: nowrap; }
 .schema-kanban-need-owner i { margin-right: 3px; color: #82769e; }
 .schema-kanban-urgency-filter { display: flex; align-items: center; gap: 7px; color: #5d5665; font-size: 11px; font-weight: 700; }
-.schema-kanban-urgency-filter select {
+.schema-kanban-time-window-filter { display: flex; align-items: center; gap: 7px; color: #5d5665; font-size: 11px; font-weight: 700; }
+.schema-kanban-urgency-filter select,
+.schema-kanban-time-window-filter select {
   min-width: 105px;
   height: 30px;
   padding: 3px 24px 3px 8px;
@@ -12462,6 +12464,7 @@ input.schema-sub-checkbox:checked::after {
 .schema-kanban-linked-need .schema-kanban-need-owner i { margin-right: 3px; color: #82769e; }
 @media (max-width: 760px) {
   .schema-kanban-urgency-filter { align-items: flex-start; flex-direction: column; }
+  .schema-kanban-time-window-filter { align-items: flex-start; flex-direction: column; }
 }
 .schema-activity-resource-status-caption { color: #555f58; }
 
@@ -12716,10 +12719,10 @@ input.schema-sub-checkbox:checked::after {
   border-radius: 0;
 }
 .schema-page-hospital .schema-sub-panel-preschool .schema-sub-bar24-blocked-unavailable {
-  background: repeating-linear-gradient(135deg, rgba(255, 244, 190, .97) 0, rgba(255, 244, 190, .97) 5px, #d9ad32 5px, #d9ad32 7px);
+  background: repeating-linear-gradient(135deg, rgba(255, 222, 226, .97) 0, rgba(255, 222, 226, .97) 5px, #d96873 5px, #d96873 7px);
 }
 .schema-page-hospital .schema-sub-panel-preschool .schema-sub-bar24-blocked-rest {
-  background: repeating-linear-gradient(135deg, rgba(255, 222, 226, .97) 0, rgba(255, 222, 226, .97) 5px, #d96873 5px, #d96873 7px);
+  background: repeating-linear-gradient(135deg, rgba(255, 244, 190, .97) 0, rgba(255, 244, 190, .97) 5px, #d9ad32 5px, #d9ad32 7px);
 }
 .schema-page-hospital .schema-sub-panel-preschool .schema-sub-bar24-empty { background: transparent; }
 .schema-page-hospital .schema-sub-panel-preschool .schema-sub-avail-time,
@@ -12883,8 +12886,8 @@ input.schema-sub-checkbox:checked::after {
 .schema-page-hospital .schema-sub-availability-legend > span { display: inline-flex; align-items: center; gap: 4px; }
 .schema-page-hospital .schema-sub-availability-legend i { display: inline-block; width: 17px; height: 10px; border: 0; border-radius: 2px; }
 .schema-page-hospital .schema-sub-availability-legend-available { background: repeating-linear-gradient(135deg, #d5f1e2 0, #d5f1e2 5px, #3e9b69 5px, #3e9b69 7px); }
-.schema-page-hospital .schema-sub-availability-legend-unavailable { background: repeating-linear-gradient(135deg, #fff4be 0, #fff4be 5px, #d9ad32 5px, #d9ad32 7px); }
-.schema-page-hospital .schema-sub-availability-legend-rest { background: repeating-linear-gradient(135deg, #ffdee2 0, #ffdee2 5px, #d96873 5px, #d96873 7px); }
+.schema-page-hospital .schema-sub-availability-legend-unavailable { background: repeating-linear-gradient(135deg, #ffdee2 0, #ffdee2 5px, #d96873 5px, #d96873 7px); }
+.schema-page-hospital .schema-sub-availability-legend-rest { background: repeating-linear-gradient(135deg, #fff4be 0, #fff4be 5px, #d9ad32 5px, #d9ad32 7px); }
 
 .schema-page-hospital .schema-resource-needs-list.schema-schedule-area { grid-template-columns: minmax(0, 1fr) minmax(420px, 470px); }
 .schema-page-hospital .schema-resource-need-type-cell,
@@ -12914,4 +12917,425 @@ input.schema-sub-checkbox:checked::after {
 @media (max-width: 600px) {
   .schema-page-hospital .schema-schedule-toolbar-controls { width: 100%; flex-wrap: wrap; }
   .schema-page-hospital .schema-period-label { min-width: 0; flex: 1; }
+}
+
+/* Keep hospital shift graphics compact, with captions stacked directly beneath them. */
+.schema-page-hospital .schema-activity-timeline {
+  height: auto;
+  min-height: 48px;
+  padding: 2px 0 4px;
+  background: none;
+}
+.schema-page-hospital .schema-activity-lanes { min-height: 26px; height: 26px; }
+.schema-page-hospital .schema-activity-bar {
+  top: 2px;
+  height: 21px;
+  padding: 0 4px;
+  border: 0 !important;
+  outline: 0 !important;
+  border-radius: 0;
+  box-shadow: none !important;
+  line-height: 21px;
+}
+.schema-page-hospital .schema-activity-bar-start-cap { border-radius: 3px 0 0 3px; }
+.schema-page-hospital .schema-activity-bar-end-cap { border-radius: 0 3px 3px 0; }
+.schema-page-hospital .schema-activity-bar-start-cap.schema-activity-bar-end-cap { border-radius: 3px; }
+.schema-page-hospital .schema-activity-bar-carry { border-radius: 0 3px 3px 0; }
+.schema-page-hospital .schema-activity-availability-window {
+  top: 2px;
+  bottom: auto;
+  height: 21px;
+  border-radius: 0;
+}
+.schema-page-hospital .schema-activity-captions-hospital {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 1px;
+  text-align: center;
+}
+.schema-page-hospital .schema-activity-total-time {
+  margin: 0;
+  color: #434957;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 13px;
+  text-align: center;
+}
+.schema-page-hospital .schema-activity-assignment-caption,
+.schema-page-hospital .schema-activity-event-caption {
+  display: block;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: #68717e;
+  font-size: 8px;
+  font-weight: 500;
+  line-height: 10px;
+  text-align: center;
+}
+.schema-page-hospital .schema-activity-assignment-caption { color: #34764e; font-weight: 650; }
+.schema-page-hospital .schema-activity-resource-need-caption,
+.schema-page-hospital .schema-activity-absence-caption {
+  margin-top: 1px;
+  font-size: 8px;
+  line-height: 10px;
+  text-align: center;
+}
+.schema-page-hospital .schema-activity-legend-top {
+  padding: 2px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #7f8490;
+  font-size: 9px;
+  opacity: .78;
+}
+.schema-page-hospital .schema-activity-legend-top .schema-activity-legend-swatch { width: 9px; height: 6px; }
+.schema-page-hospital .schema-today-header .schema-col-main,
+.schema-page-hospital .schema-today-header .schema-col-sub,
+.schema-page-hospital .schema-today-header .schema-col-staffing-count,
+.schema-page-hospital .schema-today-header .schema-col-staffing-count i { color: #fff; }
+.schema-page-hospital .schema-preschool-employee-cell .schema-employee-identity { gap: 6px; }
+
+/* The candidate rows use the same height, time captions and proportional bars. */
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-availability-hitarea {
+  height: 48px;
+  min-height: 48px;
+  padding: 0;
+}
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-bar24-wrap {
+  inset: 2px 0 auto;
+  height: 21px;
+  overflow: visible;
+  border-radius: 0;
+  background: transparent;
+}
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-bar24-fill,
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-bar24-booked {
+  top: 0;
+  height: 21px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-bar24-part-whole { border-radius: 3px; }
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-bar24-part-start { border-radius: 3px 0 0 3px; }
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-bar24-part-carry { border-radius: 0 3px 3px 0; }
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-bar24-blocked {
+  top: 0;
+  bottom: auto;
+  height: 21px;
+  border: 0;
+  border-radius: 0;
+}
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-cell-time {
+  position: absolute;
+  top: 25px;
+  right: 0;
+  left: 0;
+  display: block;
+  overflow: hidden;
+  color: #46505d;
+  font-size: 9px;
+  font-weight: 650;
+  line-height: 12px;
+  text-align: center;
+  text-overflow: clip;
+  white-space: nowrap;
+}
+
+.schema-page-hospital .schema-sub-stage-one-checkbox {
+  flex: 0 0 auto;
+  min-height: 32px;
+  padding: 4px 7px;
+  white-space: nowrap;
+}
+.schema-page-hospital .schema-sub-category-filter-portal {
+  position: fixed;
+  z-index: 20000;
+  box-sizing: border-box;
+  max-height: min(250px, calc(100vh - 16px));
+}
+.schema-page-hospital .schema-resource-needs-list { position: relative; }
+.schema-page-hospital .schema-resource-needs-list:has(.schema-resource-needs-drop-hint) { min-height: 160px; }
+.schema-sub-category-filter-portal {
+  position: fixed !important;
+  z-index: 20000 !important;
+  box-sizing: border-box;
+  max-height: min(250px, calc(100vh - 16px));
+}
+
+/* Round only the outer shift edges; keep midnight joins flush across day cells. */
+.schema-page-hospital .schema-activity-bar-overflow-start,
+.schema-page-hospital .schema-activity-bar-carry { border-radius: 0; }
+.schema-page-hospital .schema-activity-bar-start-cap { border-radius: 5px 0 0 5px; }
+.schema-page-hospital .schema-activity-bar-end-cap { border-radius: 0 5px 5px 0; }
+.schema-page-hospital .schema-activity-bar-start-cap.schema-activity-bar-end-cap { border-radius: 5px; }
+.schema-page-hospital td.schema-activity-timeline-cell:has(.schema-activity-bar-overflow-start),
+.schema-page-hospital td.schema-activity-timeline-cell:has(.schema-activity-bar-carry) {
+  position: relative;
+  z-index: 5;
+}
+
+/* Historical candidate shifts and availability follow the muted schedule treatment. */
+.schema-page-hospital .schema-sub-past-cell .schema-sub-bar24-wrap {
+  filter: grayscale(1);
+}
+.schema-page-hospital .schema-sub-past-cell.schema-sub-booked-cell { background: #f0f0f0 !important; }
+.schema-page-hospital td.schema-sub-avail-cell:has(.schema-sub-bar24-part-carry) { position: relative; z-index: 4; }
+.schema-page-hospital .schema-sub-past-cell .schema-sub-cell-time { color: #aaa; }
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-bar24-past-booked { background: #aaa !important; opacity: 1; }
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-blocked-time-label {
+  position: absolute;
+  top: 37px;
+  right: 2px;
+  left: 2px;
+  display: block !important;
+  overflow: hidden;
+  color: #aa585e;
+  font-size: 8px;
+  line-height: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-avail-empty {
+  right: auto;
+  bottom: auto;
+  top: 25px;
+  left: 3px;
+  padding: 0;
+  background: transparent;
+  font-size: 9px;
+}
+
+/* Resource need activities are compact three-letter color tiles. */
+.schema-page-hospital .schema-resource-need-activities { display: flex; flex-wrap: wrap; gap: 3px; }
+.schema-page-hospital .schema-resource-need-activity {
+  display: inline-flex;
+  width: 22px;
+  height: 20px;
+  min-width: 22px;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  font-size: 7px;
+  font-weight: 750;
+  line-height: 1;
+  text-align: center;
+}
+.schema-page-hospital .schema-resource-need-pass-cell .schema-resource-need-activities { gap: 4px; }
+.schema-page-hospital .schema-activity-resource-need-caption { font-size: 10px; line-height: 12px; }
+.schema-page-hospital .schema-resource-needs-list .schema-orders-list-header h2 i { margin-right: 6px; color: #5942a2; }
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-bar24-booked.schema-sub-bar24-part-whole { border-radius: 5px; }
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-bar24-booked.schema-sub-bar24-part-start { border-radius: 5px 0 0 5px; }
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-bar24-booked.schema-sub-bar24-part-carry { border-radius: 0 5px 5px 0; }
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-bar24-wrap {
+  inset: 2px 0 auto !important;
+  height: 21px !important;
+  min-height: 21px !important;
+  overflow: visible;
+}
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-bar24-fill,
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-bar24-booked {
+  top: 0 !important;
+  height: 21px !important;
+  min-height: 21px !important;
+}
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-bar24-fill:not(.schema-sub-bar24-booked) { border-radius: 0; }
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-bar24-booked.schema-sub-bar24-part-whole { border-radius: 5px; }
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-bar24-booked.schema-sub-bar24-part-start { border-radius: 5px 0 0 5px; }
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-bar24-booked.schema-sub-bar24-part-carry { border-radius: 0 5px 5px 0; }
+.schema-page-hospital .schema-activity-bar-past { filter: grayscale(1); opacity: .58; }
+
+/* Event captions can make one day cell taller; keep every day's bar on the same top baseline. */
+.schema-page-hospital td.schema-activity-timeline-cell {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  vertical-align: top !important;
+}
+.schema-page-hospital td.schema-sub-avail-cell {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  vertical-align: top !important;
+}
+
+.schema-page-hospital .schema-activity-time-line {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.schema-page-hospital .schema-activity-time-line .schema-activity-total-time { display: inline-block; }
+.schema-page-hospital .schema-activity-time-line .schema-activity-resource-need-caption {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  color: #c62828;
+  font-size: 10px;
+  line-height: 12px;
+}
+.schema-page-hospital .schema-activity-resource-status-caption {
+  margin-top: 1px;
+  color: #555f58;
+  font-size: 8px;
+  font-weight: 700;
+  line-height: 10px;
+  text-align: center;
+}
+.schema-page-hospital .schema-activity-resource-status-filled {
+  padding: 1px 5px;
+  border-radius: 10px;
+  background: #e1f1e6;
+  color: #2f704a;
+}
+.schema-page-hospital .schema-resource-need-row-filled td:first-child {
+  border-left-color: #39805a;
+  color: #707784;
+}
+.schema-page-hospital .schema-resource-need-row-filled .schema-resource-need-kind {
+  color: #2f704a;
+}
+.schema-page-hospital .schema-resource-need-status-cell .schema-resource-need-status-filled {
+  background: #e1f1e6;
+  color: #2f704a;
+}
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-availability-hitarea {
+  height: auto !important;
+  min-height: 48px !important;
+  overflow: visible;
+}
+.schema-page-hospital .schema-sub-panel-preschool .schema-activity-timeline-candidate {
+  box-sizing: border-box;
+  min-height: 48px;
+  padding: 2px 0 4px;
+  background: none;
+}
+.schema-page-hospital .schema-sub-panel-preschool .schema-activity-timeline-candidate .schema-activity-lanes {
+  height: 26px;
+  min-height: 26px;
+}
+.schema-page-hospital .schema-sub-panel-preschool .schema-activity-timeline-candidate .schema-activity-row {
+  height: 25px;
+  min-height: 25px;
+}
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-candidate-booking-bar { background: #2e7d32; }
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-candidate-timeline .schema-activity-bar { height: 21px; }
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-candidate-timeline .schema-activity-availability-window {
+  height: 21px;
+  border-radius: 5px;
+}
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-candidate-availability-start { border-radius: 5px 0 0 5px; }
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-candidate-availability-carry {
+  z-index: 2;
+  border-radius: 0 5px 5px 0;
+}
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-candidate-blocked-layer {
+  position: absolute;
+  z-index: 6;
+  top: 2px;
+  right: 0;
+  left: 0;
+  height: 21px;
+  pointer-events: none;
+}
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-candidate-blocked-layer .schema-sub-bar24-blocked {
+  top: 0 !important;
+  height: 21px !important;
+  min-height: 21px !important;
+  border: 0;
+  border-radius: 5px;
+  pointer-events: none;
+}
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-candidate-timeline .schema-activity-captions-hospital,
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-candidate-timeline .schema-activity-total-time {
+  width: 100%;
+  text-align: center;
+}
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-candidate-unavailable-caption {
+  color: #68717e;
+  font-size: 9px;
+  line-height: 13px;
+}
+.schema-page-hospital .schema-sub-panel-preschool .schema-sub-candidate-blocked-label {
+  color: #a84a52;
+}
+.schema-page-hospital .schema-sub-past-cell { opacity: 1; }
+.schema-page-hospital .schema-resource-needs-filters {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr) minmax(0, 1fr);
+  gap: 8px;
+  min-height: 0;
+  padding: 8px 12px;
+}
+.schema-page-hospital .schema-resource-needs-filters .schema-kanban-org-filter,
+.schema-page-hospital .schema-resource-needs-filters .schema-kanban-urgency-filter,
+.schema-page-hospital .schema-resource-needs-filters .schema-kanban-time-window-filter {
+  display: flex;
+  min-width: 0;
+  align-items: stretch;
+  flex-direction: column;
+  gap: 3px;
+}
+.schema-page-hospital .schema-resource-needs-filters select {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+}
+.schema-page-hospital .schema-resource-needs-filters + .schema-resource-needs-drop-hint { margin-top: 8px; }
+@media (max-width: 600px) {
+  .schema-page-hospital .schema-resource-needs-filters { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Keep every candidate time mark at the same 21px visual height. */
+.schema-sub-panel-preschool .schema-activity-timeline-candidate .schema-activity-bar,
+.schema-sub-panel-preschool .schema-activity-timeline-candidate .schema-sub-candidate-booking-bar,
+.schema-sub-panel-preschool .schema-activity-timeline-candidate .schema-activity-availability-window,
+.schema-sub-panel-preschool .schema-activity-timeline-candidate .schema-sub-candidate-blocked-layer,
+.schema-sub-panel-preschool .schema-activity-timeline-candidate .schema-sub-candidate-blocked-layer .schema-sub-bar24-blocked {
+  box-sizing: border-box;
+  height: 21px !important;
+  min-height: 21px !important;
+}
+.schema-sub-panel-preschool .schema-activity-timeline-candidate .schema-activity-bar-start-cap { border-radius: 5px 0 0 5px; }
+.schema-sub-panel-preschool .schema-activity-timeline-candidate .schema-activity-bar-end-cap { border-radius: 0 5px 5px 0; }
+.schema-sub-panel-preschool .schema-activity-timeline-candidate .schema-activity-bar-start-cap.schema-activity-bar-end-cap { border-radius: 5px; }
+.schema-sub-panel-preschool .schema-activity-timeline-candidate .schema-activity-bar-carry { border-radius: 0 5px 5px 0; }
+.schema-sub-panel-preschool .schema-activity-timeline-candidate .schema-sub-candidate-blocked-layer .schema-sub-bar24-blocked {
+  top: 0 !important;
+  bottom: auto !important;
+}
+.schema-sub-panel-preschool .schema-sub-bar24-wrap,
+.schema-sub-panel-preschool .schema-sub-bar24-wrap .schema-sub-bar24-fill,
+.schema-sub-panel-preschool .schema-sub-bar24-wrap .schema-sub-bar24-blocked {
+  box-sizing: border-box;
+  height: 21px !important;
+  min-height: 21px !important;
+}
+.schema-sub-panel-preschool .schema-sub-bar24-wrap .schema-sub-bar24-blocked {
+  top: 0 !important;
+  bottom: auto !important;
+}
+.schema-sub-panel-preschool .schema-activity-timeline-candidate .schema-activity-captions-hospital {
+  width: 100%;
+  align-items: center;
+  text-align: center;
+}
+.schema-sub-panel-preschool .schema-activity-timeline-candidate .schema-activity-total-time {
+  width: 100%;
+  text-align: center;
+}
+.schema-sub-panel-preschool .schema-activity-timeline-candidate .schema-sub-candidate-unavailable-window,
+.schema-sub-panel-preschool .schema-sub-bar24-wrap .schema-sub-bar24-unavailable {
+  background: repeating-linear-gradient(135deg, rgba(255, 222, 226, .97) 0, rgba(255, 222, 226, .97) 5px, #d96873 5px, #d96873 7px);
+}
+.schema-sub-panel-preschool .schema-sub-candidate-blocked-layer .schema-sub-bar24-blocked-unavailable {
+  background: repeating-linear-gradient(135deg, rgba(255, 222, 226, .97) 0, rgba(255, 222, 226, .97) 5px, #d96873 5px, #d96873 7px);
+}
+.schema-sub-panel-preschool .schema-sub-candidate-blocked-layer .schema-sub-bar24-blocked-rest {
+  background: repeating-linear-gradient(135deg, rgba(255, 244, 190, .97) 0, rgba(255, 244, 190, .97) 5px, #d9ad32 5px, #d9ad32 7px);
 }
