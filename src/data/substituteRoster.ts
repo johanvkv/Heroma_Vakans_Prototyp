@@ -6,6 +6,7 @@ export interface SubstituteRosterMember {
   role: string;
   category: string;
   employmentType?: 'fastanställd' | 'timanställd';
+  ownUnitIds?: string[];
   costLevel: SubstituteCostLevel;
   competencies?: string[];
 }
@@ -20,15 +21,15 @@ export interface CompletedStaffingRecord {
 }
 
 export const SUBSTITUTE_ROSTER: SubstituteRosterMember[] = [
-  { id: 'sub1', name: 'Anna Viksson', role: 'Undersköterska', category: 'Timanställd', costLevel: 'Kostnadsnivå 2' },
-  { id: 'sub2', name: 'Erik Lindqvist', role: 'Sjuksköterska', category: 'Poolpersonal', employmentType: 'fastanställd', costLevel: 'Kostnadsnivå 1' },
-  { id: 'sub3', name: 'Maria Svensson', role: 'Undersköterska', category: 'Timanställd', costLevel: 'Kostnadsnivå 2' },
+  { id: 'sub1', name: 'Anna Viksson', role: 'Undersköterska', category: 'Timanställd', ownUnitIds: ['akutvardsavdelningen'], costLevel: 'Kostnadsnivå 2' },
+  { id: 'sub2', name: 'Erik Lindqvist', role: 'Sjuksköterska', category: 'Poolpersonal', employmentType: 'fastanställd', ownUnitIds: ['medicinavdelningen'], costLevel: 'Kostnadsnivå 1' },
+  { id: 'sub3', name: 'Maria Svensson', role: 'Undersköterska', category: 'Timanställd', ownUnitIds: ['akutvardsavdelningen'], costLevel: 'Kostnadsnivå 2' },
   { id: 'sub4', name: 'Jonas Berg', role: 'Sjuksköterska', category: 'Pensionär', costLevel: 'Kostnadsnivå 3' },
   { id: 'sub5', name: 'Karin Nilsson', role: 'Undersköterska', category: 'Samverkanspass', employmentType: 'fastanställd', costLevel: 'Gratis' },
-  { id: 'sub6', name: 'Peter Holm', role: 'Sjuksköterska', category: 'Poolpersonal', employmentType: 'fastanställd', costLevel: 'Kostnadsnivå 1' },
+  { id: 'sub6', name: 'Peter Holm', role: 'Sjuksköterska', category: 'Poolpersonal', employmentType: 'fastanställd', ownUnitIds: ['medicinavdelningen'], costLevel: 'Kostnadsnivå 1' },
   { id: 'sub7', name: 'Sara Lundberg', role: 'Undersköterska', category: 'Timanställd', costLevel: 'Kostnadsnivå 2' },
   { id: 'sub8', name: 'Anders Persson', role: 'Sjuksköterska', category: 'Övrig', costLevel: 'Kostnadsnivå 3' },
-  { id: 'sub9', name: 'Elin Bergström', role: 'Undersköterska', category: 'Timanställd', costLevel: 'Kostnadsnivå 2', competencies: ['Barnsäkerhet', 'Första hjälpen'] },
+  { id: 'sub9', name: 'Elin Bergström', role: 'Undersköterska', category: 'Timanställd', ownUnitIds: ['medicinavdelningen'], costLevel: 'Kostnadsnivå 2', competencies: ['Barnsäkerhet', 'Första hjälpen'] },
   { id: 'sub10', name: 'Oskar Lind', role: 'Undersköterska', category: 'Timanställd', costLevel: 'Kostnadsnivå 1', competencies: ['Måltider', 'Utevistelse'] },
   { id: 'sub11', name: 'Nora Ekström', role: 'Sjuksköterska', category: 'Timanställd', costLevel: 'Kostnadsnivå 2', competencies: ['Språkutveckling', 'Lek och lärande'] },
   { id: 'sub12', name: 'Viktor Holmgren', role: 'Undersköterska', category: 'Timanställd', costLevel: 'Kostnadsnivå 1', competencies: ['Barnsäkerhet', 'Måltider'] },
@@ -52,10 +53,10 @@ export const SUBSTITUTE_ROSTER: SubstituteRosterMember[] = [
   { id: 'sub30', name: 'Rut Magnusson', role: 'Undersköterska', category: 'Pensionär', costLevel: 'Kostnadsnivå 3', competencies: ['Lek och lärande', 'Barnsäkerhet'] },
   { id: 'sub31', name: 'Bengt Norén', role: 'Undersköterska', category: 'Pensionär', costLevel: 'Kostnadsnivå 3', competencies: ['Lpfö 18', 'Måltider'] },
   { id: 'sub32', name: 'Ingrid Wallin', role: 'Undersköterska', category: 'Pensionär', costLevel: 'Kostnadsnivå 3', competencies: ['Språkutveckling', 'Utevistelse'] },
-  { id: 'sub33', name: 'Meja Jansson', role: 'Sjuksköterska', category: 'Poolpersonal', employmentType: 'fastanställd', costLevel: 'Kostnadsnivå 1', competencies: ['Barnsäkerhet', 'Första hjälpen', 'Utevistelse'] },
+  { id: 'sub33', name: 'Meja Jansson', role: 'Sjuksköterska', category: 'Poolpersonal', employmentType: 'fastanställd', ownUnitIds: ['akutvardsavdelningen'], costLevel: 'Kostnadsnivå 1', competencies: ['Barnsäkerhet', 'Första hjälpen', 'Utevistelse'] },
   { id: 'sub34', name: 'Isak Edlund', role: 'Undersköterska', category: 'Poolpersonal', employmentType: 'fastanställd', costLevel: 'Kostnadsnivå 1', competencies: ['NPF-stöd', 'Språkutveckling'] },
   { id: 'sub35', name: 'Tuva Holmberg', role: 'Undersköterska', category: 'Poolpersonal', employmentType: 'fastanställd', costLevel: 'Kostnadsnivå 1', competencies: ['Lek och lärande', 'Pedagogisk dokumentation'] },
-  { id: 'sub36', name: 'Loke Berglund', role: 'Sjuksköterska', category: 'Poolpersonal', employmentType: 'fastanställd', costLevel: 'Kostnadsnivå 1', competencies: ['Måltider', 'Barnsäkerhet'] },
+  { id: 'sub36', name: 'Loke Berglund', role: 'Sjuksköterska', category: 'Poolpersonal', employmentType: 'fastanställd', ownUnitIds: ['medicinavdelningen'], costLevel: 'Kostnadsnivå 1', competencies: ['Måltider', 'Barnsäkerhet'] },
 ];
 
 export const PRESCHOOL_SUBSTITUTE_PROFILES: Record<string, Pick<SubstituteRosterMember, 'role' | 'category' | 'costLevel' | 'competencies'>> = {
