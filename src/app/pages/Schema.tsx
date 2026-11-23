@@ -443,6 +443,18 @@ const DEFAULT_ORDER_INVITES: ResourceOrderInvite[] = [
   { substituteId: 'sub2', name: 'Erik Lindqvist', role: 'Sjuksköterska', response: 'Kan inte', responseText: 'Jag är redan bokad.' },
   { substituteId: 'sub7', name: 'Sara Lundberg', role: 'Undersköterska', response: 'Avvaktar' },
 ];
+const SAMPLE_RESPONDED_INVITES: ResourceOrderInvite[][] = [
+  [
+    { substituteId: 'sub3', name: 'Maria Svensson', role: 'Undersköterska', response: 'Tillgänglig', responseText: 'Jag kan ta passet.' },
+    { substituteId: 'sub2', name: 'Erik Lindqvist', role: 'Sjuksköterska', response: 'Kan inte', responseText: 'Jag är redan bokad.' },
+    { substituteId: 'sub7', name: 'Sara Lundberg', role: 'Undersköterska', response: 'Tillgänglig', responseText: 'Jag kan komma med kort varsel.' },
+  ],
+  [
+    { substituteId: 'sub1', name: 'Anna Viksson', role: 'Undersköterska', response: 'Tillgänglig', responseText: 'Ja, jag kan ta passet.' },
+    { substituteId: 'sub4', name: 'Jonas Berg', role: 'Sjuksköterska', response: 'Kan inte', responseText: 'Jag arbetar redan den tiden.' },
+    { substituteId: 'sub6', name: 'Peter Holm', role: 'Sjuksköterska', response: 'Kan inte', responseText: 'Jag behöver dygnsvila.' },
+  ],
+];
 const TIME_PERIODS   = [{ id:'dag',label:'Dag'},{id:'arbetsvecka',label:'Arbetsvecka'},{id:'vecka',label:'Vecka'},{id:'sjuDagar',label:'Sju dagar'},{id:'femDagar',label:'Fem dagar'},{id:'manad',label:'Månad'},{id:'period',label:'Period'},{id:'ar',label:'År'}];
 const SHIFT_DEFS: Record<ShiftType,{start:string;end:string}> = {
   morning:{start:'06:45',end:'15:00'}, day:{start:'08:00',end:'17:00'},
@@ -3295,6 +3307,9 @@ function ResourceOrdersKanban({ needs, orders, unreadMessageEntities, orgOptions
         {RESOURCE_ORDER_BOARD_COLUMNS.map(column => {
           const columnOrders = column.status ? activeOrders.filter(order => order.status === column.status) : [];
           const count = column.id === 'needs' ? openNeeds.length : column.id === 'booked' ? columnOrders.length + directlyBookedNeeds.length : columnOrders.length;
+          const respondedInvites = column.id === 'responded' ? columnOrders.flatMap(order => order.invitedSubstitutes) : [];
+          const yesCount = respondedInvites.filter(invite => invite.response === 'Tillgänglig').length;
+          const noCount = respondedInvites.filter(invite => invite.response === 'Kan inte').length;
           if (column.id === 'needs' && needsHidden) {
             return <button key={column.id} className="schema-kanban-collapsed-needs" onClick={() => setNeedsHidden(false)} title="Visa resursbehov"><i className="fa-solid fa-chevron-right" /><span>Resursbehov</span><b>{count}</b></button>;
           }
@@ -3306,7 +3321,11 @@ function ResourceOrdersKanban({ needs, orders, unreadMessageEntities, orgOptions
               onDrop={event => handleDrop(event, column.id)}
             >
               <header className="schema-kanban-column-header">
-                <div><i className={`fa-solid ${column.icon}`} /><h3>{column.label}</h3><span>{count}</span></div>
+                <div><i className={`fa-solid ${column.icon}`} /><h3>{column.label}</h3><span>{count}</span>
+                  {column.id === 'responded' && <div className="schema-kanban-response-counts" role="group" aria-label={`${yesCount} ja-svar, ${noCount} nej-svar`}>
+                    <span aria-hidden="true">👍 {yesCount}</span><span aria-hidden="true">👎 {noCount}</span>
+                  </div>}
+                </div>
               {column.id === 'needs' && <button className="schema-kanban-collapse" onClick={() => setNeedsHidden(true)} aria-label="Dölj resursbehov"><i className="fa-solid fa-chevron-left" /></button>}
               </header>
               <div className="schema-kanban-column-content">
@@ -4180,6 +4199,23 @@ export const Schema = ({
       handledBy: 'Lena Sjöberg',
       invitedSubstitutes: [],
     };
+    const respondedNeeds = resourceNeeds
+      .filter(need => need.dateStr === TODAY_STR && need.status === 'Öppet' && need.id !== firstNeed.id && need.id !== secondNeed.id)
+      .slice(0, SAMPLE_RESPONDED_INVITES.length);
+    const respondedOrders: ResourceOrder[] = respondedNeeds.map((need, index) => ({
+      id: `resource-order-${need.id}`,
+      personId: need.personId,
+      personName: need.personName,
+      role: need.role,
+      dateStr: need.dateStr,
+      shift: need.shift,
+      resourceType: 'vikarie',
+      status: 'Besvarad',
+      orderedBy: 'Maja Andersson',
+      handledBy: 'Lena Sjöberg',
+      invitedSubstitutes: SAMPLE_RESPONDED_INVITES[index].map(invite => ({ ...invite })),
+    }));
+    const respondedNeedIds = new Set(respondedNeeds.map(need => need.id));
     const personMessage: CaseActivity = {
       id: sampleMessageId + 1, type: 'message', author: 'Lena Sjöberg', initials: 'LS', time: 'Idag 08:42',
       text: 'Jag har stämt av med avdelningen. De behöver täckning för hela dagens pass.',
@@ -4210,13 +4246,15 @@ export const Schema = ({
       const existingIds = new Set(current.map(order => order.id));
       return [
         ...current,
-        ...[firstOrder, secondOrder].filter(order => !existingIds.has(order.id)),
+        ...[firstOrder, secondOrder, ...respondedOrders].filter(order => !existingIds.has(order.id)),
       ];
     });
     setResourceNeeds(current => current.map(need => need.id === firstNeed.id
       ? { ...need, workflowStatus: 'Beställd' }
       : need.id === secondNeed.id
         ? { ...need, workflowStatus: 'Under behandling' }
+        : respondedNeedIds.has(need.id)
+          ? { ...need, workflowStatus: 'Besvarad' }
         : need));
     setPersonActivities(current => ({
       ...current,
@@ -4231,11 +4269,35 @@ export const Schema = ({
       [firstNeed.id]: [...(current[firstNeed.id] ?? []), firstNeedMessage],
       [secondNeed.id]: [...(current[secondNeed.id] ?? []), secondNeedMessage],
     }));
-    setOrderActivities(current => ({
-      ...current,
-      [firstOrderId]: [...(current[firstOrderId] ?? []), firstOrderMessage],
-      [secondOrderId]: [...(current[secondOrderId] ?? []), secondOrderMessage],
-    }));
+    setOrderActivities(current => {
+      const next = {
+        ...current,
+        [firstOrderId]: [...(current[firstOrderId] ?? []), firstOrderMessage],
+        [secondOrderId]: [...(current[secondOrderId] ?? []), secondOrderMessage],
+      };
+      respondedOrders.forEach((order, index) => {
+        const yesCount = order.invitedSubstitutes.filter(invite => invite.response === 'Tillgänglig').length;
+        const noCount = order.invitedSubstitutes.filter(invite => invite.response === 'Kan inte').length;
+        const responses: CaseActivityResponse[] = order.invitedSubstitutes.map(invite => ({
+          id: invite.substituteId,
+          name: invite.name,
+          role: invite.role,
+          response: invite.response === 'Tillgänglig' ? 'Ja' : 'Nej',
+          detail: invite.responseText,
+        }));
+        next[order.id] = [...(current[order.id] ?? []), {
+          id: sampleMessageId + 7 + index * 10,
+          type: 'system', author: 'Systemet', initials: 'S', time: 'Idag 10:15',
+          text: 'Svar från tillfrågade vikarier', detail: `${yesCount} ja · ${noCount} nej`,
+          responseGroup: { responses },
+        }, ...order.invitedSubstitutes.map((invite, inviteIndex): CaseActivity => ({
+          id: sampleMessageId + 8 + index * 10 + inviteIndex,
+          type: 'message', author: invite.name, initials: initialsFromName(invite.name), time: 'Idag 10:15',
+          text: invite.responseText ?? (invite.response === 'Tillgänglig' ? 'Jag kan ta passet.' : 'Jag kan inte ta passet.'),
+        }))];
+      });
+      return next;
+    });
     setUnreadMessageEntities(current => new Set([
       ...current,
       `person:${firstEmployee.id}`,

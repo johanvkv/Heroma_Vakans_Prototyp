@@ -12296,6 +12296,7 @@ input.schema-sub-checkbox:checked::after {
 .schema-kanban-column-booked .schema-kanban-column-header > div > i { color: #39805a; }
 .schema-kanban-column-header h3 { overflow: hidden; margin: 0; font-size: 13px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .schema-kanban-column-header > div > span { display: inline-flex; min-width: 21px; height: 21px; align-items: center; justify-content: center; border-radius: 11px; background: #e5e1ed; color: #53496a; font-size: 11px; font-weight: 700; }
+.schema-kanban-response-counts { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 5px; white-space: nowrap; font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
 .schema-kanban-collapse { display: inline-flex; width: 25px; height: 25px; align-items: center; justify-content: center; border: 0; border-radius: 3px; background: transparent; color: #756d7b; cursor: pointer; }
 .schema-kanban-collapse:hover { background: #eae3d5; color: #38313e; }
 .schema-kanban-column-content { display: flex; min-height: 300px; flex-direction: column; gap: 9px; padding: 9px; }
