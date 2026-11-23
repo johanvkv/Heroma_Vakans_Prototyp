@@ -13166,7 +13166,11 @@ input.schema-sub-checkbox:checked::after {
 .schema-page-hospital .schema-sub-panel-preschool .schema-sub-bar24-booked.schema-sub-bar24-part-whole { border-radius: 5px; }
 .schema-page-hospital .schema-sub-panel-preschool .schema-sub-bar24-booked.schema-sub-bar24-part-start { border-radius: 5px 0 0 5px; }
 .schema-page-hospital .schema-sub-panel-preschool .schema-sub-bar24-booked.schema-sub-bar24-part-carry { border-radius: 0 5px 5px 0; }
-.schema-page-hospital .schema-activity-bar-past { filter: grayscale(1); opacity: .58; }
+.schema-page-hospital .schema-activity-timeline-past { filter: none; }
+.schema-page-hospital .schema-activity-timeline-past .schema-activity-captions,
+.schema-page-hospital .schema-activity-timeline-past .schema-activity-availability-window,
+.schema-page-hospital .schema-activity-timeline-past .schema-activity-booked-window { filter: grayscale(1); }
+.schema-page-hospital .schema-activity-bar-past { filter: none; opacity: .58; }
 
 /* Event captions can make one day cell taller; keep every day's bar on the same top baseline. */
 .schema-page-hospital td.schema-activity-timeline-cell {
