@@ -3463,15 +3463,15 @@ function ResourceNeedsList({ needs, unreadMessageEntities, orgOptions, selectedR
         <div className="schema-orders-empty"><i className="fa-solid fa-user-clock" /><span>Inga resursbehov att visa.</span></div>
       ) : (
         <table className="schema-orders-table">
-          <colgroup><col style={{ width: '20%' }} /><col style={{ width: '20%' }} /><col style={{ width: '27%' }} /><col style={{ width: '33%' }} /></colgroup>
-          <thead><tr><th><label className="schema-resource-need-select-all"><input
+          <colgroup><col style={{ width: '8%' }} /><col style={{ width: '16%' }} /><col style={{ width: '29%' }} /><col style={{ width: '22%' }} /><col style={{ width: '25%' }} /></colgroup>
+          <thead><tr><th className="schema-resource-need-select-cell"><input
             type="checkbox"
             className="schema-resource-need-checkbox"
             aria-label="Välj eller välj av alla visade resursbehov"
             checked={allVisibleNeedsSelected}
             ref={input => { if (input) input.indeterminate = selectedVisibleNeedCount > 0 && !allVisibleNeedsSelected; }}
             onChange={event => setSelectedNeedIds(event.target.checked ? activeNeeds.map(need => need.id) : [])}
-          />Behov</label></th><th>Medarbetare</th><th>Status</th><th>Pass / aktivitet</th></tr></thead>
+          /></th><th>Behov</th><th>Medarbetare</th><th>Status</th><th>Pass / aktivitet</th></tr></thead>
           <tbody>
             {activeNeeds.map(need => (
               <tr
@@ -3487,8 +3487,7 @@ function ResourceNeedsList({ needs, unreadMessageEntities, orgOptions, selectedR
                 }}
                 title="Dubbelklicka för detaljer eller högerklicka för åtgärder"
               >
-                <td className="schema-resource-need-type-cell">
-                  <span className="schema-resource-need-type-heading"><input
+                <td className="schema-resource-need-select-cell"><input
                     type="checkbox"
                     className="schema-resource-need-checkbox"
                     aria-label={`Välj resursbehov ${resourceNeedLabel(need.source)} för ${need.personName} ${need.dateStr}`}
@@ -3496,7 +3495,9 @@ function ResourceNeedsList({ needs, unreadMessageEntities, orgOptions, selectedR
                     onClick={event => event.stopPropagation()}
                     onDoubleClick={event => event.stopPropagation()}
                     onChange={event => setSelectedNeedIds(current => event.target.checked ? [...current, need.id] : current.filter(id => id !== need.id))}
-                  /><strong className={`schema-resource-need-kind schema-resource-need-kind-${need.source === 'pass' ? 'extra' : 'absence'}`}>{resourceNeedLabel(need.source)}</strong>{unreadMessageEntities.has(`need:${need.id}`) && <NewMessageIndicator />}</span>
+                  /></td>
+                <td className="schema-resource-need-type-cell">
+                  <span className="schema-resource-need-type-heading"><strong className={`schema-resource-need-kind schema-resource-need-kind-${need.source === 'pass' ? 'extra' : 'absence'}`}>{resourceNeedLabel(need.source)}</strong>{unreadMessageEntities.has(`need:${need.id}`) && <NewMessageIndicator />}</span>
                   <span title={need.dateStr}>{DAY_NAMES[dayIdx(parseDate(need.dateStr))]}</span>
                   {need.source === 'frånvaro' && need.reason && <small>{need.reason}</small>}
                 </td>

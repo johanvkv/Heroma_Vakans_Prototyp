@@ -11048,7 +11048,7 @@ input.schema-sub-checkbox:checked::after {
 .schema-resource-needs-list:has(.schema-resource-need-row) { outline-color: transparent; }
 .schema-resource-needs-list:hover { outline-color: #b9a8e8; }
 .schema-resource-need-type-heading { display: inline-flex; align-items: center; gap: 4px; }
-.schema-resource-need-select-all { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.schema-orders-table .schema-resource-need-select-cell { text-align: center; }
 .schema-resource-need-checkbox { width: 16px; height: 16px; flex: 0 0 16px; margin: 0; accent-color: #5236ab; cursor: pointer; }
 .schema-resource-need-checkbox:focus-visible { outline: 2px solid #5236ab; outline-offset: 2px; }
 
@@ -11296,10 +11296,13 @@ input.schema-sub-checkbox:checked::after {
 }
 .schema-resource-need-order-badge { color: #2672b8; }
 .schema-resource-need-badge-month { display: inline-block; margin-left: 3px; font-size: 8px; }
-.schema-resource-need-row td:nth-child(2) strong,
-.schema-resource-need-row td:nth-child(2) span { display: block; }
-.schema-resource-need-row-absence td:first-child { color: #c62828; border-left: 4px solid #c62828; }
-.schema-resource-need-row-extra td:first-child { color: #2672b8; border-left: 4px solid #2672b8; }
+.schema-resource-need-row td:nth-child(3) strong,
+.schema-resource-need-row td:nth-child(3) span { display: block; }
+.schema-resource-needs-list .schema-resource-need-row td:nth-child(3) span { margin-top: 2px; color: var(--muted-foreground); font-size: 12px; }
+.schema-resource-need-row-absence td:first-child { border-left: 4px solid #c62828; }
+.schema-resource-need-row-extra td:first-child { border-left: 4px solid #2672b8; }
+.schema-resource-need-row-absence td:nth-child(2) { color: #c62828; }
+.schema-resource-need-row-extra td:nth-child(2) { color: #2672b8; }
 .schema-resource-need-kind { margin-right: 6px; font-size: 11px; font-weight: 700; }
 .schema-resource-needs-bulk-actions {
   display: flex;
@@ -12887,10 +12890,6 @@ input.schema-sub-checkbox:checked::after {
 .schema-page-hospital .schema-resource-need-activity.schema-activity-type-outdoors { background: #57a879; }
 .schema-page-hospital .schema-resource-need-activity.schema-activity-type-meals { background: #e39a42; }
 .schema-page-hospital .schema-resource-need-activity.schema-activity-type-rest { background: #5b9dce; }
-.schema-page-hospital .schema-schedule-area.schema-schedule-has-resource-needs .schema-orders-table th:nth-child(3),
-.schema-page-hospital .schema-schedule-area.schema-schedule-has-resource-needs .schema-orders-table td:nth-child(3) { width: 27%; }
-.schema-page-hospital .schema-schedule-area.schema-schedule-has-resource-needs .schema-orders-table th:nth-child(4),
-.schema-page-hospital .schema-schedule-area.schema-schedule-has-resource-needs .schema-orders-table td:nth-child(4) { width: 37%; }
 .schema-page-hospital .schema-sub-availability-legend {
   display: inline-flex;
   flex-wrap: wrap;
@@ -12922,8 +12921,6 @@ input.schema-sub-checkbox:checked::after {
 .schema-page-hospital .schema-resource-need-row:has(.schema-resource-need-status-requester):hover td { background: #eaf6ee; }
 .schema-page-hospital .schema-schedule-area.schema-schedule-has-resource-needs .schema-orders-table th,
 .schema-page-hospital .schema-schedule-area.schema-schedule-has-resource-needs .schema-orders-table td { padding: 8px 6px; }
-.schema-page-hospital .schema-schedule-area.schema-schedule-has-resource-needs .schema-orders-table th:nth-child(3),
-.schema-page-hospital .schema-schedule-area.schema-schedule-has-resource-needs .schema-orders-table td:nth-child(3) { width: 45%; }
 .schema-page-hospital .schema-org-row td.schema-hospital-organisation-empty { border-top-color: #d8dce4 !important; border-bottom-color: #e3e6eb !important; }
 
 @media (max-width: 1050px) {
