@@ -31,7 +31,7 @@ type ViewType     = 'day-columns' | 'month-columns' | 'year-columns';
 type ColorScheme  = 'normal' | 'past' | 'absence' | 'vacant' | 'filled' | 'ordered';
 type OrganisationScenario = 'clinic' | 'school' | 'schoolTimeline';
 type ActivityKind = 'pedagogical' | 'outdoors' | 'meals' | 'rest';
-type ActivityFilterKind = ActivityKind | 'absence';
+type ActivityFilterKind = ActivityKind;
 
 interface ScheduleActivity {
   id: string;
@@ -627,6 +627,11 @@ function getPeriodDates(viewStart: Date, period: PeriodType, columns: ViewColumn
   for (let date = start; date < nextYear; date = addDays(date, 1)) dates.push(date);
   return dates;
 }
+function shiftOverlapsPeriod(dateStr: string, shift: Shift, periodDates: Set<string>): boolean {
+  return periodDates.has(dateStr)
+    || (timeToMinutes(shift.end) <= timeToMinutes(shift.start)
+      && periodDates.has(toDateStr(addDays(parseDate(dateStr), 1))));
+}
 function getViewType(period: PeriodType): ViewType {
   if (period==='ar') return 'year-columns';
   if (period==='manad') return 'month-columns';
@@ -787,11 +792,9 @@ const HOSPITAL_ACTIVITY_TYPES: Record<ActivityKind, { label: string; className: 
 };
 const PRESCHOOL_ACTIVITY_FILTERS: Array<{ id: ActivityFilterKind; label: string }> = [
   ...Object.entries(PRESCHOOL_ACTIVITY_TYPES).map(([id, type]) => ({ id: id as ActivityKind, label: type.label })),
-  { id: 'absence', label: 'Frånvaro' },
 ];
 const HOSPITAL_ACTIVITY_FILTERS: Array<{ id: ActivityFilterKind; label: string }> = [
   ...Object.entries(HOSPITAL_ACTIVITY_TYPES).map(([id, type]) => ({ id: id as ActivityKind, label: type.label })),
-  { id: 'absence', label: 'Frånvaro' },
 ];
 const INITIAL_REMAINING_PASSES: RemainingPass[] = [
   {
@@ -3571,6 +3574,7 @@ export const Schema = ({
   const [textFilter,     setTextFilter]     = useState('');
   const [period,         setPeriod]         = useState<PeriodType>('vecka');
   const [showVacancies,  setShowVacancies]  = useState(false);
+  const [showAbsences, setShowAbsences] = useState(false);
   const [showOrders,     setShowOrders]     = useState(false);
   const [showResourceNeeds, setShowResourceNeeds] = useState(false);
   const [activeView,     setActiveView]     = useState<'schema' | 'orders' | 'resource-needs'>(initialActiveView);
@@ -4232,6 +4236,7 @@ export const Schema = ({
       || period === 'sjuDagar'
       || !isWknd(column.date),
   ), [alwaysShowResourceNeeds, viewStart, period, selectedOrganisation]);
+  const periodDates = useMemo(() => new Set(getPeriodDates(viewStart, period, columns).map(toDateStr)), [viewStart, period, columns]);
   useEffect(() => {
     if (alwaysShowResourceNeeds || !isSchoolScenario(selectedOrganisation) || period !== 'dag' || !isWknd(viewStart)) return;
     setViewStart(current => addDays(current, current.getDay() === 6 ? 2 : 1));
@@ -4850,6 +4855,17 @@ export const Schema = ({
         e.department.toLowerCase().includes(q)
       );
     }
+    if (alwaysShowResourceNeeds && (showAbsences || showResourceNeeds)) {
+      const absentPersonIds = new Set(Object.entries(RUNTIME_ABSENCE_SHIFTS)
+        .filter(([key, shift]) => shiftOverlapsPeriod(key.slice(key.indexOf('|') + 1), shift, periodDates))
+        .map(([key]) => key.slice(0, key.indexOf('|'))));
+      const neededPersonIds = new Set(resourceNeeds
+        .filter(need => need.status !== 'Borttaget' && shiftOverlapsPeriod(need.dateStr, need.shift, periodDates))
+        .map(need => need.personId));
+      list = list.filter(employee =>
+        (showAbsences && absentPersonIds.has(employee.id))
+        || (showResourceNeeds && neededPersonIds.has(employee.id)));
+    }
     if (showVacancies) {
       list = list.filter(emp =>
         columns.some(col => {
@@ -4865,7 +4881,7 @@ export const Schema = ({
       );
     }
     return list;
-  }, [alwaysShowResourceNeeds, employees, selectedGroups, textFilter, showVacancies, columns, fills, vacancyKeys, resourceNeedPrototype, resourceNeeds]);
+  }, [alwaysShowResourceNeeds, employees, selectedGroups, textFilter, showVacancies, showAbsences, showResourceNeeds, periodDates, absenceVersion, columns, fills, vacancyKeys, resourceNeedPrototype, resourceNeeds]);
 
   const availablePassTypes = useMemo(() => {
     if (!alwaysShowResourceNeeds) return PASS_TYPES.filter(pass => pass.id !== 'alla').map(pass => pass.id);
@@ -6907,6 +6923,8 @@ export const Schema = ({
 
           {/* Checkboxes */}
           <div className="schema-filter-checks">
+            {alwaysShowResourceNeeds && <CheckBox value={showAbsences} onValueChanged={e => setShowAbsences(Boolean(e.value))} text="Visa Frånvaro" />}
+            {alwaysShowResourceNeeds && <CheckBox value={showResourceNeeds} onValueChanged={e => setShowResourceNeeds(Boolean(e.value))} text="Visa Resursbehov" />}
             {!alwaysShowResourceNeeds && <CheckBox value={showVacancies} onValueChanged={e => setShowVacancies(e.value)} text={resourceNeedPrototype ? 'Visa frånvaro och resursbehov' : 'Visa bara vakanser'} />}
             {resourceNeedPrototype && !alwaysShowResourceNeeds && (
               <div className="schema-orders-toggle">
@@ -7028,8 +7046,7 @@ export const Schema = ({
                     const pass = row.pass;
                     const isVacant = !pass.assignedSubstituteId;
                     const passActivities = pass.activities.filter(activity => selectedActivityFilters.length === 0
-                      || selectedActivityFilters.includes(activity.kind)
-                      || selectedActivityFilters.includes('absence'));
+                      || selectedActivityFilters.includes(activity.kind));
                     return (
                       <tr key={pass.id} className="schema-table-row">
                         <td className="schema-employee-cell schema-org-employee-cell" style={{ paddingLeft: alwaysShowResourceNeeds ? 12 : 106 }}>
@@ -7230,8 +7247,7 @@ export const Schema = ({
                               ? getCellActivities(emp.id, col.date).filter(activity =>
                                 timeToMinutes(activity.end) <= timeToMinutes(activity.start)
                                   || selectedActivityFilters.length === 0
-                                  || selectedActivityFilters.includes(activity.kind)
-                                  || (isAbsent && selectedActivityFilters.includes('absence')),
+                                  || selectedActivityFilters.includes(activity.kind),
                               )
                               : [];
                             const carryInActivities = nightCarryColor
