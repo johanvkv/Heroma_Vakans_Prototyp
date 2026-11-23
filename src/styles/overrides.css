@@ -12495,6 +12495,7 @@ input.schema-sub-checkbox:checked::after {
 .schema-presence-sticky-table td { background: transparent; border-right-color: transparent; }
 .schema-sub-panel-preschool { box-sizing: border-box; }
 
+.schema-page-hospital:not(.schema-page-has-panel) .schema-schedule-area { margin-bottom: 64px; }
 .schema-page-hospital.schema-page-has-panel { padding-bottom: 490px; }
 .schema-page-hospital .schema-activity-night-carry-row { z-index: 3; overflow: visible; }
 .schema-page-hospital .schema-activity-night-carry {
