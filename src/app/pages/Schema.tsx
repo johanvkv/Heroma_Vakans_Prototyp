@@ -3476,7 +3476,7 @@ function ResourceNeedsList({ needs, unreadMessageEntities, orgOptions, selectedR
               >
                 <td className="schema-resource-need-type-cell">
                   <span className="schema-resource-need-type-heading"><strong className={`schema-resource-need-kind schema-resource-need-kind-${need.source === 'pass' ? 'extra' : 'absence'}`}>{resourceNeedLabel(need.source)}</strong>{unreadMessageEntities.has(`need:${need.id}`) && <NewMessageIndicator />}</span>
-                  <span>{need.dateStr}</span>
+                  <span title={need.dateStr}>{DAY_NAMES[dayIdx(parseDate(need.dateStr))]}</span>
                   {need.source === 'frånvaro' && need.reason && <small>{need.reason}</small>}
                 </td>
                 <td><strong>{need.source === 'pass' ? 'Extrapass' : need.personName}</strong><span className="schema-order-person-role">{need.role}</span></td>
