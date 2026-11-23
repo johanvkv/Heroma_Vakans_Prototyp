@@ -12398,6 +12398,10 @@ input.schema-sub-checkbox:checked::after {
 .schema-kanban-urgency { flex: 0 0 auto; padding: 2px 5px; border-radius: 3px; background: #edf0f2; color: #5f6265; font-size: 9px; font-weight: 700; }
 .schema-kanban-urgency.is-acute { background: #fde6e3; color: #9d3830; }
 .schema-kanban-card-badges .schema-kanban-status { padding: 2px 5px; font-size: 9px; }
+.schema-kanban-card-responses { display: flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.schema-kanban-card-responses > span { display: inline-flex; align-items: center; min-height: 17px; padding: 1px 5px; border-radius: 3px; }
+.schema-kanban-card-response-yes { background: #e4f3e8; color: #286b43; }
+.schema-kanban-card-response-no { background: #fbe9e8; color: #a4433b; }
 .schema-kanban-person { font-size: 13px; }
 .schema-kanban-subtitle { font-size: 10px; }
 .schema-kanban-meta { padding-top: 4px; font-size: 10px; }

@@ -3186,6 +3186,12 @@ function ResourceOrdersKanban({ needs, orders, unreadMessageEntities, orgOptions
     const linkedNeed = order.id.startsWith('resource-order-');
     const linkedResourceNeed = linkedNeed ? needs.find(need => need.id === order.id.slice('resource-order-'.length)) : undefined;
     const canTakeBack = order.status !== 'Tillsatt' && order.handledBy !== 'Maja Andersson';
+    const yesCount = order.invitedSubstitutes.filter(invite => invite.response === 'Tillgänglig').length;
+    const noCount = order.invitedSubstitutes.filter(invite => invite.response === 'Kan inte').length;
+    const responseSummary = order.status === 'Besvarad' && <div className="schema-kanban-card-responses" role="group" aria-label={`${yesCount} ja-svar, ${noCount} nej-svar`}>
+      <span className="schema-kanban-card-response-yes" aria-hidden="true">👍 {yesCount}</span>
+      <span className="schema-kanban-card-response-no" aria-hidden="true">👎 {noCount}</span>
+    </div>;
     const stageAction = order.status === 'Beställd'
       ? <button className="btn-secondary" onClick={event => { event.stopPropagation(); onAction(order.id, { id: 'start-processing', text: 'Påbörja behandling', icon: 'user-gear' }); }}>Påbörja</button>
       : order.status === 'Under behandling'
@@ -3223,6 +3229,7 @@ function ResourceOrdersKanban({ needs, orders, unreadMessageEntities, orgOptions
             <span className="schema-kanban-subtitle" title={order.role}>{order.role}</span>
             {activitySummary(order.personId, order.dateStr, true)}
           </div>
+          {responseSummary}
           <div className="schema-kanban-meta schema-kanban-need-meta">
             <span>{order.dateStr} · {order.shift.start}–{order.shift.end}</span>
             <span className="schema-kanban-need-owner" title={order.acceptedSubstituteId ? 'Ersättare bokad' : `Hanteras av ${order.handledBy}`}>
@@ -3240,6 +3247,7 @@ function ResourceOrdersKanban({ needs, orders, unreadMessageEntities, orgOptions
           <strong className="schema-kanban-person">{order.personName}</strong>
           <span className="schema-kanban-subtitle">{order.role}</span>
           {activitySummary(order.personId, order.dateStr)}
+          {responseSummary}
           <div className="schema-kanban-meta"><span>{order.dateStr}</span><span>{order.shift.start}–{order.shift.end}</span></div>
           {order.acceptedSubstituteId && <div className="schema-kanban-assignment"><i className="fa-solid fa-circle-check" /> <SubstituteDetailLink name={SUBSTITUTE_CANDIDATES.find(candidate => candidate.id === order.acceptedSubstituteId)?.name ?? 'Vikarie bokad'} substituteId={order.acceptedSubstituteId} dateStr={order.dateStr} onOpen={onOpenSubstitute} /></div>}
           <div className="schema-kanban-owner"><i className="fa-solid fa-user" /> Hanteras av {order.handledBy}</div>
