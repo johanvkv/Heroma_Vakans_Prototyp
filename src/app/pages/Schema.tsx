@@ -5373,6 +5373,30 @@ export const Schema = ({
     setSubPanelOpen(true);
   }, [handleCloseSubPanel, subPanelBrowseAll, subPanelOpen]);
 
+  const handleOpenCandidatesFromSelection = useCallback(() => {
+    const selectedPass = activeView === 'schema' && isPrimaryScheduleSelection ? highlightedScheduleObject : null;
+    if (!selectedPass) {
+      handleOpenAllSubstitutes();
+      return;
+    }
+
+    const { personId, dateStr } = selectedPass;
+    const remainingPass = remainingPasses.find(pass => pass.id === personId && pass.dateStr === dateStr);
+    if (!remainingPass && !getScheduleShift(personId, parseDate(dateStr), 'alla')) {
+      handleOpenAllSubstitutes();
+      return;
+    }
+
+    if (subPanelOpen && !subPanelBrowseAll && subPanelState?.personId === personId
+      && subPanelState.dateStr === dateStr && subPanelState.matchCandidates) {
+      handleCloseSubPanel();
+      return;
+    }
+
+    if (remainingPass) handleOpenRemainingPassPanel(remainingPass, true);
+    else handleOpenVacancyPanel(personId, dateStr, true);
+  }, [activeView, getScheduleShift, handleCloseSubPanel, handleOpenAllSubstitutes, handleOpenRemainingPassPanel, handleOpenVacancyPanel, highlightedScheduleObject, isPrimaryScheduleSelection, remainingPasses, subPanelBrowseAll, subPanelOpen, subPanelState]);
+
   const handleOpenSubstituteDetails = useCallback((substituteId: string, dateStr: string) => {
     setReturnToSubstitutePanel(subPanelOpen);
     setSubPanelOpen(false);
@@ -6788,7 +6812,7 @@ export const Schema = ({
                     onOpenOrder={setOrderDetail}
                     onChooseSubstitute={handleOpenOrderSubstitutePanel}
                     onOpenSubstitute={handleOpenSubstituteDetails}
-                    onShowSubstitutes={handleOpenAllSubstitutes}
+                    onShowSubstitutes={alwaysShowResourceNeeds ? handleOpenCandidatesFromSelection : handleOpenAllSubstitutes}
                     candidateButtonLabel={alwaysShowResourceNeeds ? 'Kandidater' : undefined}
                     onMoveNeed={handleMoveNeedOnBoard}
                     onMoveOrder={handleMoveOrderOnBoard}
@@ -6796,7 +6820,7 @@ export const Schema = ({
                     onRegisterResponses={handleRegisterOrderResponses}
                     onTakeBackOrder={handleTakeBackOrder}
                   />
-                : <ResourceOrdersList orders={resourceOrders} unreadMessageEntities={unreadMessageEntities} selectedOrderId={highlightedOrderId} selectedPersonId={highlightedPersonId} relatedOrderIds={relatedOrderIds} onSelectOrder={selectResourceOrder} onSelectPerson={selectOrderPerson} onClose={() => setActiveView('schema')} onAction={handleOrderAction} onOpenDetails={setOrderDetail} onChooseSubstitute={handleOpenOrderSubstitutePanel} onShowSubstitutes={handleOpenAllSubstitutes} onOpenSubstitute={handleOpenSubstituteDetails} candidateButtonLabel={alwaysShowResourceNeeds ? 'Kandidater' : undefined} />}
+                : <ResourceOrdersList orders={resourceOrders} unreadMessageEntities={unreadMessageEntities} selectedOrderId={highlightedOrderId} selectedPersonId={highlightedPersonId} relatedOrderIds={relatedOrderIds} onSelectOrder={selectResourceOrder} onSelectPerson={selectOrderPerson} onClose={() => setActiveView('schema')} onAction={handleOrderAction} onOpenDetails={setOrderDetail} onChooseSubstitute={alwaysShowResourceNeeds ? handleOpenCandidatesFromSelection : handleOpenAllSubstitutes} onOpenSubstitute={handleOpenSubstituteDetails} candidateButtonLabel={alwaysShowResourceNeeds ? 'Kandidater' : undefined} />}
             </div>
           ) : activeView === 'resource-needs' ? (
             <div className="schema-orders-page-view">
@@ -7405,7 +7429,7 @@ export const Schema = ({
               <tbody><tr>
                 <th className="schema-presence-sticky-label">
                   <div className="schema-presence-sticky-label-inner">
-                    <button type="button" className={`btn-primary schema-presence-candidates-btn${subPanelOpen && subPanelBrowseAll ? ' active' : ''}`} aria-expanded={subPanelOpen && subPanelBrowseAll} title="Visa eller dölj kandidater" onClick={handleOpenAllSubstitutes}>
+                    <button type="button" className={`btn-primary schema-presence-candidates-btn${subPanelOpen ? ' active' : ''}`} aria-expanded={subPanelOpen} title="Visa eller dölj kandidater" onClick={handleOpenCandidatesFromSelection}>
                       <i className="fa-solid fa-users" /> Kandidater <b>{panelCandidates.length}</b>
                     </button>
                   </div>
@@ -7415,7 +7439,7 @@ export const Schema = ({
             </table>
           </div>, document.body)}
           </div>
-          {showOrders && <ResourceOrdersList orders={resourceOrders} unreadMessageEntities={unreadMessageEntities} selectedOrderId={highlightedOrderId} selectedPersonId={highlightedPersonId} relatedOrderIds={relatedOrderIds} onSelectOrder={selectResourceOrder} onSelectPerson={selectOrderPerson} onClose={() => setShowOrders(false)} onAction={handleOrderAction} onOpenDetails={setOrderDetail} onChooseSubstitute={handleOpenOrderSubstitutePanel} onShowSubstitutes={handleOpenAllSubstitutes} onOpenSubstitute={handleOpenSubstituteDetails} candidateButtonLabel={alwaysShowResourceNeeds ? 'Kandidater' : undefined} />}
+          {showOrders && <ResourceOrdersList orders={resourceOrders} unreadMessageEntities={unreadMessageEntities} selectedOrderId={highlightedOrderId} selectedPersonId={highlightedPersonId} relatedOrderIds={relatedOrderIds} onSelectOrder={selectResourceOrder} onSelectPerson={selectOrderPerson} onClose={() => setShowOrders(false)} onAction={handleOrderAction} onOpenDetails={setOrderDetail} onChooseSubstitute={alwaysShowResourceNeeds ? handleOpenCandidatesFromSelection : handleOpenAllSubstitutes} onOpenSubstitute={handleOpenSubstituteDetails} candidateButtonLabel={alwaysShowResourceNeeds ? 'Kandidater' : undefined} />}
           {resourceNeedPrototype && (showResourceNeeds || alwaysShowResourceNeeds) && <ResourceNeedsList needs={resourceNeeds} unreadMessageEntities={unreadMessageEntities} orgOptions={resourceBoardOrgOptions} selectedRoleId={selectedRoleId} selectedNeedId={highlightedNeedId} relatedNeedIds={relatedNeedIds} onSelectNeed={selectResourceNeed} onClose={alwaysShowResourceNeeds ? undefined : () => setShowResourceNeeds(false)} onOpenDetails={setResourceNeedDetail} onAction={handleResourceNeedAction} onDropPass={handleResourceNeedDrop} onOrderAll={handleOrderAllResourceNeeds} onAssignAll={alwaysShowResourceNeeds || !isActivityTimelineScenario ? handleAssignAllResourceNeeds : undefined} />}
           </div>
 
