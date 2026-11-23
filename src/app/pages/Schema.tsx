@@ -3607,6 +3607,7 @@ export const Schema = ({
   // ── Sub panel ──
   const [subPanelState,   setSubPanelState]   = useState<SubPanelState | null>(null);
   const [subPanelOpen,    setSubPanelOpen]    = useState(false);
+  const [passToReveal, setPassToReveal] = useState<{ personId: string; dateStr: string } | null>(null);
   const [substituteAvailabilityOverrides, setSubstituteAvailabilityOverrides] = useState<SubstituteAvailabilityOverrides>({});
   const [substituteAbsences, setSubstituteAbsences] = useState<SubstituteAbsences>({});
   const [substituteDetailState, setSubstituteDetailState] = useState<SubstituteDetailState | null>(null);
@@ -3779,6 +3780,15 @@ export const Schema = ({
     setHighlightedCandidateBooking(null);
     setHighlightedScheduleObject({ personId, dateStr, activityId });
   };
+  const focusPassForCandidates = useCallback((personId: string, dateStr: string) => {
+    setHighlightedNeedId(null);
+    setHighlightedOrderId(null);
+    setHighlightedPersonId(null);
+    setHighlightedCandidateId(null);
+    setHighlightedCandidateBooking(null);
+    setHighlightedScheduleObject({ personId, dateStr });
+    setPassToReveal({ personId, dateStr });
+  }, []);
   const selectResourceNeed = (need: ResourceNeed) => {
     setHighlightedNeedId(need.id);
     setHighlightedOrderId(null);
@@ -3899,30 +3909,42 @@ export const Schema = ({
   }, [activeView, subPanelOpen]);
 
   useEffect(() => {
-    if (!subPanelOpen || !hasActivityTimeline || activeView !== 'schema') return;
+    if (!subPanelOpen || activeView !== 'schema' || (!hasActivityTimeline && !passToReveal)) return;
     let firstFrame = 0;
     let secondFrame = 0;
     firstFrame = window.requestAnimationFrame(() => {
       secondFrame = window.requestAnimationFrame(() => {
         const table = mainWrapperRef.current;
         const scrollContainer = table?.closest('.main-content-wrapper') as HTMLElement | null;
-        const target = table?.closest('.schema-page-wrapper')?.querySelector<HTMLElement>('.schema-schedule-toolbar') ?? table;
+        const passCell = passToReveal && table ? (Array.from(table.querySelectorAll('td[data-person-id][data-date-str]')) as HTMLTableCellElement[])
+          .find(cell => cell.dataset.personId === passToReveal.personId && cell.dataset.dateStr === passToReveal.dateStr) : undefined;
+        const target = passCell ?? table?.closest('.schema-page-wrapper')?.querySelector<HTMLElement>('.schema-schedule-toolbar') ?? table;
         if (!scrollContainer || !target) return;
         const containerBounds = scrollContainer.getBoundingClientRect();
         const targetBounds = target.getBoundingClientRect();
         const availableTop = containerBounds.top + 8;
-        const availableBottom = Math.min(window.innerHeight - 470, containerBounds.bottom) - 16;
+        const panel = document.querySelector<HTMLElement>('.schema-sub-panel-open');
+        const availableBottom = Math.min(window.innerHeight - (panel?.offsetHeight ?? 470), containerBounds.bottom) - 16;
         const correction = targetBounds.top < availableTop
           ? targetBounds.top - availableTop
           : targetBounds.bottom > availableBottom ? targetBounds.bottom - availableBottom : 0;
         if (correction) scrollContainer.scrollBy({ top: correction, behavior: 'smooth' });
+        if (passCell && table) {
+          const tableBounds = table.getBoundingClientRect();
+          const visibleLeft = Math.min(tableBounds.left + EMPLOYEE_COLUMN_WIDTH + 8, tableBounds.right - 16);
+          const visibleRight = tableBounds.right - 12;
+          const horizontalCorrection = targetBounds.left < visibleLeft
+            ? targetBounds.left - visibleLeft
+            : targetBounds.right > visibleRight ? targetBounds.right - visibleRight : 0;
+          if (horizontalCorrection) table.scrollBy({ left: horizontalCorrection, behavior: 'smooth' });
+        }
       });
     });
     return () => {
       window.cancelAnimationFrame(firstFrame);
       window.cancelAnimationFrame(secondFrame);
     };
-  }, [activeView, hasActivityTimeline, subPanelOpen]);
+  }, [activeView, hasActivityTimeline, passToReveal, subPanelOpen]);
 
   // ── Capture right-click target before DX context menu fires ──
   useEffect(() => {
@@ -5274,14 +5296,16 @@ export const Schema = ({
     const emp   = employees.find(e => e.id === personId);
     const shift = getScheduleShift(personId, parseDate(dateStr), 'alla');
     if (!shift) return;
+    if (matchCandidates) focusPassForCandidates(personId, dateStr);
     setResourceNeedAssignmentId(null);
     setOrderAssignment(null);
     setSubPanelState({ personId, dateStr, shift, fillType:'substitute', targetPersonName: emp?.name ?? '', targetUnit: emp?.department, targetType: 'pass', targetRole: emp?.role, matchCandidates });
     setSubPanelBrowseAll(false);
     setSubPanelOpen(true);
-  }, [employees, getScheduleShift]);
+  }, [employees, focusPassForCandidates, getScheduleShift]);
 
   const handleOpenRemainingPassPanel = useCallback((pass: RemainingPass, matchCandidates = false) => {
+    if (matchCandidates) focusPassForCandidates(pass.id, pass.dateStr);
     setResourceNeedAssignmentId(null);
     setOrderAssignment(null);
     setSubPanelState({
@@ -5299,7 +5323,7 @@ export const Schema = ({
     setSubPanelBrowseAll(false);
     setSubPanelOpen(true);
     setDetailState(null);
-  }, []);
+  }, [focusPassForCandidates]);
 
   const handleOpenScheduleActivityPanel = useCallback((personId: string, dateStr: string, activity: ScheduleActivity, targetPersonName: string, targetUnit: string) => {
     setResourceNeedAssignmentId(null);
@@ -5332,6 +5356,7 @@ export const Schema = ({
 
   const handleCloseSubPanel = useCallback(() => {
     setSubPanelOpen(false);
+    setPassToReveal(null);
     setSubPanelBrowseAll(false);
     setOrderAssignment(null);
     setResourceNeedAssignmentId(null);
@@ -5420,6 +5445,7 @@ export const Schema = ({
   }, [employees]);
 
   const handleOpenResourceNeedAssignment = useCallback((need: ResourceNeed, matchCandidates = false) => {
+    if (matchCandidates) focusPassForCandidates(need.personId, need.dateStr);
     const employee = employees.find(item => item.id === need.personId);
     const remainingPass = remainingPasses.find(pass => pass.id === need.personId && pass.dateStr === need.dateStr);
     setResourceNeedAssignmentId(need.id);
@@ -5435,7 +5461,7 @@ export const Schema = ({
     });
     setSubPanelBrowseAll(false);
     setSubPanelOpen(true);
-  }, [employees, remainingPasses]);
+  }, [employees, focusPassForCandidates, remainingPasses]);
 
   const handleCreateResourceOrderForNeed = useCallback((need: ResourceNeed) => {
     setResourceNeedOrderTargetId(need.id);
@@ -7000,8 +7026,8 @@ export const Schema = ({
                             isTargetDay && isVacant ? 'schema-ctx-cell' : '',
                             highlightedScheduleObject?.personId === pass.id && highlightedScheduleObject.dateStr === dateStr && !highlightedScheduleObject.activityId ? isPrimaryScheduleSelection ? 'schema-schedule-object-selected' : 'schema-schedule-object-related' : isCandidateBookingRelatedToSchedule(pass.id, dateStr) ? 'schema-schedule-object-related' : '',
                           ].filter(Boolean).join(' ')}
-                            data-person-id={isTargetDay && isVacant ? pass.id : undefined}
-                            data-date-str={isTargetDay && isVacant ? dateStr : undefined}
+                            data-person-id={isTargetDay ? pass.id : undefined}
+                            data-date-str={isTargetDay ? dateStr : undefined}
                             data-ctx-type={isTargetDay && isVacant ? 'vacant' : undefined}
                             onClick={event => selectScheduleObject(pass.id, dateStr, event.target)}
                             onDoubleClick={isTargetDay ? () => handleOpenDetail(pass.id, 'Pass kvar', pass.unit, dateStr, pass.shift, isVacant ? 'vacant' : 'filled') : undefined}>
@@ -7201,8 +7227,8 @@ export const Schema = ({
                                   ctxType ? 'schema-ctx-cell' : '',
                                   highlightedScheduleObject?.personId === emp.id && highlightedScheduleObject.dateStr === ds && !highlightedScheduleObject.activityId ? isPrimaryScheduleSelection ? 'schema-schedule-object-selected' : 'schema-schedule-object-related' : isCandidateBookingRelatedToSchedule(emp.id, ds) ? 'schema-schedule-object-related' : '',
                                 ].filter(Boolean).join(' ')}
-                                data-person-id={ctxType ? emp.id : undefined}
-                                data-date-str={ctxType ? ds : undefined}
+                                data-person-id={emp.id}
+                                data-date-str={ds}
                                 data-ctx-type={ctxType}
                                 onClick={event => selectScheduleObject(emp.id, ds, event.target)}
                                 onDoubleClick={shift ? () => handleOpenDetail(emp.id, emp.name, emp.role, ds, shift, color) : undefined}
@@ -7250,8 +7276,8 @@ export const Schema = ({
                               <td
                                 key={ci}
                                 className={['schema-month-col-cell', col.isWeekend ? 'schema-weekend-cell' : '', ds === TODAY_STR ? 'schema-today-col' : '', ctxType ? 'schema-ctx-cell' : '', nightCarryColor ? 'schema-night-carry-cell' : '', highlightedScheduleObject?.personId === emp.id && highlightedScheduleObject.dateStr === ds && !highlightedScheduleObject.activityId ? isPrimaryScheduleSelection ? 'schema-schedule-object-selected' : 'schema-schedule-object-related' : isCandidateBookingRelatedToSchedule(emp.id, ds) ? 'schema-schedule-object-related' : ''].filter(Boolean).join(' ')}
-                                data-person-id={ctxType ? emp.id : undefined}
-                                data-date-str={ctxType ? ds : undefined}
+                                data-person-id={emp.id}
+                                data-date-str={ds}
                                 data-ctx-type={ctxType}
                                 onClick={event => selectScheduleObject(emp.id, ds, event.target)}
                               >
@@ -7296,8 +7322,8 @@ export const Schema = ({
                               nightCarryColor ? 'schema-night-carry-cell' : '',
                               highlightedScheduleObject?.personId === emp.id && highlightedScheduleObject.dateStr === ds && !highlightedScheduleObject.activityId ? isPrimaryScheduleSelection ? 'schema-schedule-object-selected' : 'schema-schedule-object-related' : isCandidateBookingRelatedToSchedule(emp.id, ds) ? 'schema-schedule-object-related' : '',
                             ].filter(Boolean).join(' ')}
-                            data-person-id={ctxType ? emp.id : undefined}
-                            data-date-str={ctxType ? ds : undefined}
+                            data-person-id={emp.id}
+                            data-date-str={ds}
                             data-ctx-type={ctxType}
                             onClick={event => selectScheduleObject(emp.id, ds, event.target)}
                             >

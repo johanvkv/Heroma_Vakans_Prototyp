@@ -1,0 +1,3 @@
+import config from 'devextreme/core/config';
+
+config({ licenseKey: 'ewogICJmb3JtYXQiOiAxLAogICJjdXN0b21lcklkIjogIjY3MDU1OTFlLTA5YTctNGU2Ny05ZDE2LTA3NDJiMGMwODc0MyIsCiAgIm1heFZlcnNpb25BbGxvd2VkIjogMjUyCn0=.BPxFdR9QD0IL3as1ylWdYPbWsyPFMbWcJDLRYFWgdUFv6wJofl5G3gP3Cxo6aNJP3+EZaJQKLeLcyPpyIleyexOz7yHpiYgHH+YOd766eM8+3qz5Iz7hJWAjte8umMoOoM44vA==' });
