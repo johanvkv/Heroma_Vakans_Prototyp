@@ -6901,6 +6901,10 @@ export const Schema = ({
               width={240}
               stylingMode="outlined"
             />
+            {alwaysShowResourceNeeds && <div className="schema-filter-inline-checks">
+              <CheckBox value={showAbsences} onValueChanged={e => setShowAbsences(Boolean(e.value))} text="Visa Frånvaro" />
+              <CheckBox value={showResourceNeeds} onValueChanged={e => setShowResourceNeeds(Boolean(e.value))} text="Visa Resursbehov" />
+            </div>}
             <div className="schema-filter-spacer" />
             {resourceNeedPrototype && automation && (
               <label className="schema-automation-control">
@@ -6921,10 +6925,8 @@ export const Schema = ({
             )}
           </div>
 
-          {/* Checkboxes */}
-          <div className="schema-filter-checks">
-            {alwaysShowResourceNeeds && <CheckBox value={showAbsences} onValueChanged={e => setShowAbsences(Boolean(e.value))} text="Visa Frånvaro" />}
-            {alwaysShowResourceNeeds && <CheckBox value={showResourceNeeds} onValueChanged={e => setShowResourceNeeds(Boolean(e.value))} text="Visa Resursbehov" />}
+          {/* Checkboxes for the other schedule scenarios */}
+          {!alwaysShowResourceNeeds && <div className="schema-filter-checks">
             {!alwaysShowResourceNeeds && <CheckBox value={showVacancies} onValueChanged={e => setShowVacancies(e.value)} text={resourceNeedPrototype ? 'Visa frånvaro och resursbehov' : 'Visa bara vakanser'} />}
             {resourceNeedPrototype && !alwaysShowResourceNeeds && (
               <div className="schema-orders-toggle">
@@ -6955,7 +6957,7 @@ export const Schema = ({
               <span><i className="schema-org-legend-dot schema-org-legend-absent" />Frånvarande</span>
               <small>Gruppceller: på plats / frånvarande</small>
             </div>}
-          </div>
+          </div>}
 
           {/* Week navigation and the activity key sit directly above the schedule. */}
           <div className="schema-schedule-toolbar">

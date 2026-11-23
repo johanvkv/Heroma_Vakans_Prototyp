@@ -9844,6 +9844,13 @@ body.page-builder-fullscreen .components-layout-wrapper {
 }
 
 .schema-filter-spacer { flex: 1; }
+.schema-filter-inline-checks {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 34px;
+  white-space: nowrap;
+}
 
 .schema-edit-link {
   color: var(--primary);
