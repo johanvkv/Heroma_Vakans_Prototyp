@@ -3389,6 +3389,8 @@ function ResourceNeedsList({ needs, unreadMessageEntities, orgOptions, selectedR
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedOrgId, setSelectedOrgId] = useState('all');
   const [timeWindowFilter, setTimeWindowFilter] = useState<ResourceNeedTimeWindow>('all');
+  const [selectedNeedIds, setSelectedNeedIds] = useState<string[]>([]);
+  useEffect(() => setSelectedNeedIds([]), [statusFilter, selectedOrgId, timeWindowFilter]);
   const allowedOrgLevels = useMemo<ResourceBoardOrgLevel[]>(() => selectedRoleId === 'admin'
     ? ['education', 'rectorate', 'preschool', 'team', 'department', 'organisation']
     : selectedRoleId === 'chef'
@@ -3406,7 +3408,11 @@ function ResourceNeedsList({ needs, unreadMessageEntities, orgOptions, selectedR
     if (!matchesResourceNeedTimeWindow(need.dateStr, timeWindowFilter)) return false;
     return true;
   });
-  const hasOpenNeed = activeNeeds.some(need => need.status === 'Öppet' && !need.workflowStatus);
+  const allVisibleNeedsSelected = activeNeeds.length > 0 && activeNeeds.every(need => selectedNeedIds.includes(need.id));
+  const selectedVisibleNeedCount = activeNeeds.filter(need => selectedNeedIds.includes(need.id)).length;
+  const selectedOpenNeedIds = activeNeeds
+    .filter(need => selectedNeedIds.includes(need.id) && need.status === 'Öppet' && !need.workflowStatus)
+    .map(need => need.id);
   return (
     <div
       className="schema-orders-list schema-resource-needs-list"
@@ -3457,8 +3463,15 @@ function ResourceNeedsList({ needs, unreadMessageEntities, orgOptions, selectedR
         <div className="schema-orders-empty"><i className="fa-solid fa-user-clock" /><span>Inga resursbehov att visa.</span></div>
       ) : (
         <table className="schema-orders-table">
-          <colgroup><col style={{ width: '16%' }} /><col style={{ width: '20%' }} /><col style={{ width: '27%' }} /><col style={{ width: '37%' }} /></colgroup>
-          <thead><tr><th>Behov</th><th>Medarbetare</th><th>Status</th><th>Pass / aktivitet</th></tr></thead>
+          <colgroup><col style={{ width: '20%' }} /><col style={{ width: '20%' }} /><col style={{ width: '27%' }} /><col style={{ width: '33%' }} /></colgroup>
+          <thead><tr><th><label className="schema-resource-need-select-all"><input
+            type="checkbox"
+            className="schema-resource-need-checkbox"
+            aria-label="Välj eller välj av alla visade resursbehov"
+            checked={allVisibleNeedsSelected}
+            ref={input => { if (input) input.indeterminate = selectedVisibleNeedCount > 0 && !allVisibleNeedsSelected; }}
+            onChange={event => setSelectedNeedIds(event.target.checked ? activeNeeds.map(need => need.id) : [])}
+          />Behov</label></th><th>Medarbetare</th><th>Status</th><th>Pass / aktivitet</th></tr></thead>
           <tbody>
             {activeNeeds.map(need => (
               <tr
@@ -3475,7 +3488,15 @@ function ResourceNeedsList({ needs, unreadMessageEntities, orgOptions, selectedR
                 title="Dubbelklicka för detaljer eller högerklicka för åtgärder"
               >
                 <td className="schema-resource-need-type-cell">
-                  <span className="schema-resource-need-type-heading"><strong className={`schema-resource-need-kind schema-resource-need-kind-${need.source === 'pass' ? 'extra' : 'absence'}`}>{resourceNeedLabel(need.source)}</strong>{unreadMessageEntities.has(`need:${need.id}`) && <NewMessageIndicator />}</span>
+                  <span className="schema-resource-need-type-heading"><input
+                    type="checkbox"
+                    className="schema-resource-need-checkbox"
+                    aria-label={`Välj resursbehov ${resourceNeedLabel(need.source)} för ${need.personName} ${need.dateStr}`}
+                    checked={selectedNeedIds.includes(need.id)}
+                    onClick={event => event.stopPropagation()}
+                    onDoubleClick={event => event.stopPropagation()}
+                    onChange={event => setSelectedNeedIds(current => event.target.checked ? [...current, need.id] : current.filter(id => id !== need.id))}
+                  /><strong className={`schema-resource-need-kind schema-resource-need-kind-${need.source === 'pass' ? 'extra' : 'absence'}`}>{resourceNeedLabel(need.source)}</strong>{unreadMessageEntities.has(`need:${need.id}`) && <NewMessageIndicator />}</span>
                   <span title={need.dateStr}>{DAY_NAMES[dayIdx(parseDate(need.dateStr))]}</span>
                   {need.source === 'frånvaro' && need.reason && <small>{need.reason}</small>}
                 </td>
@@ -3499,11 +3520,11 @@ function ResourceNeedsList({ needs, unreadMessageEntities, orgOptions, selectedR
         </table>
       )}
       <div className="schema-resource-needs-bulk-actions">
-        <button className="btn-secondary" disabled={!hasOpenNeed} onClick={() => onOrderAll(activeNeeds.map(need => need.id))}>
-          <i className="fa-solid fa-cart-shopping" /> Skicka alla till bemanning
+        <button className="btn-secondary" disabled={selectedOpenNeedIds.length === 0} onClick={() => { onOrderAll(selectedOpenNeedIds); setSelectedNeedIds([]); }}>
+          <i className="fa-solid fa-cart-shopping" /> Beställa
         </button>
-        {onAssignAll && <button className="btn-primary" disabled={!hasOpenNeed} onClick={() => onAssignAll(activeNeeds.map(need => need.id))}>
-          <i className="fa-solid fa-robot" /> Tillsätt alla
+        {onAssignAll && <button className="btn-primary" disabled={selectedOpenNeedIds.length === 0} onClick={() => { onAssignAll(selectedOpenNeedIds); setSelectedNeedIds([]); }}>
+          <i className="fa-solid fa-robot" /> Tillsätta
         </button>}
       </div>
       <ContextMenu
@@ -6279,7 +6300,7 @@ export const Schema = ({
 
   const handleOrderAllResourceNeeds = useCallback((needIds: string[]) => {
     const selectedNeedIds = new Set(needIds);
-    const openNeeds = resourceNeeds.filter(need => needIds.length === 0 || selectedNeedIds.has(need.id))
+    const openNeeds = resourceNeeds.filter(need => selectedNeedIds.has(need.id))
       .filter(need => need.status === 'Öppet' && !need.workflowStatus);
     if (openNeeds.length === 0) return;
     const newOrders = openNeeds.map(need => ({
@@ -6313,7 +6334,7 @@ export const Schema = ({
 
   const handleAssignAllResourceNeeds = useCallback((needIds: string[]) => {
     const selectedNeedIds = new Set(needIds);
-    const openNeeds = resourceNeeds.filter(need => needIds.length === 0 || selectedNeedIds.has(need.id))
+    const openNeeds = resourceNeeds.filter(need => selectedNeedIds.has(need.id))
       .filter(need => need.status === 'Öppet' && !need.workflowStatus);
     if (openNeeds.length === 0) return;
     const assignments = openNeeds.map((need, index) => ({

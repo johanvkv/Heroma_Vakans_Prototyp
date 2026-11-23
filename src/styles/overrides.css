@@ -11048,6 +11048,9 @@ input.schema-sub-checkbox:checked::after {
 .schema-resource-needs-list:has(.schema-resource-need-row) { outline-color: transparent; }
 .schema-resource-needs-list:hover { outline-color: #b9a8e8; }
 .schema-resource-need-type-heading { display: inline-flex; align-items: center; gap: 4px; }
+.schema-resource-need-select-all { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.schema-resource-need-checkbox { width: 16px; height: 16px; flex: 0 0 16px; margin: 0; accent-color: #5236ab; cursor: pointer; }
+.schema-resource-need-checkbox:focus-visible { outline: 2px solid #5236ab; outline-offset: 2px; }
 
 .vh-settings-page { width: 100%; max-width: none; margin: 0; padding: 1.25rem 1.5rem; box-sizing: border-box; color: #29263d; }
 .vh-settings-page > .schema-view-switcher { margin-bottom: 1rem; }
@@ -12907,6 +12910,8 @@ input.schema-sub-checkbox:checked::after {
 .schema-page-hospital .schema-resource-need-type-cell > span,
 .schema-page-hospital .schema-resource-need-type-cell > small,
 .schema-page-hospital .schema-resource-need-status-cell > small { display: block; margin-top: 3px; color: #707784; font-size: 10px; line-height: 1.2; }
+.schema-page-hospital .schema-resource-need-type-cell > .schema-resource-need-type-heading { display: flex; align-items: center; gap: 4px; }
+.schema-page-hospital .schema-resource-need-type-heading .schema-resource-need-kind { margin: 0; }
 .schema-page-hospital .schema-resource-need-kind { display: inline-block; margin: 0 0 3px; font-size: 11px; }
 .schema-page-hospital .schema-resource-need-kind-absence { color: #bd3d49; }
 .schema-page-hospital .schema-resource-need-kind-extra { color: #2872a9; }
