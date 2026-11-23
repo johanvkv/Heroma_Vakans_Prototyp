@@ -911,13 +911,11 @@ function getHospitalActivities(employeeId: string, date: Date, shift: Shift): Sc
 }
 
 function seedForwardPreschoolAbsences(): void {
+  // Keep a few future examples while leaving other employees without upcoming vacancies.
   const examples = [
     { employeeIndex: 2, firstOffset: 1 },
-    { employeeIndex: 10, firstOffset: 3 },
     { employeeIndex: 12, firstOffset: 5 },
-    { employeeIndex: 14, firstOffset: 7 },
     { employeeIndex: 16, firstOffset: 9 },
-    { employeeIndex: 18, firstOffset: 11 },
   ];
 
   REPLACED_PAST_PRESCHOOL_ABSENCE_KEYS.forEach(key => {
