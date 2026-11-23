@@ -2852,9 +2852,7 @@ function getOrderContextActions(order: ResourceOrder): OrderContextAction[] {
       icon: 'circle-check',
       substituteId: invite.substituteId,
     }));
-  if (order.status !== 'Tillsatt') {
-    actions.push({ id: 'cancel-order', text: 'Avbryt beställning', icon: 'ban', beginGroup: true });
-  }
+  actions.push({ id: 'cancel-order', text: 'Avbryt beställning', icon: 'ban', beginGroup: true });
   return actions;
 }
 
@@ -3381,8 +3379,8 @@ function getResourceNeedActions(need: ResourceNeed): ResourceNeedAction[] {
   return [
     { id: 'open' as const, text: 'Öppna', icon: 'arrow-up-right-from-square' },
     { id: 'find-substitute' as const, text: 'Hitta ersättare', icon: 'user-magnifying-glass' },
-    ...(need.status !== 'Tillsatt' ? [{ id: 'assign-direct' as const, text: 'Tillsätt direkt', icon: 'robot' }] : []),
-    ...(need.status !== 'Tillsatt' ? [{ id: 'assign' as const, text: 'Tillsätt', icon: 'user-check' }] : []),
+    { id: 'assign-direct' as const, text: 'Tillsätt direkt', icon: 'robot' },
+    { id: 'assign' as const, text: 'Tillsätt', icon: 'user-check' },
     { id: 'order' as const, text: 'Beställ', icon: 'cart-shopping' },
     { id: 'remove' as const, text: 'Ta bort resursbehov', icon: 'ban' },
   ];
@@ -6149,11 +6147,11 @@ export const Schema = ({
         : item));
       updateLinkedNeedWorkflowStatus(orderId, 'Förfrågan skickad', 'Lena Sjöberg');
       addOrderActivity(orderId, { type: 'status', author: 'Lena Sjöberg', initials: 'LS', time: 'Just nu', text: 'Förfrågan skickad till vikarier', detail: invites.map(invite => invite.name).join(' · ') });
-      const responseItems: CaseActivityResponse[] = invites.map(invite => ({
+      const responseItems: CaseActivityResponse[] = invites.map((invite): CaseActivityResponse => ({
         id: invite.substituteId,
         name: invite.name,
         role: invite.role,
-        response: invite.response === 'Tillgänglig' ? 'Ja' : invite.response === 'Kan inte' ? 'Nej' : invite.response === 'Avvaktar' ? (resourceNeedPrototype ? 'Inget svar' : 'Kanske') : 'Inget svar',
+        response: invite.response === 'Tillgänglig' ? 'Ja' : invite.response === 'Kan inte' ? 'Nej' : resourceNeedPrototype ? 'Inget svar' : 'Kanske',
         detail: invite.responseText,
       }));
       addOrderActivity(orderId, {
@@ -7317,7 +7315,7 @@ export const Schema = ({
                             ? resourceNeedDisplayStatus ?? 'Öppet'
                             : activeScheduleOrder ? activeScheduleOrder.status : undefined;
 
-                          if (hasActivityTimeline && viewType !== 'year-columns') {
+                          if (hasActivityTimeline) {
                             const candidateId = internalCandidateId(emp.id);
                             const selfAvailability = !shift
                               ? getSubAvailability(candidateId, col.date, effectiveAvailabilityOverrides, substituteAbsences)

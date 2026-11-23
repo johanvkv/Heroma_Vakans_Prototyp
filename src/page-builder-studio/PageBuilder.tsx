@@ -545,7 +545,7 @@ const CardDropZone: React.FC<{
 }> = ({ cardId, children, addComponentToCard, removeComponentFromCard, updateComponentInCard, moveComponentInCard, addComponentToRowInCard, removeComponentFromRowInCard, tabsActiveStates, setActiveTab }) => {
   const [, drop] = useDrop(() => ({
     accept: 'COMPONENT_EXAMPLE',
-    drop: (item: { type: string; name: string; component: React.ReactElement; gridFeatures?: any; inputFieldType?: string; inputFieldWidth?: number }, monitor) => {
+    drop: (item: { type: string; name: string; component: React.ReactElement; gridFeatures?: any; inputFieldType?: DroppedComponent['inputType']; inputFieldWidth?: number }, monitor) => {
       // Only handle if this is the direct target
       if (monitor.didDrop()) {
         return;
@@ -1214,7 +1214,7 @@ const DroppedComponentItem: React.FC<{
     const StepDropZone: React.FC<{ stepId: string }> = ({ stepId }) => {
       const [{ isOver }, drop] = useDrop(() => ({
         accept: 'COMPONENT_EXAMPLE',
-        drop: (item: { type: string; name: string; component: React.ReactElement; gridFeatures?: any; inputFieldType?: string; inputFieldWidth?: number }, monitor) => {
+        drop: (item: { type: string; name: string; component: React.ReactElement; gridFeatures?: any; inputFieldType?: DroppedComponent['inputType']; inputFieldWidth?: number }, monitor) => {
           if (monitor.didDrop()) return;
           const textContent = item.type.startsWith('text-')
             ? (extractTextContent(item.component) || getDefaultTextContent(item.type))
@@ -2291,7 +2291,7 @@ export const PageBuilder: React.FC = () => {
 
   const [, drop] = useDrop(() => ({
     accept: 'COMPONENT_EXAMPLE',
-    drop: (item: { type: string; name: string; component: React.ReactElement; gridFeatures?: any; inputFieldType?: string; inputFieldWidth?: number }, monitor) => {
+    drop: (item: { type: string; name: string; component: React.ReactElement; gridFeatures?: any; inputFieldType?: DroppedComponent['inputType']; inputFieldWidth?: number }, monitor) => {
       // Only handle drop if it's not already handled by a nested target
       if (monitor.didDrop()) {
         return;

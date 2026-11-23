@@ -49,7 +49,7 @@ import { Divider } from '../components/Divider';
 import { Spacer } from '../components/Spacer';
 import { Alert } from '../components/Alert';
 
-type ComponentId = 'badge' | 'digitbadge' | 'statusbadge' | 'indicatorbadge' | 'button' | 'segmented' | 'card' | 'block' | 'datagrid' | 'treelist' | 'scheduler' | 'chart' | 'menu' | 'icons' | 'label' | 'input' | 'stepper' | 'accordion' | 'tabs' | 'text' | 'sidebar' | 'helpers' | 'alerts';
+type ComponentId = 'badge' | 'digitbadge' | 'statusbadge' | 'indicatorbadge' | 'button' | 'segmented' | 'card' | 'block' | 'datagrid' | 'treelist' | 'scheduler' | 'chart' | 'menu' | 'icons' | 'label' | 'input' | 'stepper' | 'accordion' | 'tabs' | 'text' | 'sidebar' | 'helpers' | 'alerts' | 'variables';
 
 const gridSampleData = [
   { id: 1, link: 'Name', subLink: 'ID: 001234', name: 'John Smith', idNumber: '123ABC', amount: '1,234,567.89', percentage: 13.67, tag: 'Info',    labelType: 'info' },

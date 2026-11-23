@@ -14,6 +14,10 @@ export const UserProfilePanel: React.FC<UserProfilePanelProps> = ({ isOpen, onCl
   useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
 
   useEffect(() => {
+    if (panelRef.current) panelRef.current.inert = !isOpen;
+  }, [isOpen]);
+
+  useEffect(() => {
     if (!isOpen) return;
     const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const panel = panelRef.current;
@@ -57,7 +61,7 @@ export const UserProfilePanel: React.FC<UserProfilePanelProps> = ({ isOpen, onCl
       {isOpen && <div className="user-profile-overlay" aria-hidden="true" onClick={onClose}></div>}
       
       {/* Side panel */}
-      <div className={`user-profile-panel ${isOpen ? 'open' : ''}`} ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="user-profile-title" aria-hidden={!isOpen} inert={!isOpen} tabIndex={-1}>
+      <div className={`user-profile-panel ${isOpen ? 'open' : ''}`} ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="user-profile-title" aria-hidden={!isOpen} tabIndex={-1}>
         {/* Header */}
         <div className="user-profile-header">
           <div>

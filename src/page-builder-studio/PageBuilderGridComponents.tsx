@@ -74,7 +74,7 @@ export const GridDetailRowDropZone: React.FC<{
 }> = ({ gridId, rowKey, addComponentToRow }) => {
   const [{ isOver }, drop] = useDrop(() => ({
     accept: 'COMPONENT_EXAMPLE',
-    drop: (item: { type: string; name: string; component: React.ReactElement; gridFeatures?: any; inputFieldType?: string; inputFieldWidth?: number }, monitor) => {
+    drop: (item: { type: string; name: string; component: React.ReactElement; gridFeatures?: any; inputFieldType?: DroppedComponent['inputType']; inputFieldWidth?: number }, monitor) => {
       if (monitor.didDrop()) return;
       const textContent = item.type.startsWith('text-')
         ? (extractTextContent(item.component) || getDefaultTextContent(item.type))
