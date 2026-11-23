@@ -42,48 +42,11 @@
     "_overviewCards": [],
     "Inställningar": { "options": ["Systeminställningar", "Gränssnittsanpassningar", "Användarhantering", "Byt lösenord"] }
   },
-  "Tid & Bemanning": {
-    "_id": "tid",
-    "_icon": "fa-calendar-days",
-    "_path": "/tid/schema",
-    "_new": true,
-    "_overviewCards": [],
-    "Tid & Bemanning": { "options": ["Schema", "Tidrapportering", "Bemanningsplanering"] }
-  },
-  "Tid & Bemanning Ny": {
-    "_id": "schema-prototyp",
-    "_icon": "fa-calendar-days",
-    "_path": "/tid/schema-prototyp",
-    "_new": true,
-    "_overviewCards": []
-  },
   "Vikariehantering": {
     "_id": "vikariehantering-app",
     "_icon": "fa-person-circle-check",
-    "_new": true,
-    "_overviewCards": [],
-    "Vikariehantering": { "options": ["Schema", "Inställningar"] }
-  },
-  "Testa urval": {
-    "_id": "vikariehantering",
-    "_icon": "fa-user-clock",
-    "_path": "/vikariehantering/urvalstest",
+    "_path": "/vikariehantering/schema",
     "_new": true,
     "_overviewCards": []
-  },
-  "Bemanningsstatistik": {
-    "_id": "bemanningsstatistik",
-    "_icon": "fa-chart-line",
-    "_path": "/vikariehantering/statistik",
-    "_new": true,
-    "_overviewCards": []
-  },
-  "Page Builder Studio": {
-    "_id": "components",
-    "_icon": "fa-cube",
-    "_path": "/components",
-    "_dividerBefore": true,
-    "_overviewCards": [],
-    "Components": { "options": ["Badge", "Button", "Card", "DataGrid", "Chart", "Menu", "Icons"] }
   }
 }

@@ -1,60 +1,54 @@
 import { createBrowserRouter } from "react-router";
-import { Dashboard } from "./pages/Dashboard";
-import { Components } from "./pages/Components";
-import { UiKitReference } from "./pages/UiKitReference";
-import { Personer } from "./pages/Personer";
-import { Schema } from "./pages/Schema";
-import { SchemaPrototype } from "./pages/SchemaPrototype";
-import { VikarieUrvalTest } from "./pages/VikarieUrvalTest";
-import { StaffingAnalytics } from "./pages/StaffingAnalytics";
-import { DepartmentStaffingView } from "./pages/DepartmentStaffingView";
-import { VikariehanteringSchema } from "./pages/VikariehanteringSchema";
-import { VikariehanteringSettings } from "./pages/VikariehanteringSettings";
-import { AutomationProvider } from "./components/AutomationContext";
 
 export const router = createBrowserRouter([
   {
     path: "/",
-    Component: Dashboard,
+    lazy: async () => ({ Component: (await import("./pages/Dashboard")).Dashboard }),
   },
   {
     path: "/components",
-    Component: Components,
+    lazy: async () => ({ Component: (await import("./pages/Components")).Components }),
   },
   {
     path: "/ui-kit",
-    Component: UiKitReference,
+    lazy: async () => ({ Component: (await import("./pages/UiKitReference")).UiKitReference }),
   },
   {
     path: "/installningar/personer",
-    Component: Personer,
+    lazy: async () => ({ Component: (await import("./pages/Personer")).Personer }),
   },
   {
     path: "/tid/schema",
-    Component: Schema,
+    lazy: async () => ({ Component: (await import("./pages/Schema")).Schema }),
   },
   {
     path: "/tid/schema-prototyp",
-    Component: SchemaPrototype,
+    lazy: async () => ({ Component: (await import("./pages/SchemaPrototype")).SchemaPrototype }),
   },
   {
     path: "/vikariehantering/schema",
-    Component: VikariehanteringSchema,
+    lazy: async () => ({ Component: (await import("./pages/VikariehanteringSchema")).VikariehanteringSchema }),
   },
   {
     path: "/vikariehantering/installningar",
-    Component: () => <AutomationProvider><VikariehanteringSettings /></AutomationProvider>,
+    lazy: async () => {
+      const [{ VikariehanteringSettings }, { AutomationProvider }] = await Promise.all([
+        import("./pages/VikariehanteringSettings"),
+        import("./components/AutomationContext"),
+      ]);
+      return { Component: () => <AutomationProvider><VikariehanteringSettings /></AutomationProvider> };
+    },
   },
   {
     path: "/vikariehantering/urvalstest",
-    Component: VikarieUrvalTest,
+    lazy: async () => ({ Component: (await import("./pages/VikarieUrvalTest")).VikarieUrvalTest }),
   },
   {
     path: "/vikariehantering/statistik",
-    Component: StaffingAnalytics,
+    lazy: async () => ({ Component: (await import("./pages/StaffingAnalytics")).StaffingAnalytics }),
   },
   {
     path: "/vikariehantering/avdelningsvy",
-    Component: DepartmentStaffingView,
+    lazy: async () => ({ Component: (await import("./pages/DepartmentStaffingView")).DepartmentStaffingView }),
   },
 ]);

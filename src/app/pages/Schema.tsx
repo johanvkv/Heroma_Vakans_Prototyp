@@ -137,6 +137,8 @@ interface ResourceOrderInvite {
 }
 type SubstituteCostLevel = 'Gratis' | 'Kostnadsnivå 1' | 'Kostnadsnivå 2' | 'Kostnadsnivå 3';
 interface SubstituteCandidate { id: string; name: string; role: string; category: string; costLevel: SubstituteCostLevel; employmentType?: 'fastanställd' | 'timanställd'; ownUnitIds?: string[]; competencies?: string[]; }
+interface CandidateMatchCriterion { label: string; achieved: number; possible: number; detail: string; }
+interface CandidateMatch { percent: number; tone: 'green' | 'yellow' | 'red'; criteria: CandidateMatchCriterion[]; blocker?: string; }
 const OWN_UNIT_CATEGORY_FILTER_ID = '__egna-vikarier__';
 function getCandidateScreeningFlags(candidateId: string) {
   const digits = candidateId.match(/\d+/)?.[0];
@@ -184,7 +186,7 @@ function candidateHoursSummary(candidate: SubstituteCandidate, details?: Substit
   if (isPermanentCandidate(candidate)) return `ATL ${candidateAtlHours(candidate.id, details)}/${ATL_MAX_HOURS} h`;
   return null;
 }
-interface SubBookedShift { dateStr: string; start: string; end: string; activities?: ScheduleActivity[]; }
+interface SubBookedShift { dateStr: string; start: string; end: string; personId?: string; activities?: ScheduleActivity[]; }
 interface CandidateBlockedInterval { startMinute: number; endMinute: number; reason: string; }
 interface DeclaredUnavailableTime { weekday: number; start: string; end: string; }
 interface DetailState {
@@ -204,6 +206,8 @@ interface SubPanelState {
   targetActivityLabel?: string;
   targetRemainingPassId?: string;
   unitLocked?: boolean;
+  matchCandidates?: boolean;
+  targetRole?: string;
 }
 interface ConfirmState {
   substitutes: SubstituteCandidate[];
@@ -254,7 +258,7 @@ interface OrderContextAction {
   substituteId?: string;
   beginGroup?: boolean;
 }
-type ResourceNeedActionId = 'open' | 'remove' | 'assign' | 'assign-direct' | 'order';
+type ResourceNeedActionId = 'open' | 'remove' | 'assign' | 'assign-direct' | 'order' | 'find-substitute';
 interface ResourceNeedAction { id: ResourceNeedActionId; text: string; icon: string; }
 
 // ─── Constants ───────────────────────────────────────────────────────────────
@@ -273,12 +277,13 @@ interface ContextAction {
   text: string;
   icon: string;
   beginGroup?: boolean;
+  disabled?: boolean;
 }
 
-function renderSchemaContextMenuItem(item: { id?: string; text?: string; icon?: string }) {
+function renderSchemaContextMenuItem(item: { id?: string; text?: string; icon?: string; disabled?: boolean }) {
   const icon = item.id === 'assign-direct' ? 'robot' : item.icon ?? 'circle';
   return (
-    <span className="schema-context-menu-item">
+    <span className={`schema-context-menu-item${item.disabled ? ' schema-context-menu-item-disabled' : ''}`} aria-disabled={item.disabled || undefined}>
       <i className={`fa-solid fa-${icon}`} aria-hidden="true" />
       <span>{item.text}</span>
     </span>
@@ -353,7 +358,7 @@ function getContextActions(type: ContextTargetType, resourceNeedMode = false, is
     : [];
   if (type === 'absence') {
     return [
-      { id: 'find-substitute', text: 'Hitta vikarie', icon: 'user' },
+      { id: 'find-substitute', text: 'Hitta ersättare', icon: 'user' },
       { id: 'order-resource', text: 'Beställ resurs', icon: 'cart-shopping' },
       ...directAssignment,
       { id: 'make-vacancy', text: resourceNeedMode ? 'Skapa resursbehov' : 'Gör till vakans', icon: 'user-clock' },
@@ -362,6 +367,7 @@ function getContextActions(type: ContextTargetType, resourceNeedMode = false, is
     ];
   }
   return [
+    { id: 'find-substitute', text: 'Hitta ersättare', icon: 'user' },
     {
       id: 'primary',
       text: resourceNeedMode ? 'Skapa resursbehov' : type === 'vacant' ? 'Hitta vikarie' : 'Boka extrapass',
@@ -1234,7 +1240,7 @@ function timeToMinutes(time: string): number {
   return hours * 60 + minutes;
 }
 
-function ActivityTimelineCell({ shift, activities, activityFills, availability, bookedAssignment, absenceLabel, vacancyLabel, statusLabel, assignedSubstituteName, resourceNeedCreatedBy, resourceNeedSource, resourceNeedDisplayStatus, resourceNeedHandler, isOrdered = false, resourceStatus = false, isPast, hospitalMode = false, carryInShift, carryInActivities = [], carryInAbsenceLabel, carryInVacancyLabel, carryInIsOrdered = false, carryInAssignedSubstituteName, carryInIsPast = false, onCarryInDoubleClick, onPassDragStart, onPassDragOver, onPassDrop }: {
+function ActivityTimelineCell({ shift, activities, activityFills, availability, bookedAssignment, absenceLabel, vacancyLabel, statusLabel, assignedSubstituteName, resourceNeedCreatedBy, resourceNeedSource, resourceNeedDisplayStatus, resourceNeedHandler, isOrdered = false, resourceStatus = false, isPast, hospitalMode = false, carryInShift, carryInActivities = [], carryInAbsenceLabel, carryInVacancyLabel, carryInIsOrdered = false, carryInAssignedSubstituteName, carryInIsPast = false, selectedActivityId, onCarryInDoubleClick, onPassDragStart, onPassDragOver, onPassDrop }: {
   shift: Shift | null;
   activities: ScheduleActivity[];
   activityFills: Record<string, ActivityFill>;
@@ -1259,6 +1265,7 @@ function ActivityTimelineCell({ shift, activities, activityFills, availability, 
   carryInIsOrdered?: boolean;
   carryInAssignedSubstituteName?: string;
   carryInIsPast?: boolean;
+  selectedActivityId?: string;
   onCarryInDoubleClick?: () => void;
   onPassDragStart?: (event: React.DragEvent, shift: Shift) => void;
   onPassDragOver: (event: React.DragEvent) => void;
@@ -1304,7 +1311,8 @@ function ActivityTimelineCell({ shift, activities, activityFills, availability, 
     return segments.map((segment, index) => <div
       key={`${activity.id}-${carry ? 'carry' : 'start'}-${index}`}
       role="img"
-      className={`schema-activity-bar ${presentation.className}${isFirstActivity && index === 0 ? ' schema-activity-bar-start-cap' : ''}${isLastActivity && index === segments.length - 1 ? ' schema-activity-bar-end-cap' : ''}${carry ? ' schema-activity-bar-carry' : timeToMinutes(activity.end) <= timeToMinutes(activity.start) ? ' schema-activity-bar-overflow-start' : ''}${!assignedName && segmentAbsenceLabel ? ' schema-activity-bar-absence' : !assignedName && segmentIsOrdered ? ' schema-activity-bar-ordered' : !assignedName && segmentVacancyLabel ? ' schema-activity-bar-vacant' : ''}${assignedName ? ' schema-activity-bar-filled' : ''}${carry && carryInIsPast && !isPast ? ' schema-activity-bar-past' : ''}`}
+      className={`schema-activity-bar ${presentation.className}${activity.id === selectedActivityId ? ' schema-activity-bar-selected' : ''}${isFirstActivity && index === 0 ? ' schema-activity-bar-start-cap' : ''}${isLastActivity && index === segments.length - 1 ? ' schema-activity-bar-end-cap' : ''}${carry ? ' schema-activity-bar-carry' : timeToMinutes(activity.end) <= timeToMinutes(activity.start) ? ' schema-activity-bar-overflow-start' : ''}${!assignedName && segmentAbsenceLabel ? ' schema-activity-bar-absence' : !assignedName && segmentIsOrdered ? ' schema-activity-bar-ordered' : !assignedName && segmentVacancyLabel ? ' schema-activity-bar-vacant' : ''}${assignedName ? ' schema-activity-bar-filled' : ''}${carry && carryInIsPast && !isPast ? ' schema-activity-bar-past' : ''}`}
+      data-activity-id={activity.id}
       style={segmentStyle(segment.start, segment.end, carry, segment.end === '24:00')}
       aria-label={`${activity.label}, ${activity.start} till ${activity.end}${assignedName ? `, vikarie ${assignedName}` : ''}${carry ? ', fortsättning från föregående dag' : ''}`}
       title={`${activity.label} · ${activity.start}–${activity.end}${assignedName ? ` · Tillsatt med ${assignedName}` : ''}${carry ? ' · Fortsättning av samma nattpass' : ''}`}
@@ -1388,6 +1396,12 @@ interface SubstitutePanelProps {
   targetUnitId?: string;
   targetCompetencies?: string[];
   bookingsByCandidate?: Record<string, SubBookedShift[]>;
+  highlightedCandidateId?: string | null;
+  highlightedCandidateBooking?: { candidateId: string; dateStr: string } | null;
+  relatedCandidateIds?: string[];
+  relatedCandidateBookingKeys?: string[];
+  onSelectCandidate?: (candidateId: string) => void;
+  onSelectCandidateBooking?: (candidateId: string, booking: SubBookedShift) => void;
   columns: ViewColumn[];
   viewType: ViewType;
   viewColumnWidth?: number;
@@ -1411,11 +1425,14 @@ interface SubstitutePanelProps {
 
 function SubstitutePanel({
   isOpen, browseAll, state, candidates, unreadMessageEntities, singleAssignment = false, preschoolMode = false, targetUnitId, targetCompetencies = [], bookingsByCandidate = SUB_BOOKED_SHIFTS, columns, viewType, viewColumnWidth: viewColumnWidthOverride,
+  highlightedCandidateId = null, highlightedCandidateBooking = null, relatedCandidateIds = [], relatedCandidateBookingKeys = [], onSelectCandidate, onSelectCandidateBooking,
   onClose, onSendRequest, onDirectAssign, onOpenDetails, onSetAvailability, onRestoreAvailability, onReportSick, onClearSickness,
   availabilityOverrides, absences,
   onDragStart, scrollRef, tableWidth, tableInset, panelLeft, panelWidth,
 }: SubstitutePanelProps) {
   const [filterRoles, setFilterRoles] = useState<string[]>([]);
+  const [filterText, setFilterText] = useState('');
+  const [matchDetailId, setMatchDetailId] = useState<string | null>(null);
   const [filterCategories, setFilterCategories] = useState<string[]>([]);
   const [categoryFilterOpen, setCategoryFilterOpen] = useState(false);
   const categoryFilterTriggerRef = useRef<HTMLButtonElement>(null);
@@ -1448,6 +1465,8 @@ function SubstitutePanel({
 
   useEffect(() => {
     setFilterRoles([]);
+    setFilterText('');
+    setMatchDetailId(null);
     setFilterCategories([]);
     setCategoryFilterOpen(false);
     setFilterCompetencies([]);
@@ -1458,10 +1477,10 @@ function SubstitutePanel({
     setClearanceFilter(false);
     setOnboardedFilter(false);
     setCostFocusFilter(false);
-    if (preschoolMode && targetCompetencies.length > 0) setFilterCompetencies(targetCompetencies);
+    if (preschoolMode && !state?.matchCandidates && targetCompetencies.length > 0) setFilterCompetencies(targetCompetencies);
     setSelectedSubIds([]);
     setExpandedSubId(null);
-  }, [browseAll, preschoolMode, state?.dateStr, state?.personId, state?.targetActivityId, state?.targetType, targetCompetencies]);
+  }, [browseAll, preschoolMode, state?.dateStr, state?.personId, state?.targetActivityId, state?.targetType, state?.matchCandidates, targetCompetencies]);
 
   useEffect(() => {
     if (!categoryFilterOpen) return;
@@ -1529,8 +1548,43 @@ function SubstitutePanel({
     .sort((a, b) => a.localeCompare(b, 'sv'))
     .map(competency => ({ id: competency, label: competency })), [candidates]);
 
+  const matchMode = Boolean(preschoolMode && !browseAll && state?.matchCandidates);
+  const candidateMatches = useMemo<Record<string, CandidateMatch>>(() => {
+    if (!matchMode || !state) return {};
+    const date = parseDate(state.dateStr);
+    const previousDateStr = toDateStr(addDays(date, -1));
+    return Object.fromEntries(candidates.map(candidate => {
+      const availability = getSubAvailability(candidate.id, date, availabilityOverrides, absences);
+      const availabilityPercent = availability ? subAvailPct(availability, state.shift) : 0;
+      const skills = candidate.competencies ?? SUB_DETAILS[candidate.id]?.competencies ?? [];
+      const matchedSkills = targetCompetencies.filter(skill => skills.includes(skill));
+      const roleMatches = !state.targetRole || candidate.role === state.targetRole;
+      const sameUnit = !targetUnitId || Boolean(candidate.ownUnitIds?.includes(targetUnitId));
+      const flags = getCandidateScreeningFlags(candidate.id);
+      const bookings = bookingsByCandidate[candidate.id] ?? [];
+      const booked = bookings.some(booking => booking.dateStr === state.dateStr || booking.dateStr === previousDateStr && timeMinutes(booking.end) <= timeMinutes(booking.start));
+      const restConflict = candidateHasRestConflict(candidate.id, date, state.shift, bookings);
+      const criteria: CandidateMatchCriterion[] = [
+        { label: 'Roll', achieved: roleMatches ? 30 : 0, possible: 30, detail: state.targetRole ? `${candidate.role} · sökt: ${state.targetRole}` : 'Ingen särskild roll krävs' },
+        { label: 'Tillgänglig tid', achieved: Math.round(availabilityPercent * .35), possible: 35, detail: availability ? `${fmtAvailTime(availability)} · täcker ${availabilityPercent} % av passet` : 'Ingen tillgänglig tid registrerad' },
+        { label: 'Kompetenser', achieved: targetCompetencies.length ? Math.round(matchedSkills.length / targetCompetencies.length * 20) : 20, possible: 20, detail: targetCompetencies.length ? `${matchedSkills.length} av ${targetCompetencies.length}: ${matchedSkills.join(', ') || 'inga'}` : 'Inga särskilda kompetenser krävs' },
+        { label: 'Samma enhet', achieved: sameUnit ? 10 : 0, possible: 10, detail: !targetUnitId ? 'Ingen enhet angiven' : sameUnit ? 'Kopplad till enheten' : 'Annan eller okänd enhet' },
+        { label: 'Inskolning och utdrag', achieved: flags.onboarded && flags.clearance ? 5 : 0, possible: 5, detail: flags.onboarded && flags.clearance ? 'Båda uppfyllda' : 'Minst ett underlag saknas' },
+      ];
+      const blocker = !roleMatches ? 'Fel roll' : booked ? 'Redan bokad på pass' : restConflict ? 'Krock med dygnsvila' : undefined;
+      const rawScore = criteria.reduce((sum, criterion) => sum + criterion.achieved, 0);
+      const percent = blocker ? Math.min(rawScore, 39) : rawScore;
+      return [candidate.id, { percent, tone: percent >= 75 ? 'green' : percent >= 50 ? 'yellow' : 'red', criteria, blocker } satisfies CandidateMatch];
+    }));
+  }, [absences, availabilityOverrides, bookingsByCandidate, candidates, matchMode, state, targetCompetencies, targetUnitId]);
+
   const availSubs = useMemo(() => {
     const matchesFilters = (sub: SubstituteCandidate) => {
+      if (filterText.trim()) {
+        const query = filterText.trim().toLocaleLowerCase('sv');
+        const searchable = [sub.name, sub.role, sub.category, sub.costLevel, ...(sub.competencies ?? SUB_DETAILS[sub.id]?.competencies ?? [])].join(' ').toLocaleLowerCase('sv');
+        if (!searchable.includes(query)) return false;
+      }
       if (filterRoles.length > 0 && !filterRoles.includes(sub.role)) return false;
       if (filterCategories.length > 0) {
         const selectedOwnUnitCategory = preschoolMode && filterCategories.includes(OWN_UNIT_CATEGORY_FILTER_ID);
@@ -1555,7 +1609,10 @@ function SubstitutePanel({
     const conflictsWithBlockedTime = (sub: SubstituteCandidate, date: Date, shift: Shift) =>
       candidateHasRestConflict(sub.id, date, shift, bookingsByCandidate[sub.id] ?? []);
     let list: SubstituteCandidate[];
-    if (browseAll) {
+    if (matchMode) {
+      list = candidates.filter(matchesFilters).sort((a, b) =>
+        (candidateMatches[b.id]?.percent ?? 0) - (candidateMatches[a.id]?.percent ?? 0) || a.name.localeCompare(b.name, 'sv'));
+    } else if (browseAll) {
       list = candidates.filter(sub => {
         if (!matchesFilters(sub)) return false;
         if (singleAssignment && sub.category === 'Tillgänglig medarbetare' && !browseShift) {
@@ -1604,7 +1661,7 @@ function SubstitutePanel({
       }
     }
     return list;
-  }, [absences, availabilityOverrides, bookingsByCandidate, browseAll, candidates, filterRoles, filterCategories, filterCompetencies, browseShift, columns, singleAssignment, state, timeFlexibility, preschoolMode, continuityFilter, clearanceFilter, onboardedFilter, costFocusFilter]);
+  }, [absences, availabilityOverrides, bookingsByCandidate, browseAll, candidates, candidateMatches, matchMode, filterText, filterRoles, filterCategories, filterCompetencies, browseShift, columns, singleAssignment, state, timeFlexibility, preschoolMode, continuityFilter, clearanceFilter, onboardedFilter, costFocusFilter]);
 
   const panelClass = `schema-sub-panel${isOpen ? ' schema-sub-panel-open' : ''}${singleAssignment ? ' schema-sub-panel-single-assignment' : ''}${preschoolMode ? ' schema-sub-panel-preschool' : ''}`;
   const fillLabel = preschoolMode ? 'Kandidater' : 'Vikarier';
@@ -1622,6 +1679,7 @@ function SubstitutePanel({
   const openPersonContext = useCallback((event: React.MouseEvent, substituteId: string) => {
     event.preventDefault();
     event.stopPropagation();
+    onSelectCandidate?.(substituteId);
     const dateStr = defaultContextDate;
     const key = substituteAvailabilityKey(substituteId, dateStr);
     setContextTarget({ substituteId, dateStr });
@@ -1635,11 +1693,16 @@ function SubstitutePanel({
       { id: 'send-request', text: 'Skicka förfrågan', icon: 'paper-plane', beginGroup: true },
     ]);
     setContextMenuPosition({ x: event.clientX, y: event.clientY });
-  }, [absences, defaultContextDate, preschoolMode, state]);
+  }, [absences, defaultContextDate, onSelectCandidate, preschoolMode, state]);
 
   const openAvailabilityContext = useCallback((event: React.MouseEvent, substituteId: string, dateStr: string, isPast: boolean, isBooked: boolean) => {
     event.preventDefault();
     event.stopPropagation();
+    const candidateBookings = bookingsByCandidate[substituteId] ?? [];
+    const clickedBooking = candidateBookings.find(booking => booking.dateStr === dateStr)
+      ?? candidateBookings.find(booking => booking.dateStr === toDateStr(addDays(parseDate(dateStr), -1)) && timeMinutes(booking.end) <= timeMinutes(booking.start));
+    if (clickedBooking && isBooked) onSelectCandidateBooking?.(substituteId, clickedBooking);
+    else onSelectCandidate?.(substituteId);
     const key = substituteAvailabilityKey(substituteId, dateStr);
     const hasOverride = Object.prototype.hasOwnProperty.call(availabilityOverrides, key);
     const isAbsent = Boolean(absences[key]);
@@ -1659,12 +1722,13 @@ function SubstitutePanel({
     setContextTarget({ substituteId, dateStr });
     setContextActions(actions);
     setContextMenuPosition({ x: event.clientX, y: event.clientY });
-  }, [absences, availabilityOverrides]);
+  }, [absences, availabilityOverrides, bookingsByCandidate, onSelectCandidate, onSelectCandidateBooking]);
 
   const handleContextAction = useCallback((event: { itemData?: SubstituteContextAction }) => {
     if (!contextTarget || !event.itemData) return;
     setContextMenuPosition(null);
     const { substituteId, dateStr } = contextTarget;
+    if (candidateMatches[substituteId]?.tone === 'red' && (event.itemData.id === 'send-request' || event.itemData.id === 'assign-direct')) return;
     switch (event.itemData.id) {
       case 'show-details':
       case 'edit-availability': onOpenDetails(substituteId, dateStr); break;
@@ -1675,7 +1739,7 @@ function SubstitutePanel({
       case 'send-request': onSendRequest([substituteId]); break;
       case 'assign-direct': onDirectAssign([substituteId]); break;
     }
-  }, [contextTarget, onClearSickness, onDirectAssign, onOpenDetails, onReportSick, onRestoreAvailability, onSendRequest, onSetAvailability]);
+  }, [candidateMatches, contextTarget, onClearSickness, onDirectAssign, onOpenDetails, onReportSick, onRestoreAvailability, onSendRequest, onSetAvailability]);
 
   return (
     <div className={panelClass} role="region" aria-label={fillLabel} style={preschoolMode && panelLeft !== undefined && panelWidth !== undefined ? { left: panelLeft, width: panelWidth, right: 'auto' } : undefined}>
@@ -1753,10 +1817,19 @@ function SubstitutePanel({
             </button>
           </div>
           {advancedFiltersOpen && <div className="schema-sub-advanced-filters">
+            <label className="schema-sub-text-filter">Textfilter
+              <input type="search" placeholder="Sök kandidat, roll eller kompetens" value={filterText} onChange={event => setFilterText(event.currentTarget.value)} />
+            </label>
+            <div className="schema-sub-role-filter"><span>Roll</span><TagBox
+              dataSource={candidateRoles} displayExpr="label" valueExpr="id" value={filterRoles}
+              onValueChanged={event => setFilterRoles(current => preserveStringArrayWhenUnchanged(current, normalizeFilterValues(event.value)))}
+              placeholder="Alla roller" showSelectionControls={true} showClearButton={true}
+              applyValueMode="instantly" multiline={false} stylingMode="outlined" width={190}
+            /></div>
             <label className="schema-sub-advanced-checkbox"><input type="checkbox" checked={clearanceFilter} onChange={event => setClearanceFilter(event.currentTarget.checked)} /><span>Belastningsregisterutdrag finns</span></label>
             <label className="schema-sub-advanced-checkbox"><input type="checkbox" checked={onboardedFilter} onChange={event => setOnboardedFilter(event.currentTarget.checked)} /><span>Inskolad</span></label>
             <button type="button" className="btn-secondary schema-sub-filter-reset" onClick={() => {
-              setFilterCategories([]); setFilterCompetencies(targetCompetencies); setTimeFlexibility(1);
+              setFilterText(''); setFilterRoles([]); setFilterCategories([]); setFilterCompetencies(matchMode ? [] : targetCompetencies); setTimeFlexibility(1);
               setContinuityFilter(false); setClearanceFilter(false); setOnboardedFilter(false); setCostFocusFilter(false);
             }}><i className="fa-solid fa-rotate-left" /> Rensa filter</button>
           </div>}
@@ -1938,10 +2011,16 @@ function SubstitutePanel({
                     <tr
                       className={[
                         'schema-sub-row',
+                        candidateMatches[sub.id]?.tone === 'red' ? 'schema-candidate-low-match' : '',
                         isExpanded ? 'schema-sub-row-open' : '',
+                        highlightedCandidateId === sub.id ? 'schema-sub-row-selected' : relatedCandidateIds.includes(sub.id) ? 'schema-sub-row-related' : '',
                       ].filter(Boolean).join(' ')}
-                      draggable={true}
-                      onDragStart={e => onDragStart(e, sub.id)}
+                      draggable={candidateMatches[sub.id]?.tone !== 'red'}
+                      onDragStart={e => { if (candidateMatches[sub.id]?.tone === 'red') e.preventDefault(); else onDragStart(e, sub.id); }}
+                      onClick={event => {
+                        if ((event.target as HTMLElement).closest('input, button, a')) return;
+                        onSelectCandidate?.(sub.id);
+                      }}
                     >
                       <td
                         className={['schema-employee-cell', 'schema-sub-sticky-col', 'schema-sub-person-context', isExpanded ? 'schema-sub-sticky-expanded' : ''].filter(Boolean).join(' ')}
@@ -1957,9 +2036,13 @@ function SubstitutePanel({
                             className="schema-sub-checkbox"
                             aria-label={`Välj ${sub.name}`}
                             checked={selectedSubIds.includes(sub.id)}
-                            onChange={() => setSelectedSubIds(current => singleAssignment
-                              ? [sub.id]
-                              : current.includes(sub.id) ? current.filter(id => id !== sub.id) : [...current, sub.id])}
+                            disabled={candidateMatches[sub.id]?.tone === 'red'}
+                            onChange={() => {
+                              onSelectCandidate?.(sub.id);
+                              setSelectedSubIds(current => singleAssignment
+                                ? [sub.id]
+                                : current.includes(sub.id) ? current.filter(id => id !== sub.id) : [...current, sub.id]);
+                            }}
                           />
                           <button
                             className="schema-sub-chevron"
@@ -1974,6 +2057,7 @@ function SubstitutePanel({
                              {sub.name}
                              {unreadMessageEntities.has(`substitute:${sub.id}`) && <NewMessageIndicator />}
                            </span></span>
+                           {matchMode && candidateMatches[sub.id] && <button type="button" className={`schema-candidate-match schema-candidate-match-${candidateMatches[sub.id].tone}`} onClick={event => { event.stopPropagation(); setMatchDetailId(sub.id); }} aria-label={`Visa matchning för ${sub.name}: ${candidateMatches[sub.id].percent} procent`}>{candidateMatches[sub.id].percent} %</button>}
                            <span className="schema-employee-role">{sub.role}</span>
                            <span className="schema-sub-category-cost">
                              <span className="schema-sub-category-badge">{sub.category}</span>
@@ -1996,6 +2080,10 @@ function SubstitutePanel({
                         const bookedCarry = bookedShifts.find(b => b.dateStr === previousDateStr && timeMinutes(b.end) <= timeMinutes(b.start));
                         const bookedCarryIsPast = previousDateStr < TODAY_STR;
                         const hasBooking = Boolean(booked || bookedCarry);
+                        const bookingForCell = booked ?? bookedCarry;
+                        const bookingKey = bookingForCell ? `${sub.id}|${bookingForCell.dateStr}` : '';
+                        const isSelectedBooking = Boolean(bookingForCell && highlightedCandidateBooking?.candidateId === sub.id && highlightedCandidateBooking.dateStr === bookingForCell.dateStr);
+                        const isRelatedBooking = hasBooking && (highlightedCandidateId === sub.id || relatedCandidateBookingKeys.includes(bookingKey));
                         const bookedTimeIsPast = booked ? isPast : bookedCarry ? bookedCarryIsPast : isPast;
                         const bookedTimeLabel = [
                           booked && `${booked.start}–${booked.end}`,
@@ -2131,41 +2219,46 @@ function SubstitutePanel({
                             isTarget ? 'schema-sub-target-col' : '',
                             isPast ? 'schema-sub-past-cell' : '',
                             absenceReason ? 'schema-sub-sick-cell' : '',
+                            isSelectedBooking ? 'schema-sub-booking-selected' : isRelatedBooking ? 'schema-sub-booking-related' : '',
                             'schema-sub-availability-context',
                           ].filter(Boolean).join(' ')}>
                             <div
                               className="schema-sub-availability-hitarea"
                               data-substitute-id={sub.id}
                               data-date-str={ds}
+                              onClick={event => {
+                                event.stopPropagation();
+                                bookingForCell ? onSelectCandidateBooking?.(sub.id, bookingForCell) : onSelectCandidate?.(sub.id);
+                              }}
                               onContextMenu={event => openAvailabilityContext(event, sub.id, ds, isPast, hasBooking)}
                               onDoubleClick={() => onOpenDetails(sub.id, ds)}
                             >
                             {preschoolMode && viewType !== 'year-columns' ? (
-                              <div className={`schema-activity-timeline schema-activity-timeline-candidate${isPast ? ' schema-activity-timeline-past' : ''}`}>
+                              <div className={`schema-activity-timeline schema-activity-timeline-candidate schema-sub-candidate-timeline${isPast ? ' schema-activity-timeline-past' : ''}`}>
                                 <div className="schema-activity-lanes">
                                   <div className="schema-activity-row">
                                     {!absenceReason && booked && hospitalBookingBars(booked, 'start')}
                                     {!absenceReason && bookedCarry && hospitalBookingBars(bookedCarry, 'carry')}
+                                    {!hasBooking && !absenceReason && avail && hospitalAvailabilityBars(avail)}
+                                    {!hasBooking && !absenceReason && !avail && <span
+                                      className="schema-activity-availability-window schema-sub-candidate-unavailable-window"
+                                      style={{ left: '0%', width: '100%' }}
+                                      title="Ej tillgänglig hela dagen"
+                                      aria-label="Ej tillgänglig hela dagen"
+                                    />}
+                                    {blockedIntervals.length > 0 && <div className="schema-sub-candidate-blocked-layer" aria-label={blockedTimeLabel}>
+                                      {blockedIntervals.map((interval, intervalIndex) => <span
+                                        key={`${interval.reason}-${intervalIndex}`}
+                                        className={`schema-sub-bar24-blocked${interval.reason.startsWith('Dygnsvila') ? ' schema-sub-bar24-blocked-rest' : interval.reason === 'Ej tillgänglig tid' ? ' schema-sub-bar24-blocked-unavailable' : ''}`}
+                                        style={{ left: `${interval.startMinute / 1440 * 100}%`, width: `${Math.max((interval.endMinute - interval.startMinute) / 1440 * 100, 0.7)}%` }}
+                                        title={`${interval.reason}: ${formatBlockedMinute(interval.startMinute)}–${formatBlockedMinute(interval.endMinute)}`}
+                                      />)}
+                                    </div>}
                                   </div>
                                 </div>
-                                {!hasBooking && !absenceReason && avail && hospitalAvailabilityBars(avail)}
-                                {!hasBooking && !absenceReason && !avail && <span
-                                  className="schema-activity-availability-window schema-sub-candidate-unavailable-window"
-                                  style={{ left: '0%', width: '100%' }}
-                                  title="Ej tillgänglig hela dagen"
-                                  aria-label="Ej tillgänglig hela dagen"
-                                />}
-                                {blockedIntervals.length > 0 && <div className="schema-sub-candidate-blocked-layer" aria-label={blockedTimeLabel}>
-                                  {blockedIntervals.map((interval, intervalIndex) => <span
-                                    key={`${interval.reason}-${intervalIndex}`}
-                                    className={`schema-sub-bar24-blocked${interval.reason.startsWith('Dygnsvila') ? ' schema-sub-bar24-blocked-rest' : interval.reason === 'Ej tillgänglig tid' ? ' schema-sub-bar24-blocked-unavailable' : ''}`}
-                                    style={{ left: `${interval.startMinute / 1440 * 100}%`, width: `${Math.max((interval.endMinute - interval.startMinute) / 1440 * 100, 0.7)}%` }}
-                                    title={`${interval.reason}: ${formatBlockedMinute(interval.startMinute)}–${formatBlockedMinute(interval.endMinute)}`}
-                                  />)}
-                                </div>}
                                 <div className="schema-activity-captions schema-activity-captions-hospital">
-                                  {hasBooking && <span className="schema-activity-total-time">{bookedTimeLabel}</span>}
-                                  {!hasBooking && !absenceReason && avail && <span className="schema-activity-total-time">{fmtAvailTime(avail)}</span>}
+                                  {hasBooking && <span className="schema-activity-time-line"><span className="schema-activity-total-time">{bookedTimeLabel}</span></span>}
+                                  {!hasBooking && !absenceReason && avail && <span className="schema-activity-time-line"><span className="schema-activity-total-time">{fmtAvailTime(avail)}</span></span>}
                                   {absenceReason && <span className="schema-activity-absence-caption">{absenceReason}</span>}
                                 </div>
                               </div>
@@ -2313,6 +2406,18 @@ function SubstitutePanel({
           ))}
         </div>
       )}
+      {matchDetailId && candidateMatches[matchDetailId] && <Popup
+        visible={true} onHiding={() => setMatchDetailId(null)} title={`Matchning · ${candidates.find(candidate => candidate.id === matchDetailId)?.name ?? 'Kandidat'}`}
+        width={480} height="auto" showCloseButton={true} dragEnabled={false}
+        wrapperAttr={{ class: 'schema-candidate-match-popup' }}
+      >
+        <div className="schema-candidate-match-detail">
+          <p><strong className={`schema-candidate-match schema-candidate-match-${candidateMatches[matchDetailId].tone}`}>{candidateMatches[matchDetailId].percent} %</strong> för {state?.shift.start}–{state?.shift.end} den {state?.dateStr}</p>
+          {candidateMatches[matchDetailId].blocker && <p className="schema-candidate-match-blocker">Spärr: {candidateMatches[matchDetailId].blocker}. Matchningen begränsas till högst 39 %.</p>}
+          <ul>{candidateMatches[matchDetailId].criteria.map(criterion => <li key={criterion.label}><span><strong>{criterion.label}</strong><small>{criterion.detail}</small></span><b>{criterion.achieved}/{criterion.possible}</b></li>)}</ul>
+          <p className="schema-candidate-match-method">Förslag till viktning: roll 30, tillgänglig tid 35, kompetenser 20, enhet 10 och inskolning/utdrag 5 poäng. Grönt ≥ 75 %, gult 50–74 %, rött &lt; 50 %.</p>
+        </div>
+      </Popup>}
       {categoryFilterOpen && categoryFilterBounds && typeof document !== 'undefined' && createPortal(
         <div
           ref={categoryFilterPopupRef}
@@ -2745,9 +2850,14 @@ function OrderSubstituteDialog({ order, onConfirm, onCancel }: {
   );
 }
 
-function ResourceOrdersList({ orders, unreadMessageEntities, onClose, onAction, onOpenDetails, onChooseSubstitute, onShowSubstitutes, onOpenSubstitute, candidateButtonLabel = 'Visa vikarier' }: {
+function ResourceOrdersList({ orders, unreadMessageEntities, selectedOrderId, selectedPersonId, relatedOrderIds, onSelectOrder, onSelectPerson, onClose, onAction, onOpenDetails, onChooseSubstitute, onShowSubstitutes, onOpenSubstitute, candidateButtonLabel = 'Visa vikarier' }: {
   orders: ResourceOrder[];
   unreadMessageEntities: Set<string>;
+  selectedOrderId: string | null;
+  selectedPersonId: string | null;
+  relatedOrderIds: string[];
+  onSelectOrder: (order: ResourceOrder) => void;
+  onSelectPerson: (order: ResourceOrder) => void;
   onClose: () => void;
   onAction: (orderId: string, action: OrderContextAction) => void;
   onOpenDetails?: (order: ResourceOrder) => void;
@@ -2810,9 +2920,14 @@ function ResourceOrdersList({ orders, unreadMessageEntities, onClose, onAction, 
               return (
                 <React.Fragment key={order.id}>
                   <tr
-                    className="schema-order-row"
+                    className={`schema-order-row${selectedOrderId === order.id ? ' schema-order-row-selected' : relatedOrderIds.includes(order.id) ? ' schema-order-row-related' : ''}`}
+                    onClick={event => {
+                      if ((event.target as HTMLElement).closest('.schema-order-person-cell, button, a')) return;
+                      onSelectOrder(order);
+                    }}
                     onDoubleClick={() => onOpenDetails?.(order)}
                     onContextMenu={() => {
+                      onSelectOrder(order);
                       setContextOrderId(order.id);
                       setContextActions(getOrderContextActions(order));
                     }}
@@ -2823,7 +2938,7 @@ function ResourceOrdersList({ orders, unreadMessageEntities, onClose, onAction, 
                   </button>
                   <i className="fa-solid fa-cart-shopping" /> {order.resourceType === 'vikarie' ? 'Vikarie' : 'Extrapass'}
                 </td>
-                <td><strong>{order.personName}</strong><span>{order.role}</span></td>
+                <td className={`schema-order-person-cell${selectedPersonId === order.personId ? ' schema-order-person-selected' : ''}${selectedPersonId !== order.personId && relatedOrderIds.includes(order.id) ? ' schema-order-person-related' : ''}`}><button type="button" className="schema-order-person-select" onClick={event => { event.stopPropagation(); onSelectPerson(order); }}><strong>{order.personName}</strong><span>{order.role}</span></button></td>
                 <td>{order.dateStr}</td>
                 <td>{order.shift.start}–{order.shift.end}</td>
                 <td className="schema-order-status-cell">
@@ -3229,6 +3344,7 @@ function getResourceNeedActions(need: ResourceNeed): ResourceNeedAction[] {
   if (need.status === 'Borttaget' || need.status === 'Tillsatt') return [];
   return [
     { id: 'open' as const, text: 'Öppna', icon: 'arrow-up-right-from-square' },
+    { id: 'find-substitute' as const, text: 'Hitta ersättare', icon: 'user-magnifying-glass' },
     ...(need.status !== 'Tillsatt' ? [{ id: 'assign-direct' as const, text: 'Tillsätt direkt', icon: 'robot' }] : []),
     ...(need.status !== 'Tillsatt' ? [{ id: 'assign' as const, text: 'Tillsätt', icon: 'user-check' }] : []),
     { id: 'order' as const, text: 'Beställ', icon: 'cart-shopping' },
@@ -3236,11 +3352,14 @@ function getResourceNeedActions(need: ResourceNeed): ResourceNeedAction[] {
   ];
 }
 
-function ResourceNeedsList({ needs, unreadMessageEntities, orgOptions, selectedRoleId, onClose, onOpenDetails, onAction, onDropPass, onOrderAll, onAssignAll }: {
+function ResourceNeedsList({ needs, unreadMessageEntities, orgOptions, selectedRoleId, selectedNeedId, relatedNeedIds, onSelectNeed, onClose, onOpenDetails, onAction, onDropPass, onOrderAll, onAssignAll }: {
   needs: ResourceNeed[];
   unreadMessageEntities: Set<string>;
   orgOptions: ResourceBoardOrgOption[];
   selectedRoleId: string;
+  selectedNeedId: string | null;
+  relatedNeedIds: string[];
+  onSelectNeed: (need: ResourceNeed) => void;
   onClose?: () => void;
   onOpenDetails: (need: ResourceNeed) => void;
   onAction: (needId: string, action: ResourceNeedAction) => void;
@@ -3327,10 +3446,12 @@ function ResourceNeedsList({ needs, unreadMessageEntities, orgOptions, selectedR
             {activeNeeds.map(need => (
               <tr
                 key={need.id}
-                className={`schema-order-row schema-resource-need-row schema-resource-need-row-${need.source === 'frånvaro' ? 'absence' : 'extra'}${need.workflowStatus === 'Tillsatt' || need.status === 'Tillsatt' ? ' schema-resource-need-row-filled' : ''}`}
+                className={`schema-order-row schema-resource-need-row schema-resource-need-row-${need.source === 'frånvaro' ? 'absence' : 'extra'}${need.workflowStatus === 'Tillsatt' || need.status === 'Tillsatt' ? ' schema-resource-need-row-filled' : ''}${selectedNeedId === need.id ? ' schema-resource-need-row-selected' : relatedNeedIds.includes(need.id) ? ' schema-resource-need-row-related' : ''}`}
+                onClick={() => onSelectNeed(need)}
                 onDoubleClick={() => onOpenDetails(need)}
                 onContextMenu={event => {
                   event.preventDefault();
+                  onSelectNeed(need);
                   setContextNeedId(need.id);
                   setContextActions(getResourceNeedActions(need));
                 }}
@@ -3341,7 +3462,7 @@ function ResourceNeedsList({ needs, unreadMessageEntities, orgOptions, selectedR
                   <span>{need.dateStr}</span>
                   {need.source === 'frånvaro' && need.reason && <small>{need.reason}</small>}
                 </td>
-                <td><strong>{need.personName}</strong><span className="schema-order-person-role">{need.role}</span></td>
+                <td><strong>{need.source === 'pass' ? 'Extrapass' : need.personName}</strong><span className="schema-order-person-role">{need.role}</span></td>
                 <td className="schema-resource-need-status-cell">
                   <span className={`schema-order-status schema-resource-need-status-${need.workflowStatus === 'Tillsatt' || need.status === 'Tillsatt' ? 'filled' : need.handledBy === 'Maja Andersson' ? 'requester' : 'open'}`}>{need.workflowStatus ?? need.status}</span>
                   <small className={need.handledBy === 'Maja Andersson' ? 'schema-resource-need-owner-requester' : ''}>{need.handledBy === 'Maja Andersson' ? 'Beställare' : 'Bemanning'} · {need.handledBy}</small>
@@ -3454,6 +3575,12 @@ export const Schema = ({
   const [assignmentFailures, setAssignmentFailures] = useState<Record<string, string>>({});
   const [resourceOrders, setResourceOrders] = useState<ResourceOrder[]>([]);
   const [resourceNeeds, setResourceNeeds] = useState<ResourceNeed[]>([]);
+  const [highlightedScheduleObject, setHighlightedScheduleObject] = useState<{ personId: string; dateStr: string; activityId?: string } | null>(null);
+  const [highlightedNeedId, setHighlightedNeedId] = useState<string | null>(null);
+  const [highlightedOrderId, setHighlightedOrderId] = useState<string | null>(null);
+  const [highlightedPersonId, setHighlightedPersonId] = useState<string | null>(null);
+  const [highlightedCandidateId, setHighlightedCandidateId] = useState<string | null>(null);
+  const [highlightedCandidateBooking, setHighlightedCandidateBooking] = useState<{ candidateId: string; dateStr: string } | null>(null);
   const [resourceNeedDetail, setResourceNeedDetail] = useState<ResourceNeed | null>(null);
   const [resourceNeedActivities, setResourceNeedActivities] = useState<Record<string, CaseActivity[]>>({});
   const [resourceNeedAssignmentId, setResourceNeedAssignmentId] = useState<string | null>(null);
@@ -3626,6 +3753,64 @@ export const Schema = ({
   const isSyncingRef     = useRef(false);
   const [subTableLayout, setSubTableLayout] = useState({ width: 0, inset: 0 });
   const [presenceBounds, setPresenceBounds] = useState({ left: 0, width: 0 });
+  const isPrimaryScheduleSelection = !highlightedNeedId && !highlightedOrderId && !highlightedPersonId && !highlightedCandidateId && !highlightedCandidateBooking;
+  const selectScheduleObject = (personId: string, dateStr: string, target: EventTarget | null) => {
+    const activityId = target instanceof HTMLElement ? target.closest<HTMLElement>('[data-activity-id]')?.dataset.activityId : undefined;
+    setHighlightedNeedId(null);
+    setHighlightedOrderId(null);
+    setHighlightedPersonId(null);
+    setHighlightedCandidateId(null);
+    setHighlightedCandidateBooking(null);
+    setHighlightedScheduleObject({ personId, dateStr, activityId });
+  };
+  const selectResourceNeed = (need: ResourceNeed) => {
+    setHighlightedNeedId(need.id);
+    setHighlightedOrderId(null);
+    setHighlightedPersonId(null);
+    setHighlightedCandidateId(null);
+    setHighlightedCandidateBooking(null);
+    setHighlightedScheduleObject({ personId: need.personId, dateStr: need.dateStr });
+  };
+  const selectResourceOrder = (order: ResourceOrder) => {
+    setHighlightedNeedId(null);
+    setHighlightedOrderId(order.id);
+    setHighlightedPersonId(null);
+    setHighlightedCandidateId(null);
+    setHighlightedCandidateBooking(null);
+    setHighlightedScheduleObject({ personId: order.personId, dateStr: order.dateStr });
+  };
+  const selectOrderPerson = (order: ResourceOrder) => {
+    setHighlightedNeedId(null);
+    setHighlightedOrderId(null);
+    setHighlightedPersonId(order.personId);
+    setHighlightedCandidateId(null);
+    setHighlightedCandidateBooking(null);
+    setHighlightedScheduleObject({ personId: order.personId, dateStr: order.dateStr });
+  };
+  const selectSchedulePerson = (personId: string) => {
+    setHighlightedNeedId(null);
+    setHighlightedOrderId(null);
+    setHighlightedPersonId(personId);
+    setHighlightedCandidateId(null);
+    setHighlightedCandidateBooking(null);
+    setHighlightedScheduleObject(null);
+  };
+  const selectCandidate = (candidateId: string) => {
+    setHighlightedScheduleObject(null);
+    setHighlightedNeedId(null);
+    setHighlightedOrderId(null);
+    setHighlightedPersonId(null);
+    setHighlightedCandidateId(candidateId);
+    setHighlightedCandidateBooking(null);
+  };
+  const selectCandidateBooking = (candidateId: string, booking: SubBookedShift) => {
+    setHighlightedNeedId(null);
+    setHighlightedOrderId(null);
+    setHighlightedPersonId(null);
+    setHighlightedCandidateId(null);
+    setHighlightedCandidateBooking({ candidateId, dateStr: booking.dateStr });
+    setHighlightedScheduleObject(booking.personId ? { personId: booking.personId, dateStr: booking.dateStr } : null);
+  };
 
   // ── Scroll sync between main table and sub panel ──
   useEffect(() => {
@@ -3733,20 +3918,37 @@ export const Schema = ({
           dateStr:  el.dataset.dateStr!,
           type:     el.dataset.ctxType as ContextTargetType,
         };
+        const selectedActivity = (e.target as HTMLElement).closest<HTMLElement>('[data-activity-id]');
+        setHighlightedScheduleObject({
+          personId: ctxRef.current.personId,
+          dateStr: ctxRef.current.dateStr,
+          activityId: selectedActivity?.dataset.activityId,
+        });
+        setHighlightedNeedId(null);
+        setHighlightedOrderId(null);
+        setHighlightedPersonId(null);
+        setHighlightedCandidateId(null);
+        setHighlightedCandidateBooking(null);
         const passKey = `${ctxRef.current.personId}|${ctxRef.current.dateStr}`;
         const remainingPass = remainingPasses.find(pass => pass.id === ctxRef.current?.personId && pass.dateStr === ctxRef.current?.dateStr);
         const isAssigned = fills.some(fill => `${fill.personId}|${fill.dateStr}` === passKey)
           || Boolean(remainingPass?.assignedSubstituteId);
+        let actions: ContextAction[];
         if (remainingPass && !isAssigned) {
-          setContextActions([
+          actions = [
             { id: 'primary', text: 'Hitta vikarie', icon: 'user' },
+            { id: 'find-substitute', text: 'Hitta ersättare', icon: 'user-magnifying-glass' },
             { id: 'order-resource', text: 'Beställ resurs', icon: 'cart-shopping' },
             ...(resourceNeedPrototype ? [{ id: 'assign-direct' as const, text: 'Tillsätt direkt', icon: 'robot', beginGroup: true }] : []),
             { id: 'show-details', text: 'Visa passdetaljer', icon: 'circle-info', beginGroup: true },
-          ]);
+          ];
         } else {
-          setContextActions(getContextActions(ctxRef.current.type, resourceNeedPrototype, isAssigned));
+          actions = getContextActions(ctxRef.current.type, resourceNeedPrototype, isAssigned);
         }
+        if (ctxRef.current.dateStr < TODAY_STR) {
+          actions = actions.map(action => ({ ...action, disabled: action.id !== 'show-details' }));
+        }
+        setContextActions(actions);
       } else {
         ctxRef.current = null;
       }
@@ -4136,6 +4338,29 @@ export const Schema = ({
     const bookings: Record<string, SubBookedShift[]> = Object.fromEntries(
       Object.entries(SUB_BOOKED_SHIFTS).map(([candidateId, shifts]) => [candidateId, [...shifts]]),
     );
+    const linkBookingToSchedule = (candidateId: string, booking: SubBookedShift): SubBookedShift => {
+      if (booking.personId) return booking;
+      const date = parseDate(booking.dateStr);
+      const scheduledEmployees = employees.flatMap(employee => {
+        const shift = getScheduleShift(employee.id, date, 'alla');
+        return shift ? [{ employee, shift }] : [];
+      });
+      const matched = scheduledEmployees.find(item => item.shift.start === booking.start && item.shift.end === booking.end)
+        ?? scheduledEmployees[(Number(candidateId.match(/\d+/)?.[0] ?? 1) - 1) % Math.max(scheduledEmployees.length, 1)];
+      if (!matched) return booking;
+      return {
+        ...booking,
+        personId: matched.employee.id,
+        start: matched.shift.start,
+        end: matched.shift.end,
+        activities: booking.activities?.length ? booking.activities : getCellActivities(matched.employee.id, date),
+      };
+    };
+    const linkUnmappedBookings = () => {
+      Object.entries(bookings).forEach(([candidateId, shifts]) => {
+        bookings[candidateId] = shifts.map(booking => linkBookingToSchedule(candidateId, booking));
+      });
+    };
     const addBooking = (candidateId: string | undefined, booking: SubBookedShift) => {
       if (!candidateId) return;
       const candidateBookings = bookings[candidateId] ?? (bookings[candidateId] = []);
@@ -4145,7 +4370,9 @@ export const Schema = ({
       if (existingIndex >= 0) {
         const existing = candidateBookings[existingIndex];
         if ((!existing.activities || existing.activities.length === 0) && booking.activities?.length) {
-          candidateBookings[existingIndex] = { ...existing, activities: booking.activities };
+          candidateBookings[existingIndex] = { ...existing, personId: existing.personId ?? booking.personId, activities: booking.activities };
+        } else if (!existing.personId && booking.personId) {
+          candidateBookings[existingIndex] = { ...existing, personId: booking.personId };
         }
         return;
       }
@@ -4163,6 +4390,7 @@ export const Schema = ({
           dateStr: fill.dateStr,
           start: shift.start,
           end: shift.end,
+          personId: fill.personId,
           activities: getCellActivities(fill.personId, parseDate(fill.dateStr)),
         });
       });
@@ -4172,6 +4400,7 @@ export const Schema = ({
           dateStr: need.dateStr,
           start: need.shift.start,
           end: need.shift.end,
+          personId: need.personId,
           activities: need.activities ?? getCellActivities(need.personId, parseDate(need.dateStr)),
         });
       });
@@ -4184,6 +4413,7 @@ export const Schema = ({
           dateStr: order.dateStr,
           start: order.shift.start,
           end: order.shift.end,
+          personId: order.personId,
           activities: linkedNeed?.activities ?? getCellActivities(order.personId, parseDate(order.dateStr)),
         });
       });
@@ -4196,6 +4426,7 @@ export const Schema = ({
           dateStr: fill.dateStr,
           start: fill.shift.start,
           end: fill.shift.end,
+          personId: employees.find(employee => getCellActivities(employee.id, parseDate(fill.dateStr)).some(item => item.id === fill.activityId))?.id,
           activities: [activity],
         });
       });
@@ -4205,12 +4436,17 @@ export const Schema = ({
           dateStr: pass.dateStr,
           start: pass.shift.start,
           end: pass.shift.end,
+          personId: pass.id,
           activities: pass.activities,
         });
       });
+      linkUnmappedBookings();
       return bookings;
     }
-    if (!isActivityTimelineScenario) return bookings;
+    if (!isActivityTimelineScenario) {
+      linkUnmappedBookings();
+      return bookings;
+    }
     employees.forEach((employee, employeeIndex) => {
       const candidateId = internalCandidateId(employee.id);
       const scheduled = columns.flatMap(column => {
@@ -4220,6 +4456,7 @@ export const Schema = ({
           dateStr: toDateStr(column.date),
           start: shift.start,
           end: shift.end,
+          personId: employee.id,
           activities: getCellActivities(employee.id, column.date),
         }] : [];
       });
@@ -4233,6 +4470,7 @@ export const Schema = ({
         dateStr: fill.dateStr,
         start: shift.start,
         end: shift.end,
+        personId: fill.personId,
         activities: getCellActivities(fill.personId, parseDate(fill.dateStr)),
       });
     });
@@ -4244,6 +4482,7 @@ export const Schema = ({
         dateStr: fill.dateStr,
         start: fill.shift.start,
         end: fill.shift.end,
+        personId: employees.find(employee => getCellActivities(employee.id, parseDate(fill.dateStr)).some(item => item.id === fill.activityId))?.id,
         activities: activity ? [activity] : undefined,
       });
     });
@@ -4253,11 +4492,38 @@ export const Schema = ({
         dateStr: pass.dateStr,
         start: pass.shift.start,
         end: pass.shift.end,
+        personId: pass.id,
         activities: pass.activities,
       });
     });
+    linkUnmappedBookings();
     return bookings;
   }, [activityFills, alwaysShowResourceNeeds, columns, employees, fills, getCellActivities, getScheduleShift, isActivityTimelineScenario, remainingPasses, resourceNeeds, resourceOrders]);
+
+  const isCandidateBookingRelatedToSchedule = (personId: string, dateStr: string) => {
+    if (highlightedCandidateId) {
+      return (candidateBookings[highlightedCandidateId] ?? []).some(booking => booking.personId === personId && booking.dateStr === dateStr);
+    }
+    return highlightedPersonId === personId;
+  };
+  const relatedNeedIds = resourceNeeds.filter(need => {
+    if (highlightedCandidateId) return isCandidateBookingRelatedToSchedule(need.personId, need.dateStr);
+    if (highlightedPersonId) return need.personId === highlightedPersonId;
+    return highlightedScheduleObject?.personId === need.personId && highlightedScheduleObject.dateStr === need.dateStr;
+  }).map(need => need.id);
+  const relatedOrderIds = resourceOrders.filter(order => {
+    if (highlightedCandidateId) return isCandidateBookingRelatedToSchedule(order.personId, order.dateStr);
+    if (highlightedPersonId) return order.personId === highlightedPersonId;
+    return highlightedScheduleObject?.personId === order.personId && highlightedScheduleObject.dateStr === order.dateStr;
+  }).map(order => order.id);
+  const relatedCandidateBookingKeys = Object.entries(candidateBookings).flatMap(([candidateId, bookings]) => bookings
+    .filter(booking => highlightedCandidateId
+      ? candidateId === highlightedCandidateId
+      : highlightedPersonId
+        ? booking.personId === highlightedPersonId
+        : highlightedScheduleObject?.personId === booking.personId && highlightedScheduleObject.dateStr === booking.dateStr)
+    .map(booking => `${candidateId}|${booking.dateStr}`));
+  const relatedCandidateIds = [...new Set(relatedCandidateBookingKeys.map(key => key.split('|')[0]))];
 
   const personDetailEmployee = personDetailId
     ? employees.find(employee => employee.id === personDetailId) ?? null
@@ -4987,18 +5253,18 @@ export const Schema = ({
     });
   }, [automation?.isAutomationActive, automation?.autoCreateNeeds, createResourceNeed, getScheduleShift, resourceNeedPrototype, resourceNeeds]);
 
-  const handleOpenVacancyPanel = useCallback((personId: string, dateStr: string) => {
+  const handleOpenVacancyPanel = useCallback((personId: string, dateStr: string, matchCandidates = false) => {
     const emp   = employees.find(e => e.id === personId);
     const shift = getScheduleShift(personId, parseDate(dateStr), 'alla');
     if (!shift) return;
     setResourceNeedAssignmentId(null);
     setOrderAssignment(null);
-    setSubPanelState({ personId, dateStr, shift, fillType:'substitute', targetPersonName: emp?.name ?? '', targetUnit: emp?.department, targetType: 'pass' });
+    setSubPanelState({ personId, dateStr, shift, fillType:'substitute', targetPersonName: emp?.name ?? '', targetUnit: emp?.department, targetType: 'pass', targetRole: emp?.role, matchCandidates });
     setSubPanelBrowseAll(false);
     setSubPanelOpen(true);
   }, [employees, getScheduleShift]);
 
-  const handleOpenRemainingPassPanel = useCallback((pass: RemainingPass) => {
+  const handleOpenRemainingPassPanel = useCallback((pass: RemainingPass, matchCandidates = false) => {
     setResourceNeedAssignmentId(null);
     setOrderAssignment(null);
     setSubPanelState({
@@ -5011,6 +5277,7 @@ export const Schema = ({
       targetType: 'pass',
       targetRemainingPassId: pass.id,
       unitLocked: true,
+      matchCandidates,
     });
     setSubPanelBrowseAll(false);
     setSubPanelOpen(true);
@@ -5135,7 +5402,7 @@ export const Schema = ({
     setSubPanelOpen(true);
   }, [employees]);
 
-  const handleOpenResourceNeedAssignment = useCallback((need: ResourceNeed) => {
+  const handleOpenResourceNeedAssignment = useCallback((need: ResourceNeed, matchCandidates = false) => {
     const employee = employees.find(item => item.id === need.personId);
     setResourceNeedAssignmentId(need.id);
     setSubPanelState({
@@ -5145,6 +5412,8 @@ export const Schema = ({
       fillType: 'substitute',
       targetPersonName: need.personName,
       targetUnit: employee?.department ?? need.role,
+      targetRole: need.role,
+      matchCandidates,
     });
     setSubPanelBrowseAll(false);
     setSubPanelOpen(true);
@@ -6147,6 +6416,10 @@ export const Schema = ({
       handleOpenResourceNeedAssignment(need);
       return;
     }
+    if (action.id === 'find-substitute') {
+      handleOpenResourceNeedAssignment(need, true);
+      return;
+    }
     if (action.id === 'assign-direct') {
       handleDirectAssignment(need.personId, need.dateStr, need.shift, need.source === 'frånvaro' ? 'substitute' : 'extra');
       return;
@@ -6192,12 +6465,13 @@ export const Schema = ({
 
   const handleContextAction = useCallback((event: { itemData?: ContextAction }) => {
     const target = ctxRef.current;
-    const action = event.itemData?.id;
-    if (!target || !action) return;
+    const selectedAction = event.itemData;
+    const action = selectedAction?.id;
+    if (!target || !selectedAction || selectedAction.disabled || !action) return;
     const remainingPass = remainingPasses.find(pass => pass.id === target.personId && pass.dateStr === target.dateStr);
     if (remainingPass) {
       if (action === 'primary' || action === 'find-substitute') {
-        handleOpenRemainingPassPanel(remainingPass);
+        handleOpenRemainingPassPanel(remainingPass, action === 'find-substitute');
       } else if (action === 'assign-direct') {
         handleDirectAssignment(remainingPass.id, remainingPass.dateStr, remainingPass.shift, 'substitute', undefined, remainingPass.id);
       } else if (action === 'order-resource') {
@@ -6227,7 +6501,7 @@ export const Schema = ({
     }
 
     if (action === 'find-substitute') {
-      handleOpenVacancyPanel(target.personId, target.dateStr);
+      handleOpenVacancyPanel(target.personId, target.dateStr, true);
       return;
     }
     if (action === 'assign-direct') {
@@ -6447,11 +6721,11 @@ export const Schema = ({
                     onRegisterResponses={handleRegisterOrderResponses}
                     onTakeBackOrder={handleTakeBackOrder}
                   />
-                : <ResourceOrdersList orders={resourceOrders} unreadMessageEntities={unreadMessageEntities} onClose={() => setActiveView('schema')} onAction={handleOrderAction} onOpenDetails={setOrderDetail} onChooseSubstitute={handleOpenOrderSubstitutePanel} onShowSubstitutes={handleOpenAllSubstitutes} onOpenSubstitute={handleOpenSubstituteDetails} candidateButtonLabel={alwaysShowResourceNeeds ? 'Kandidater' : undefined} />}
+                : <ResourceOrdersList orders={resourceOrders} unreadMessageEntities={unreadMessageEntities} selectedOrderId={highlightedOrderId} selectedPersonId={highlightedPersonId} relatedOrderIds={relatedOrderIds} onSelectOrder={selectResourceOrder} onSelectPerson={selectOrderPerson} onClose={() => setActiveView('schema')} onAction={handleOrderAction} onOpenDetails={setOrderDetail} onChooseSubstitute={handleOpenOrderSubstitutePanel} onShowSubstitutes={handleOpenAllSubstitutes} onOpenSubstitute={handleOpenSubstituteDetails} candidateButtonLabel={alwaysShowResourceNeeds ? 'Kandidater' : undefined} />}
             </div>
           ) : activeView === 'resource-needs' ? (
             <div className="schema-orders-page-view">
-              <ResourceNeedsList needs={resourceNeeds} unreadMessageEntities={unreadMessageEntities} orgOptions={resourceBoardOrgOptions} selectedRoleId={selectedRoleId} onClose={() => setActiveView('schema')} onOpenDetails={setResourceNeedDetail} onAction={handleResourceNeedAction} onDropPass={handleResourceNeedDrop} onOrderAll={handleOrderAllResourceNeeds} onAssignAll={isActivityTimelineScenario ? undefined : handleAssignAllResourceNeeds} />
+              <ResourceNeedsList needs={resourceNeeds} unreadMessageEntities={unreadMessageEntities} orgOptions={resourceBoardOrgOptions} selectedRoleId={selectedRoleId} selectedNeedId={highlightedNeedId} relatedNeedIds={relatedNeedIds} onSelectNeed={selectResourceNeed} onClose={() => setActiveView('schema')} onOpenDetails={setResourceNeedDetail} onAction={handleResourceNeedAction} onDropPass={handleResourceNeedDrop} onOrderAll={handleOrderAllResourceNeeds} onAssignAll={isActivityTimelineScenario ? undefined : handleAssignAllResourceNeeds} />
             </div>
           ) : <>
 
@@ -6515,11 +6789,6 @@ export const Schema = ({
               stylingMode="outlined"
             />
             <div className="schema-filter-spacer" />
-          </div>
-
-          {/* Checkboxes */}
-          <div className="schema-filter-checks">
-            {!isActivityTimelineScenario && <span className="schema-staffing-focus-note">Bemanning följs per aktivitet; pass och frånvaro visas som underlag.</span>}
             {resourceNeedPrototype && automation && (
               <label className="schema-automation-control">
                 <i className="fa-solid fa-robot" />
@@ -6537,6 +6806,10 @@ export const Schema = ({
                 <span className={`automation-status-dot ${automation.isAutomationActive ? 'active' : ''}`} title={automation.isAutomationActive ? 'Automatik aktiv' : 'Automatik av'} />
               </label>
             )}
+          </div>
+
+          {/* Checkboxes */}
+          <div className="schema-filter-checks">
             {!alwaysShowResourceNeeds && <CheckBox value={showVacancies} onValueChanged={e => setShowVacancies(e.value)} text={resourceNeedPrototype ? 'Visa frånvaro och resursbehov' : 'Visa bara vakanser'} />}
             {resourceNeedPrototype && !alwaysShowResourceNeeds && (
               <div className="schema-orders-toggle">
@@ -6676,10 +6949,12 @@ export const Schema = ({
                             column.isWeekend ? 'schema-weekend-cell' : '',
                             dateStr === TODAY_STR ? 'schema-today-col' : '',
                             isTargetDay && isVacant ? 'schema-ctx-cell' : '',
+                            highlightedScheduleObject?.personId === pass.id && highlightedScheduleObject.dateStr === dateStr && !highlightedScheduleObject.activityId ? isPrimaryScheduleSelection ? 'schema-schedule-object-selected' : 'schema-schedule-object-related' : isCandidateBookingRelatedToSchedule(pass.id, dateStr) ? 'schema-schedule-object-related' : '',
                           ].filter(Boolean).join(' ')}
                             data-person-id={isTargetDay && isVacant ? pass.id : undefined}
                             data-date-str={isTargetDay && isVacant ? dateStr : undefined}
                             data-ctx-type={isTargetDay && isVacant ? 'vacant' : undefined}
+                            onClick={event => selectScheduleObject(pass.id, dateStr, event.target)}
                             onDoubleClick={isTargetDay ? () => handleOpenDetail(pass.id, 'Pass kvar', pass.unit, dateStr, pass.shift, isVacant ? 'vacant' : 'filled') : undefined}>
                             {unreadMessageEntities.has(`pass:${pass.id}|${dateStr}`) && <NewMessageIndicator className="schema-new-message-indicator-cell" />}
                             {isTargetDay && isVacant && <ContextKebabButton className="schema-context-kebab-cell" targetSelector=".schema-ctx-cell" label={`Fler åtgärder för vakans, ${dateStr}`} />}
@@ -6692,6 +6967,7 @@ export const Schema = ({
                               statusLabel={pass.assignedSubstituteId ? `Tillsatt · ${pass.assignedSubstituteName ?? ''}` : undefined}
                               assignedSubstituteName={pass.assignedSubstituteName}
                               isPast={isPast}
+                              selectedActivityId={highlightedScheduleObject?.personId === pass.id && highlightedScheduleObject.dateStr === dateStr ? highlightedScheduleObject.activityId : undefined}
                               onPassDragOver={handleCellDragOver}
                               onPassDrop={(event, targetShift) => handleCellDrop(event, pass.id, dateStr, targetShift)}
                             />}
@@ -6709,9 +6985,10 @@ export const Schema = ({
                       {/* Employee row */}
                       <tr className="schema-table-row">
                         <td
-                          className={`schema-employee-cell schema-org-employee-cell schema-person-context-cell${alwaysShowResourceNeeds ? ' schema-preschool-employee-cell' : ''}`}
+                          className={`schema-employee-cell schema-org-employee-cell schema-person-context-cell${alwaysShowResourceNeeds ? ' schema-preschool-employee-cell' : ''}${highlightedPersonId === emp.id ? ' schema-schedule-person-selected' : ''}`}
                           style={{ paddingLeft: alwaysShowResourceNeeds ? 12 : 106 }}
                           data-person-id={emp.id}
+                          onClick={() => selectSchedulePerson(emp.id)}
                           onContextMenu={() => setPersonContextId(emp.id)}
                           onDoubleClick={() => setPersonDetailId(emp.id)}
                           title="Dubbelklicka för persondetaljer, högerklicka för åtgärder"
@@ -6873,10 +7150,12 @@ export const Schema = ({
                                   col.isWeekend ? 'schema-weekend-cell' : '',
                                   ds === TODAY_STR ? 'schema-today-col' : '',
                                   ctxType ? 'schema-ctx-cell' : '',
+                                  highlightedScheduleObject?.personId === emp.id && highlightedScheduleObject.dateStr === ds && !highlightedScheduleObject.activityId ? isPrimaryScheduleSelection ? 'schema-schedule-object-selected' : 'schema-schedule-object-related' : isCandidateBookingRelatedToSchedule(emp.id, ds) ? 'schema-schedule-object-related' : '',
                                 ].filter(Boolean).join(' ')}
                                 data-person-id={ctxType ? emp.id : undefined}
                                 data-date-str={ctxType ? ds : undefined}
                                 data-ctx-type={ctxType}
+                                onClick={event => selectScheduleObject(emp.id, ds, event.target)}
                                 onDoubleClick={shift ? () => handleOpenDetail(emp.id, emp.name, emp.role, ds, shift, color) : undefined}
                               >
                                 {hasUnreadPassMessage && <NewMessageIndicator className="schema-new-message-indicator-cell" />}
@@ -6899,6 +7178,7 @@ export const Schema = ({
                                   resourceStatus={hasScheduleResourceStatus}
                                   isPast={ds < TODAY_STR}
                                   hospitalMode={alwaysShowResourceNeeds}
+                                  selectedActivityId={highlightedScheduleObject?.personId === emp.id && highlightedScheduleObject.dateStr === ds ? highlightedScheduleObject.activityId : undefined}
                                   carryInShift={nightCarryColor ? previousShift : null}
                                   carryInActivities={carryInActivities}
                                   carryInAbsenceLabel={carryInAbsenceLabel}
@@ -6920,10 +7200,11 @@ export const Schema = ({
                             return (
                               <td
                                 key={ci}
-                                className={['schema-month-col-cell', col.isWeekend ? 'schema-weekend-cell' : '', ds === TODAY_STR ? 'schema-today-col' : '', ctxType ? 'schema-ctx-cell' : '', nightCarryColor ? 'schema-night-carry-cell' : ''].filter(Boolean).join(' ')}
+                                className={['schema-month-col-cell', col.isWeekend ? 'schema-weekend-cell' : '', ds === TODAY_STR ? 'schema-today-col' : '', ctxType ? 'schema-ctx-cell' : '', nightCarryColor ? 'schema-night-carry-cell' : '', highlightedScheduleObject?.personId === emp.id && highlightedScheduleObject.dateStr === ds && !highlightedScheduleObject.activityId ? isPrimaryScheduleSelection ? 'schema-schedule-object-selected' : 'schema-schedule-object-related' : isCandidateBookingRelatedToSchedule(emp.id, ds) ? 'schema-schedule-object-related' : ''].filter(Boolean).join(' ')}
                                 data-person-id={ctxType ? emp.id : undefined}
                                 data-date-str={ctxType ? ds : undefined}
                                 data-ctx-type={ctxType}
+                                onClick={event => selectScheduleObject(emp.id, ds, event.target)}
                               >
                                 {hasUnreadPassMessage && <NewMessageIndicator className="schema-new-message-indicator-cell" />}
                                 {ctxType && <ContextKebabButton className="schema-context-kebab-cell" targetSelector=".schema-ctx-cell" label={`Fler åtgärder för ${emp.name}, ${ds}`} />}
@@ -6964,10 +7245,12 @@ export const Schema = ({
                               ds === TODAY_STR ? 'schema-today-col' : '',
                               ctxType ? 'schema-ctx-cell' : '',
                               nightCarryColor ? 'schema-night-carry-cell' : '',
+                              highlightedScheduleObject?.personId === emp.id && highlightedScheduleObject.dateStr === ds && !highlightedScheduleObject.activityId ? isPrimaryScheduleSelection ? 'schema-schedule-object-selected' : 'schema-schedule-object-related' : isCandidateBookingRelatedToSchedule(emp.id, ds) ? 'schema-schedule-object-related' : '',
                             ].filter(Boolean).join(' ')}
                             data-person-id={ctxType ? emp.id : undefined}
                             data-date-str={ctxType ? ds : undefined}
                             data-ctx-type={ctxType}
+                            onClick={event => selectScheduleObject(emp.id, ds, event.target)}
                             >
                               {hasUnreadPassMessage && <NewMessageIndicator className="schema-new-message-indicator-cell" />}
                               {ctxType && <ContextKebabButton className="schema-context-kebab-cell" targetSelector=".schema-ctx-cell" label={`Fler åtgärder för ${emp.name}, ${ds}`} />}
@@ -7057,8 +7340,8 @@ export const Schema = ({
             </table>
           </div>, document.body)}
           </div>
-          {showOrders && <ResourceOrdersList orders={resourceOrders} unreadMessageEntities={unreadMessageEntities} onClose={() => setShowOrders(false)} onAction={handleOrderAction} onOpenDetails={setOrderDetail} onChooseSubstitute={handleOpenOrderSubstitutePanel} onShowSubstitutes={handleOpenAllSubstitutes} onOpenSubstitute={handleOpenSubstituteDetails} candidateButtonLabel={alwaysShowResourceNeeds ? 'Kandidater' : undefined} />}
-          {resourceNeedPrototype && (showResourceNeeds || alwaysShowResourceNeeds) && <ResourceNeedsList needs={resourceNeeds} unreadMessageEntities={unreadMessageEntities} orgOptions={resourceBoardOrgOptions} selectedRoleId={selectedRoleId} onClose={alwaysShowResourceNeeds ? undefined : () => setShowResourceNeeds(false)} onOpenDetails={setResourceNeedDetail} onAction={handleResourceNeedAction} onDropPass={handleResourceNeedDrop} onOrderAll={handleOrderAllResourceNeeds} onAssignAll={alwaysShowResourceNeeds || !isActivityTimelineScenario ? handleAssignAllResourceNeeds : undefined} />}
+          {showOrders && <ResourceOrdersList orders={resourceOrders} unreadMessageEntities={unreadMessageEntities} selectedOrderId={highlightedOrderId} selectedPersonId={highlightedPersonId} relatedOrderIds={relatedOrderIds} onSelectOrder={selectResourceOrder} onSelectPerson={selectOrderPerson} onClose={() => setShowOrders(false)} onAction={handleOrderAction} onOpenDetails={setOrderDetail} onChooseSubstitute={handleOpenOrderSubstitutePanel} onShowSubstitutes={handleOpenAllSubstitutes} onOpenSubstitute={handleOpenSubstituteDetails} candidateButtonLabel={alwaysShowResourceNeeds ? 'Kandidater' : undefined} />}
+          {resourceNeedPrototype && (showResourceNeeds || alwaysShowResourceNeeds) && <ResourceNeedsList needs={resourceNeeds} unreadMessageEntities={unreadMessageEntities} orgOptions={resourceBoardOrgOptions} selectedRoleId={selectedRoleId} selectedNeedId={highlightedNeedId} relatedNeedIds={relatedNeedIds} onSelectNeed={selectResourceNeed} onClose={alwaysShowResourceNeeds ? undefined : () => setShowResourceNeeds(false)} onOpenDetails={setResourceNeedDetail} onAction={handleResourceNeedAction} onDropPass={handleResourceNeedDrop} onOrderAll={handleOrderAllResourceNeeds} onAssignAll={alwaysShowResourceNeeds || !isActivityTimelineScenario ? handleAssignAllResourceNeeds : undefined} />}
           </div>
 
           </>}
@@ -7212,6 +7495,7 @@ export const Schema = ({
         </div>
 
         {/* Substitute panel — context mode (right-click) and browse-all mode ("Visa vikarier") */}
+        <div className={alwaysShowResourceNeeds ? 'schema-page-hospital' : undefined}>
         <SubstitutePanel
           isOpen={subPanelOpen}
           browseAll={subPanelBrowseAll}
@@ -7223,6 +7507,12 @@ export const Schema = ({
           targetUnitId={candidatePanelTargetUnitId}
           targetCompetencies={candidateTargetCompetencies}
           bookingsByCandidate={candidateBookings}
+          highlightedCandidateId={highlightedCandidateId}
+          highlightedCandidateBooking={highlightedCandidateBooking}
+          relatedCandidateIds={relatedCandidateIds}
+          relatedCandidateBookingKeys={relatedCandidateBookingKeys}
+          onSelectCandidate={selectCandidate}
+          onSelectCandidateBooking={selectCandidateBooking}
           columns={columns}
           viewType={viewType}
           viewColumnWidth={viewColumnWidth}
@@ -7243,6 +7533,7 @@ export const Schema = ({
           panelLeft={alwaysShowResourceNeeds ? presenceBounds.left : undefined}
           panelWidth={alwaysShowResourceNeeds ? presenceBounds.width : undefined}
         />
+        </div>
 
         {/* Confirm dialog */}
         <ConfirmAssignDialog
