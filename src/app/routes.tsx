@@ -1,6 +1,10 @@
-import { createBrowserRouter } from "react-router";
+import { createBrowserRouter, redirect } from "react-router";
 
 export const router = createBrowserRouter([
+  {
+    path: "/kommentarer/sammanstallning",
+    loader: () => redirect("/vikariehantering/schema"),
+  },
   {
     path: "/",
     lazy: async () => ({ Component: (await import("./pages/Dashboard")).Dashboard }),

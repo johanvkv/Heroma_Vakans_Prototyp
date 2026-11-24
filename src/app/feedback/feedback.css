@@ -3,6 +3,8 @@
 .feedback-root button, .feedback-root input, .feedback-root textarea, .feedback-root a { font: inherit; }
 .feedback-header-button { position: absolute; z-index: 10; display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px; padding: 7px 11px; border: 1px solid #5636ad; border-radius: 5px; background: #fff; color: #5636ad; font: 600 13px Arial, sans-serif; white-space: nowrap; pointer-events: auto; cursor: pointer; box-shadow: 0 2px 9px #170c3e26; }
 .feedback-header-button:hover, .feedback-header-button.is-active { background: #5636ad; color: #fff; }
+.feedback-header-button.is-over-modal { background: #5636ad; color: #fff; border-color: #fff; box-shadow: 0 3px 16px #170c3e73; }
+.feedback-header-button.is-over-modal:hover { background: #422388; }
 .feedback-header-button:focus-visible { outline: 2px solid #5636ad; outline-offset: 2px; }
 .feedback-mode-tint { position: absolute; inset: 0; background: rgba(89, 57, 179, .035); outline: 3px solid rgba(91, 55, 190, .65); outline-offset: -3px; }
 .feedback-mode-hint { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); max-width: calc(100vw - 32px); padding: 9px 14px; border: 1px solid #bcabf8; border-radius: 9px; background: #fff; box-shadow: 0 5px 24px #2916542b; font-size: 13px; text-align: center; }

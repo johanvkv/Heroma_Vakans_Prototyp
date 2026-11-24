@@ -43,6 +43,14 @@ function tagOpenDialogs() {
   });
 }
 
+function hasOpenModal() {
+  return Array.from(document.querySelectorAll('.case-activity-overlay, .dx-overlay-wrapper')).some(element => {
+    const rect = element.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0 || getComputedStyle(element).visibility === 'hidden') return false;
+    return element.matches('.case-activity-overlay') || !!element.querySelector('.dx-popup-content');
+  });
+}
+
 function selectorFor(element: Element): string {
   if (element.id === 'root') return '#root';
   if (element === document.body) return 'body';
@@ -240,12 +248,15 @@ export function FeedbackOverlay() {
 
   const currentComments = comments.filter(comment => comment.path === location && (comment.viewKey === viewKey || comment.viewKey === routeViewKey()));
   void positionVersion;
+  const modalOpen = hasOpenModal();
   const searchRect = document.querySelector('.person-search-container')?.getBoundingClientRect();
-  const headerButtonStyle: CSSProperties = searchRect && searchRect.width > 0 && searchRect.left > 180
+  const headerButtonStyle: CSSProperties = modalOpen
+    ? { right: 16, top: 8 }
+    : searchRect && searchRect.width > 0 && searchRect.left > 180
     ? { left: searchRect.left - 8, top: searchRect.top + searchRect.height / 2, transform: 'translate(-100%, -50%)' }
     : { right: 16, top: searchRect && searchRect.width > 0 ? Math.max(8, searchRect.top - 44) : 84 };
   return createPortal(<div className="feedback-ui feedback-root">
-    <button type="button" className={`feedback-header-button${active ? ' is-active' : ''}`} style={headerButtonStyle}
+    <button type="button" className={`feedback-header-button${active ? ' is-active' : ''}${modalOpen ? ' is-over-modal' : ''}`} style={headerButtonStyle}
       aria-pressed={active} onClick={() => { setActive(value => !value); setDraftPoint(null); setError(''); }}>
       <i className="fa-regular fa-comment" aria-hidden="true" />
       <span>{active ? 'Avsluta kommentarer' : 'Kommentera'}</span>
