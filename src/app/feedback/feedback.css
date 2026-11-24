@@ -24,9 +24,7 @@
 .feedback-panel-actions button:hover { background: #f5f1ff; }
 .feedback-panel-actions button:disabled { opacity: .6; cursor: wait; }
 .feedback-panel-actions .feedback-place-button { border-color: #5636ad; background: #5636ad; color: #fff; font-weight: 700; }
-.feedback-panel-actions .feedback-place-button.is-placing { background: #322069; }
-.feedback-panel-tip, .feedback-panel-note { margin: 0; padding: 9px 15px; background: #f7f3ff; color: #4d3883; font-size: 12px; }
-.feedback-panel-note { background: #faf9fc; color: #6a6179; }
+.feedback-panel-note { margin: 0; padding: 9px 15px; background: #faf9fc; color: #6a6179; font-size: 12px; }
 .feedback-panel > .feedback-error { padding: 0 15px; }
 .feedback-panel-list { min-height: 0; flex: 1; overflow: auto; padding: 12px 15px 16px; }
 .feedback-panel-list h3 { margin: 2px 0 9px; color: #38285f; font-size: 13px; }

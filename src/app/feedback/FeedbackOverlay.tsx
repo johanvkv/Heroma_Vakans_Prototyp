@@ -105,8 +105,9 @@ function commentGroup(comment: FeedbackComment) {
   }
   const area = comment.viewKey.split(':')[0];
   if (comment.path === '/vikariehantering/schema') {
-    const label = area === 'orders' ? 'Beställningar' : area === 'resource-needs' ? 'Resursbehov' : 'Schema';
-    return { key: `${comment.path}:${area}`, label: `Vikariehantering · ${label}` };
+    const section = area === 'orders' || area === 'resource-needs' ? area : 'schema';
+    const label = section === 'orders' ? 'Beställningar' : section === 'resource-needs' ? 'Resursbehov' : 'Schema';
+    return { key: `${comment.path}:${section}`, label: `Vikariehantering · ${label}` };
   }
   return { key: comment.path, label: comment.path === '/' ? 'Startsida' : comment.path.replace(/^\//, '').replace(/\//g, ' · ').replace(/-/g, ' ') };
 }
@@ -214,7 +215,11 @@ export function FeedbackOverlay() {
     setError('');
     try {
       const result = await listAllFeedback();
-      setComments(result.comments);
+      setComments(current => {
+        const byId = new Map(result.comments.map(comment => [comment.id, comment]));
+        current.forEach(comment => { if (!byId.has(comment.id)) byId.set(comment.id, comment); });
+        return [...byId.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      });
       setTruncated(result.truncated);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Kommentarer kunde inte läsas.');
@@ -284,7 +289,7 @@ export function FeedbackOverlay() {
     const key = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
       if (draftPoint) setDraftPoint(null);
-      else if (active) setActive(false);
+      else if (active) { setActive(false); setPanelOpen(true); }
       else setPanelOpen(false);
       event.stopPropagation();
     };
@@ -322,6 +327,9 @@ export function FeedbackOverlay() {
       setDraftPoint(null);
       setOpenPin(result.comment.id);
       setShowPins(true);
+      setActive(false);
+      setPanelTab('here');
+      setPanelOpen(true);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Kommentaren kunde inte sparas.');
     } finally { setSaving(false); }
@@ -348,17 +356,16 @@ export function FeedbackOverlay() {
     ? { left: searchRect.left - 8, top: searchRect.top + searchRect.height / 2, transform: 'translate(-100%, -50%)' }
     : { right: 16, top: searchRect && searchRect.width > 0 ? Math.max(8, searchRect.top - 44) : 84 };
   return createPortal(<div className="feedback-ui feedback-root">
-    <button type="button" className={`feedback-header-button${panelOpen ? ' is-active' : ''}${modalOpen ? ' is-over-modal' : ''}`} style={headerButtonStyle}
+    <button type="button" className={`feedback-header-button${panelOpen || active ? ' is-active' : ''}${modalOpen ? ' is-over-modal' : ''}`} style={headerButtonStyle}
       aria-expanded={panelOpen} aria-controls="feedback-panel" onClick={() => {
-        setPanelOpen(value => !value);
-        setPanelTab('here');
-        setActive(false);
+        if (active) { setActive(false); setPanelOpen(true); }
+        else { setPanelOpen(value => !value); setPanelTab('here'); }
         setDraftPoint(null);
         setOpenPin(null);
         setError('');
       }}>
       <i className="fa-regular fa-comment" aria-hidden="true" />
-      <span>Kommentarer</span>
+      <span>{active ? 'Avsluta placering' : 'Kommentarer'}</span>
       {comments.length > 0 && <span className="feedback-header-count">{comments.length}</span>}
     </button>
     {active && <div className="feedback-mode-tint" aria-hidden="true" />}
@@ -403,13 +410,12 @@ export function FeedbackOverlay() {
         <button type="button" role="tab" aria-selected={panelTab === 'all'} className={panelTab === 'all' ? 'is-selected' : ''} onClick={() => setPanelTab('all')}>Alla kommentarer <span>{comments.length}</span></button>
       </div>
       <div className="feedback-panel-actions">
-        <button type="button" className={`feedback-place-button${active ? ' is-placing' : ''}`} onClick={() => { setActive(value => !value); setDraftPoint(null); setError(''); }}>
-          <i className="fa-solid fa-location-dot" aria-hidden="true" /> {active ? 'Avsluta placering' : 'Placera kommentar'}
+        <button type="button" className="feedback-place-button" onClick={() => { setActive(true); setPanelOpen(false); setDraftPoint(null); setError(''); }}>
+          <i className="fa-solid fa-location-dot" aria-hidden="true" /> Placera kommentar
         </button>
         <button type="button" aria-pressed={showPins} onClick={() => setShowPins(value => !value)}>{showPins ? 'Dölj markeringar' : 'Visa markeringar'}</button>
         <button type="button" onClick={() => void refreshComments()} disabled={loading}>Uppdatera</button>
       </div>
-      {active && <p className="feedback-panel-tip">Klicka på den plats i prototypen du vill kommentera.</p>}
       {loading && <p className="feedback-panel-note" role="status">Hämtar kommentarer…</p>}
       {truncated && <p className="feedback-panel-note">Listan visar högst 5 000 kommentarer.</p>}
       {localDemo && <p className="feedback-panel-note">Lokal förhandsvisning</p>}
