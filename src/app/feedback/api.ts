@@ -14,13 +14,18 @@ export interface FeedbackComment {
   status: FeedbackStatus;
 }
 
-export type FeedbackDraft = Pick<FeedbackComment, 'visitorId' | 'displayName' | 'text' | 'path' | 'viewKey' | 'anchor' | 'x' | 'y'>;
+export type FeedbackDraft = Pick<FeedbackComment, 'visitorId' | 'text' | 'path' | 'viewKey' | 'anchor' | 'x' | 'y'>;
 
 const localKey = 'heroma-feedback-local-demo';
 export const localDemo = import.meta.env.DEV;
 
 function localComments(): FeedbackComment[] {
-  try { return JSON.parse(localStorage.getItem(localKey) || '[]') as FeedbackComment[]; }
+  try {
+    const stored = JSON.parse(localStorage.getItem(localKey) || '[]') as FeedbackComment[];
+    const anonymous = stored.map(comment => ({ ...comment, displayName: 'Anonym' }));
+    if (stored.some(comment => comment.displayName !== 'Anonym')) saveLocal(anonymous);
+    return anonymous;
+  }
   catch { return []; }
 }
 function saveLocal(comments: FeedbackComment[]) { localStorage.setItem(localKey, JSON.stringify(comments)); }
@@ -35,21 +40,16 @@ async function request<T>(endpoint: string, init?: RequestInit): Promise<T> {
 }
 const jsonBody = (body: unknown) => ({ headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 
-export async function listMyFeedback(visitorId: string) {
-  if (localDemo) return { comments: localComments().filter(comment => comment.visitorId === visitorId), truncated: false };
-  return request<{ comments: FeedbackComment[]; truncated: boolean }>(`feedback?visitorId=${encodeURIComponent(visitorId)}`);
-}
-
 export async function createFeedback(draft: FeedbackDraft) {
   if (localDemo) {
-    const comment: FeedbackComment = { ...draft, id: crypto.randomUUID(), createdAt: new Date().toISOString(), status: 'open' };
+    const comment: FeedbackComment = { ...draft, displayName: 'Anonym', id: crypto.randomUUID(), createdAt: new Date().toISOString(), status: 'open' };
     saveLocal([comment, ...localComments()]);
     return { comment };
   }
   return request<{ comment: FeedbackComment }>('feedback', { method: 'POST', ...jsonBody(draft) });
 }
 
-export async function listFeedbackSummary() {
+export async function listAllFeedback() {
   if (localDemo) return { comments: localComments(), truncated: false };
-  return request<{ comments: FeedbackComment[]; truncated: boolean }>('feedback-summary');
+  return request<{ comments: FeedbackComment[]; truncated: boolean }>('feedback-public');
 }

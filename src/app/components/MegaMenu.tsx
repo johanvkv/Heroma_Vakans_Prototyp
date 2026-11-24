@@ -300,10 +300,7 @@ export const MegaMenu: React.FC<MegaMenuProps> = ({ isOpen, onClose, searchQuery
 
   // Handle search result item click
   const handleSearchItemClick = (itemText: string) => {
-    if (itemText === 'Nämnder') {
-      navigate('/kommentarer/sammanstallning');
-      onClose();
-    } else if (itemText === 'Schema' && selectedMenu === 'vikariehantering-app') {
+    if (itemText === 'Schema' && selectedMenu === 'vikariehantering-app') {
       navigate('/vikariehantering/schema');
       onClose();
     } else if (itemText === 'Inställningar' && selectedMenu === 'vikariehantering-app') {

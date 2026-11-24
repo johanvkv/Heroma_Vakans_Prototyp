@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { json, readComments } from '../lib/feedbackStore';
 
 export const config = {
-  path: '/api/feedback-summary',
+  path: '/api/feedback-public',
   rateLimit: { windowLimit: 30, windowSize: 60, aggregateBy: ['ip', 'domain'] },
 };
 
@@ -14,14 +14,15 @@ export default async (request: Request) => {
     return json({
       comments: comments.map(comment => ({
         ...comment,
-        // The visitor ID also identifies a person's own comments in /api/feedback.
-        // A stable hash preserves grouping in the summary without exposing that ID.
+        // Keep a stable pseudonym for possible future grouping without exposing the stored ID.
         visitorId: createHash('sha256').update(comment.visitorId).digest('hex'),
+        // Older comments may contain names. Never publish them with shared pins.
+        displayName: 'Anonym',
       })),
       truncated,
     });
   } catch (error) {
-    console.error('Failed to read feedback summary', error);
+    console.error('Failed to read public feedback', error);
     return json({ error: 'Kommentarerna kunde inte hämtas.' }, 500);
   }
 };

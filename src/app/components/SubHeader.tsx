@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router';
 import Button from 'devextreme-react/button';
 import { Breadcrumbs, BreadcrumbItem } from './Breadcrumbs';
 import { Tooltip } from './Tooltip';
-import { FeedbackControl } from '../feedback/FeedbackControl';
 
 interface SubHeaderProps {
   breadcrumbItems?: BreadcrumbItem[];
@@ -40,7 +39,6 @@ export const SubHeader: React.FC<SubHeaderProps> = ({
       </div>
 
       <div className="d-flex align-items-center gap-2 sub-header-actions">
-        <FeedbackControl />
         <div className="person-search-container">
             <button className="person-search-btn border-right-custom">
                 <i className="fa-solid fa-chevron-left small"></i>

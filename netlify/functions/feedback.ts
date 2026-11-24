@@ -1,38 +1,31 @@
 import { randomUUID } from 'node:crypto';
-import { commentKey, commentPrefix, feedbackStore, json, readComments, sameOrigin, visitorIdPattern, type FeedbackComment } from '../lib/feedbackStore';
+import { commentKey, feedbackStore, json, sameOrigin, visitorIdPattern, type FeedbackComment } from '../lib/feedbackStore';
 
 export const config = { path: '/api/feedback', rateLimit: { windowLimit: 30, windowSize: 60, aggregateBy: ['ip', 'domain'] } };
 
 export default async (request: Request) => {
   try {
-    if (request.method === 'GET') {
-      const visitorId = new URL(request.url).searchParams.get('visitorId') ?? '';
-      if (!visitorIdPattern.test(visitorId)) return json({ error: 'Ogiltigt besökar-id.' }, 400);
-      return json(await readComments(request, `${commentPrefix(request)}${visitorId}/`, 500));
-    }
-
-    if (request.method !== 'POST') return json({ error: 'Metoden stöds inte.' }, 405, { Allow: 'GET, POST' });
+    if (request.method !== 'POST') return json({ error: 'Metoden stöds inte.' }, 405, { Allow: 'POST' });
     if (!sameOrigin(request)) return json({ error: 'Förfrågan kommer från fel webbplats.' }, 403);
     if (!(request.headers.get('content-type') ?? '').startsWith('application/json')) return json({ error: 'JSON krävs.' }, 415);
     if (Number(request.headers.get('content-length') || 0) > 8000) return json({ error: 'Kommentaren är för lång.' }, 413);
 
     const body = await request.json() as Partial<FeedbackComment>;
     const visitorId = typeof body.visitorId === 'string' ? body.visitorId : '';
-    const displayName = typeof body.displayName === 'string' ? body.displayName.trim() : '';
     const text = typeof body.text === 'string' ? body.text.trim() : '';
     const path = typeof body.path === 'string' ? body.path : '';
     const viewKey = typeof body.viewKey === 'string' ? body.viewKey : '';
     const anchor = typeof body.anchor === 'string' ? body.anchor : '';
     const x = Number(body.x);
     const y = Number(body.y);
-    if (!visitorIdPattern.test(visitorId) || !displayName || displayName.length > 80 || !text || text.length > 2000
+    if (!visitorIdPattern.test(visitorId) || !text || text.length > 2000
       || !path.startsWith('/') || path.startsWith('//') || /[\\\r\n?#]/.test(path) || path.length > 240 || viewKey.length > 240 || anchor.length > 500
       || !Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > 1 || y < 0 || y > 1) {
-      return json({ error: 'Kontrollera namn, kommentar och placering.' }, 400);
+      return json({ error: 'Kontrollera kommentar och placering.' }, 400);
     }
 
     const comment: FeedbackComment = {
-      id: randomUUID(), visitorId, displayName, text, path, viewKey, anchor, x, y,
+      id: randomUUID(), visitorId, displayName: 'Anonym', text, path, viewKey, anchor, x, y,
       createdAt: new Date().toISOString(), status: 'open',
     };
     await feedbackStore().setJSON(commentKey(request, visitorId, comment.id), comment, { onlyIfNew: true });
