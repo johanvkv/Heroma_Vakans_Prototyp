@@ -1,6 +1,9 @@
 .feedback-root { position: fixed; inset: 0; z-index: 20000; pointer-events: none; font-family: Arial, sans-serif; color: #241943; }
 .feedback-root * { box-sizing: border-box; }
 .feedback-root button, .feedback-root input, .feedback-root textarea, .feedback-root a { font: inherit; }
+.feedback-header-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px; padding: 7px 11px; border: 1px solid #5636ad; border-radius: 5px; background: #fff; color: #5636ad; font: 600 13px Arial, sans-serif; white-space: nowrap; cursor: pointer; }
+.feedback-header-button:hover, .feedback-header-button.is-active { background: #5636ad; color: #fff; }
+.feedback-header-button:focus-visible { outline: 2px solid #5636ad; outline-offset: 2px; }
 .feedback-mode-tint { position: absolute; inset: 0; background: rgba(89, 57, 179, .035); outline: 3px solid rgba(91, 55, 190, .65); outline-offset: -3px; }
 .feedback-mode-hint { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); max-width: calc(100vw - 32px); padding: 9px 14px; border: 1px solid #bcabf8; border-radius: 9px; background: #fff; box-shadow: 0 5px 24px #2916542b; font-size: 13px; text-align: center; }
 .feedback-toolbar { position: absolute; right: 18px; bottom: 18px; display: flex; align-items: center; flex-wrap: wrap; justify-content: flex-end; gap: 7px; max-width: min(780px, calc(100vw - 36px)); padding: 8px; border: 1px solid #dcd4ed; border-radius: 12px; background: #fff; box-shadow: 0 8px 30px #170c3e35; pointer-events: auto; font-size: 13px; }
@@ -47,13 +50,8 @@
 .feedback-admin-header a, .feedback-admin-location a { color: #5636ad; text-decoration: none; }
 .feedback-admin-header h1 { margin: 12px 0 5px; font-size: 28px; }
 .feedback-admin-header p { color: #6f697d; margin: 0; }
-.feedback-admin-header button, .feedback-admin-controls button, .feedback-admin-login button { border: 1px solid #5636ad; border-radius: 6px; background: #fff; color: #5636ad; padding: 9px 13px; cursor: pointer; }
+.feedback-admin-controls button { border: 1px solid #5636ad; border-radius: 6px; background: #fff; color: #5636ad; padding: 9px 13px; cursor: pointer; }
 .feedback-admin-demo, .feedback-admin-warning { border-left: 3px solid #a383e8; padding: 9px 12px; background: #fff; }
-.feedback-admin-login { max-width: 440px; padding: 24px; border: 1px solid #e2dce9; border-radius: 9px; background: #fff; }
-.feedback-admin-login h2 { margin-top: 0; }
-.feedback-admin-login label { display: block; margin: 18px 0 12px; }
-.feedback-admin-login input { display: block; width: 100%; margin-top: 6px; padding: 10px; border: 1px solid #b9b1c9; border-radius: 5px; }
-.feedback-admin-login button { background: #5636ad; color: #fff; }
 .feedback-admin-stats { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
 .feedback-admin-stats > * { display: flex; flex-direction: column; gap: 3px; border: 1px solid #e2dce9; border-radius: 9px; padding: 17px; background: #fff; text-align: left; color: inherit; }
 .feedback-admin-stats button { cursor: pointer; }
@@ -66,7 +64,7 @@
 .feedback-admin-pages span { margin-left: 5px; opacity: .8; }
 .feedback-admin-controls { display: flex; align-items: end; gap: 10px; flex-wrap: wrap; padding: 15px; border: 1px solid #e2dce9; border-radius: 9px; background: #fff; }
 .feedback-admin-controls label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; font-weight: 700; }
-.feedback-admin-controls input, .feedback-admin-controls select, .feedback-admin-comment-actions select { border: 1px solid #c9c4d0; border-radius: 5px; padding: 8px; background: #fff; color: #241943; }
+.feedback-admin-controls input, .feedback-admin-controls select { border: 1px solid #c9c4d0; border-radius: 5px; padding: 8px; background: #fff; color: #241943; }
 .feedback-admin-controls input { width: min(300px, 70vw); }
 .feedback-admin-controls button:first-of-type { background: #5636ad; color: #fff; }
 .feedback-admin-result-count { color: #716a7d; font-size: 12px; margin: 11px 0; }
@@ -81,9 +79,5 @@
 .feedback-admin-comment p { white-space: pre-wrap; overflow-wrap: anywhere; margin: 12px 0; }
 .feedback-admin-location { display: flex; gap: 10px; flex-wrap: wrap; color: #777; font-size: 12px; }
 .feedback-admin-location span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 360px; }
-.feedback-admin-comment-actions { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; border-top: 1px solid #eee; padding-top: 12px; }
-.feedback-admin-comment-actions label { font-size: 12px; }
-.feedback-admin-comment-actions select { margin-left: 5px; }
-.feedback-admin-comment-actions button { border: 0; background: transparent; color: #aa2440; cursor: pointer; }
 .feedback-admin-empty { padding: 30px; border-radius: 9px; background: #fff; text-align: center; }
 @media (max-width: 650px) { .feedback-admin-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } .feedback-mode-hint { top: 8px; width: calc(100vw - 24px); } .feedback-toolbar { right: 8px; bottom: 8px; } }

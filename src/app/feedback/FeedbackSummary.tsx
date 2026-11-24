@@ -1,5 +1,5 @@
-import { type FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
-import { deleteFeedback, listAdminFeedback, localDemo, loginFeedbackAdmin, logoutFeedbackAdmin, updateFeedbackStatus, type FeedbackComment, type FeedbackStatus } from './api';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { listFeedbackSummary, localDemo, type FeedbackComment, type FeedbackStatus } from './api';
 import './feedback.css';
 
 const statusNames: Record<FeedbackStatus, string> = { open: 'Öppen', reviewed: 'Granskad', done: 'Klar' };
@@ -21,58 +21,29 @@ function downloadCsv(comments: FeedbackComment[]) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function FeedbackAdmin() {
-  const [auth, setAuth] = useState<'loading' | 'login' | 'ready' | 'missing'>('loading');
-  const [password, setPassword] = useState('');
+export function FeedbackSummary() {
+  const [loading, setLoading] = useState(true);
   const [comments, setComments] = useState<FeedbackComment[]>([]);
   const [truncated, setTruncated] = useState(false);
   const [error, setError] = useState('');
-  const [busyId, setBusyId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState('alla');
   const [person, setPerson] = useState('alla');
   const [status, setStatus] = useState<'alla' | FeedbackStatus>('alla');
 
   const reload = useCallback(async () => {
+    setLoading(true);
     try {
-      const result = await listAdminFeedback();
+      const result = await listFeedbackSummary();
       setComments(result.comments);
       setTruncated(result.truncated);
-      setAuth('ready');
       setError('');
     } catch (cause) {
-      const failure = cause as Error & { status?: number };
-      if (failure.status === 401) setAuth('login');
-      else if (failure.status === 503) { setAuth('missing'); setError(failure.message); }
-      else { setAuth('login'); setError(failure.message || 'Kommentarerna kunde inte hämtas.'); }
-    }
+      setError(cause instanceof Error ? cause.message : 'Kommentarerna kunde inte hämtas.');
+    } finally { setLoading(false); }
   }, []);
 
   useEffect(() => { void reload(); }, [reload]);
-
-  async function login(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError('');
-    try { await loginFeedbackAdmin(password); setPassword(''); await reload(); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : 'Inloggningen misslyckades.'); }
-  }
-
-  async function changeStatus(comment: FeedbackComment, next: FeedbackStatus) {
-    setBusyId(comment.id); setError('');
-    try {
-      const { comment: updated } = await updateFeedbackStatus(comment, next);
-      setComments(current => current.map(item => item.id === comment.id ? updated : item));
-    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Status kunde inte sparas.'); }
-    finally { setBusyId(null); }
-  }
-
-  async function remove(comment: FeedbackComment) {
-    if (!window.confirm(`Ta bort kommentaren från ${comment.displayName} permanent?`)) return;
-    setBusyId(comment.id); setError('');
-    try { await deleteFeedback(comment); setComments(current => current.filter(item => item.id !== comment.id)); }
-    catch (cause) { setError(cause instanceof Error ? cause.message : 'Kommentaren kunde inte tas bort.'); }
-    finally { setBusyId(null); }
-  }
 
   const pages = useMemo(() => [...new Set(comments.map(comment => comment.path))].sort(), [comments]);
   const people = useMemo(() => {
@@ -102,22 +73,13 @@ export function FeedbackAdmin() {
   return <main className="feedback-admin-page">
     <div className="feedback-admin-shell">
       <header className="feedback-admin-header">
-        <div><a href="/vikariehantering/schema">← Till prototypen</a><h1>Kommentarer från testpersoner</h1><p>Sammanställning av platsbundna kommentarer över tid.</p></div>
-        {auth === 'ready' && <button type="button" onClick={async () => { await logoutFeedbackAdmin(); setAuth('login'); setComments([]); }}>Logga ut</button>}
+        <div><a href="/vikariehantering/schema">← Till prototypen</a><h1>Sammanställning av kommentarer</h1><p>Platsbundna kommentarer från testpersoner över tid.</p></div>
       </header>
 
       {localDemo && <p className="feedback-admin-demo">Lokal förhandsvisning: kommentarer sparas bara i den här webbläsaren. På Netlify sparas de gemensamt.</p>}
-      {auth === 'loading' && <p>Hämtar kommentarer…</p>}
-      {auth === 'missing' && <div className="feedback-admin-login"><h2>Administratörsåtkomst saknas</h2><p>{error}</p><p>Lägg till <code>FEEDBACK_ADMIN_PASSWORD</code> och <code>FEEDBACK_SESSION_SECRET</code> i Netlifys miljövariabler för Functions och publicera grenen på nytt.</p></div>}
-      {auth === 'login' && <form className="feedback-admin-login" onSubmit={login}>
-        <h2>Administratörsinloggning</h2><p>Kommentarsammanställningen kräver ett separat lösenord.</p>
-        <label>Lösenord<input type="password" autoComplete="current-password" value={password} onChange={event => setPassword(event.target.value)} autoFocus /></label>
-        {error && <p className="feedback-error" role="alert">{error}</p>}
-        <button type="submit">Logga in</button>
-      </form>}
-
-      {auth === 'ready' && <>
-        {error && <p className="feedback-error" role="alert">{error}</p>}
+      {loading && <p>Hämtar kommentarer…</p>}
+      {error && <p className="feedback-error" role="alert">{error}</p>}
+      {!loading && !error && <>
         {truncated && <p className="feedback-admin-warning">Listan visar de första 5 000 kommentarerna. Exporten omfattar bara de laddade kommentarerna.</p>}
         <section className="feedback-admin-stats" aria-label="Sammanfattning">
           <button type="button" onClick={() => setStatus('alla')}><strong>{counts.all}</strong><span>Kommentarer</span></button>
@@ -144,7 +106,6 @@ export function FeedbackAdmin() {
             <div className="feedback-admin-comment-top"><strong>{comment.displayName}</strong><time>{new Date(comment.createdAt).toLocaleString('sv-SE')}</time><span className={`feedback-admin-status status-${comment.status}`}>{statusNames[comment.status]}</span></div>
             <p>{comment.text}</p>
             <div className="feedback-admin-location"><a href={`${comment.path}?feedbackId=${encodeURIComponent(comment.id)}&feedbackView=${encodeURIComponent(comment.viewKey)}${comment.anchor.includes('candidate-') ? '&feedbackTarget=candidate' : ''}`}>Visa på sidan ↗</a><span>{comment.path}</span><span title={comment.viewKey}>{comment.viewKey}</span></div>
-            <div className="feedback-admin-comment-actions"><label>Status <select disabled={busyId === comment.id} value={comment.status} onChange={event => void changeStatus(comment, event.target.value as FeedbackStatus)}><option value="open">Öppen</option><option value="reviewed">Granskad</option><option value="done">Klar</option></select></label><button type="button" disabled={busyId === comment.id} onClick={() => void remove(comment)}>Ta bort</button></div>
           </article>)}
         </div>
       </>}

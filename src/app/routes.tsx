@@ -2,8 +2,8 @@ import { createBrowserRouter } from "react-router";
 
 export const router = createBrowserRouter([
   {
-    path: "/feedback-admin",
-    lazy: async () => ({ Component: (await import("./feedback/FeedbackAdmin")).FeedbackAdmin }),
+    path: "/kommentarer/sammanstallning",
+    lazy: async () => ({ Component: (await import("./feedback/FeedbackSummary")).FeedbackSummary }),
   },
   {
     path: "/",

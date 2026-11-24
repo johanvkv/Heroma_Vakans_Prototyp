@@ -1,6 +1,6 @@
 import { type MouseEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { router } from '../routes';
-import { createFeedback, listAdminFeedback, listMyFeedback, localDemo, type FeedbackComment } from './api';
+import { createFeedback, listFeedbackSummary, listMyFeedback, localDemo, type FeedbackComment } from './api';
 import './feedback.css';
 
 const visitorKey = 'heroma-feedback-visitor-id';
@@ -80,6 +80,21 @@ export function FeedbackOverlay() {
   const [positionVersion, setPositionVersion] = useState(0);
 
   useEffect(() => {
+    const toggle = () => { setActive(value => !value); setDraftPoint(null); setError(''); };
+    window.addEventListener('feedback:toggle', toggle);
+    return () => window.removeEventListener('feedback:toggle', toggle);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.feedbackActive = String(active);
+    window.dispatchEvent(new CustomEvent('feedback:state', { detail: active }));
+  }, [active]);
+
+  useEffect(() => {
+    if (location === '/kommentarer/sammanstallning') setActive(false);
+  }, [location]);
+
+  useEffect(() => {
     const update = () => { setLocation(window.location.pathname); setViewKey(currentViewKey()); };
     const unsubscribe = router.subscribe(() => requestAnimationFrame(update));
     const observer = new MutationObserver(records => {
@@ -114,7 +129,7 @@ export function FeedbackOverlay() {
     const id = new URLSearchParams(window.location.search).get('feedbackId');
     if (!id) return;
     let cancelled = false;
-    listAdminFeedback().then(result => {
+    listFeedbackSummary().then(result => {
       if (cancelled) return;
       const found = result.comments.find(comment => comment.id === id);
       if (found) { setReviewComment(found); setActive(true); setOpenPin(id); }
@@ -161,7 +176,7 @@ export function FeedbackOverlay() {
   }, []);
 
   useEffect(() => {
-    if (!active) return;
+    if (!active || location === '/kommentarer/sammanstallning') return;
     const click = (event: globalThis.MouseEvent) => { if (event.button === 0) placeDraft(event); };
     const context = (event: globalThis.MouseEvent) => placeDraft(event);
     const key = (event: KeyboardEvent) => {
@@ -178,7 +193,7 @@ export function FeedbackOverlay() {
       document.removeEventListener('contextmenu', context, true);
       document.removeEventListener('keydown', key, true);
     };
-  }, [active, draftPoint, placeDraft]);
+  }, [active, draftPoint, location, placeDraft]);
 
   const visible = useMemo(() => {
     if (!active || !showMine) return [];
@@ -210,7 +225,7 @@ export function FeedbackOverlay() {
 
   const currentComments = comments.filter(comment => comment.path === location);
   void positionVersion;
-  if (location === '/feedback-admin') return null;
+  if (location === '/kommentarer/sammanstallning') return null;
   return <div className="feedback-ui feedback-root">
     {active && <div className="feedback-mode-tint" aria-hidden="true" />}
     {visible.map((comment, index) => {
@@ -254,17 +269,11 @@ export function FeedbackOverlay() {
       }}><strong>{comment.text}</strong><span>{new Date(comment.createdAt).toLocaleDateString('sv-SE')} · {comment.status === 'done' ? 'Klart' : comment.status === 'reviewed' ? 'Granskat' : 'Öppet'}</span></button>)}
     </aside>}
 
-    <div className="feedback-toolbar">
-      {active && <>
-        <button type="button" className={showMine ? 'feedback-tool-active' : ''} onClick={() => setShowMine(value => !value)} title="Visa eller dölj dina markeringar">Markeringar {showMine ? 'på' : 'av'}</button>
-        <button type="button" onClick={() => setShowList(value => !value)}>Mina kommentarer <span>{comments.length}</span></button>
-      </>}
-      <button type="button" className="feedback-main-button" aria-pressed={active} onClick={() => { setActive(value => !value); setDraftPoint(null); setError(''); }}>
-        <span aria-hidden="true">💬</span> {active ? 'Avsluta kommentarer' : 'Kommentera'}
-      </button>
-      {!active && <a href="/feedback-admin" title="Sammanställ kommentarer">Sammanställning</a>}
+    {active && <div className="feedback-toolbar">
+      <button type="button" className={showMine ? 'feedback-tool-active' : ''} onClick={() => setShowMine(value => !value)} title="Visa eller dölj dina markeringar">Markeringar {showMine ? 'på' : 'av'}</button>
+      <button type="button" onClick={() => setShowList(value => !value)}>Mina kommentarer <span>{comments.length}</span></button>
       {localDemo && active && <span className="feedback-local-label">Lokal förhandsvisning</span>}
       {error && !draftPoint && <span className="feedback-toolbar-error" role="alert">{error}</span>}
-    </div>
+    </div>}
   </div>;
 }

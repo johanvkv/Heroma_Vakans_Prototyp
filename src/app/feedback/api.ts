@@ -49,38 +49,7 @@ export async function createFeedback(draft: FeedbackDraft) {
   return request<{ comment: FeedbackComment }>('feedback', { method: 'POST', ...jsonBody(draft) });
 }
 
-export async function listAdminFeedback() {
+export async function listFeedbackSummary() {
   if (localDemo) return { comments: localComments(), truncated: false };
-  return request<{ comments: FeedbackComment[]; truncated: boolean }>('feedback-admin');
-}
-
-export async function loginFeedbackAdmin(password: string) {
-  if (localDemo) return;
-  await request('feedback-admin', { method: 'POST', ...jsonBody({ action: 'login', password }) });
-}
-
-export async function logoutFeedbackAdmin() {
-  if (localDemo) return;
-  await request('feedback-admin', { method: 'POST', ...jsonBody({ action: 'logout' }) });
-}
-
-export async function updateFeedbackStatus(comment: FeedbackComment, status: FeedbackStatus) {
-  if (localDemo) {
-    const updated = { ...comment, status };
-    saveLocal(localComments().map(item => item.id === comment.id ? updated : item));
-    return { comment: updated };
-  }
-  return request<{ comment: FeedbackComment }>('feedback-admin', {
-    method: 'PATCH', ...jsonBody({ visitorId: comment.visitorId, id: comment.id, status }),
-  });
-}
-
-export async function deleteFeedback(comment: FeedbackComment) {
-  if (localDemo) {
-    saveLocal(localComments().filter(item => item.id !== comment.id));
-    return;
-  }
-  await request('feedback-admin', {
-    method: 'DELETE', ...jsonBody({ visitorId: comment.visitorId, id: comment.id }),
-  });
+  return request<{ comments: FeedbackComment[]; truncated: boolean }>('feedback-summary');
 }
