@@ -47,6 +47,7 @@ const filters: { id: FilterType; label: string; icon: string }[] = [
 interface CaseActivityModalProps {
   isOpen: boolean;
   onClose: () => void;
+  feedbackType: string;
   contextKey?: string;
   icon?: string;
   kicker?: string;
@@ -65,6 +66,7 @@ interface CaseActivityModalProps {
 export const CaseActivityModal: React.FC<CaseActivityModalProps> = ({
   isOpen,
   onClose,
+  feedbackType,
   contextKey,
   icon = 'fa-circle-info',
   kicker = 'Ärende 2025-0614',
@@ -128,7 +130,7 @@ export const CaseActivityModal: React.FC<CaseActivityModalProps> = ({
 
   return (
     <div className="case-activity-overlay" role="presentation" onMouseDown={event => event.target === event.currentTarget && onClose()}>
-      <section className={`case-activity-modal${details ? ' case-activity-modal-details' : ''}`} role="dialog" aria-modal="true" aria-labelledby="case-activity-title">
+      <section className={`case-activity-modal${details ? ' case-activity-modal-details' : ''}`} role="dialog" aria-modal="true" aria-labelledby="case-activity-title" data-feedback-dialog-type={feedbackType}>
         <header className="case-activity-header">
           <div className="case-activity-heading-copy">
             <div className="case-activity-kicker"><i className={`fa-solid ${icon}`} aria-hidden="true" /> {kicker}</div>

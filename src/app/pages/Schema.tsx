@@ -2439,7 +2439,7 @@ function SubstitutePanel({
       {matchDetailId && candidateMatches[matchDetailId] && <Popup
         visible={true} onHiding={() => setMatchDetailId(null)} title={`Matchning · ${candidates.find(candidate => candidate.id === matchDetailId)?.name ?? 'Kandidat'}`}
         width={480} height="auto" showCloseButton={true} dragEnabled={false}
-        wrapperAttr={{ class: 'schema-candidate-match-popup' }}
+        wrapperAttr={{ class: 'schema-candidate-match-popup', 'data-feedback-dialog-type': 'candidate-match' }}
       >
         <div className="schema-candidate-match-detail">
           <p><strong className={`schema-candidate-match schema-candidate-match-${candidateMatches[matchDetailId].tone}`}>{candidateMatches[matchDetailId].percent}%</strong> för {state?.shift.start}–{state?.shift.end} den {state?.dateStr}</p>
@@ -2494,7 +2494,7 @@ function ConfirmAssignDialogInner({ state, onConfirm, onCancel }: {
       ? `Skicka förfrågan · ${state.targetActivityLabel}`
       : state.fillType === 'substitute' ? 'Skicka förfrågan' : 'Boka extrapass';
   return (
-    <Popup visible={true} onHiding={onCancel} title={title} width={500} height="auto" showCloseButton={true} dragEnabled={false}>
+    <Popup visible={true} onHiding={onCancel} title={title} width={500} height="auto" showCloseButton={true} dragEnabled={false} wrapperAttr={{ 'data-feedback-dialog-type': 'confirm-assignment' }}>
       <div className="schema-dialog-content">
         {state.costApproval && <p className="schema-cost-approval-note">Ingen kostnadsfri vikarie är tillgänglig. Vill du tillsätta kandidaten nedan trots kostnaden?</p>}
         <div className="schema-confirm-details">
@@ -2573,7 +2573,7 @@ function OpenRequestDialog({ state, onConfirm, onCancel, roleOptions = SUBSTITUT
   }, [state]);
   if (!state) return null;
   return (
-    <Popup visible={true} onHiding={onCancel} title="Skicka förfrågan" width={540} height="auto" showCloseButton={true} dragEnabled={false}>
+    <Popup visible={true} onHiding={onCancel} title="Skicka förfrågan" width={540} height="auto" showCloseButton={true} dragEnabled={false} wrapperAttr={{ 'data-feedback-dialog-type': 'open-request' }}>
       <div className="schema-dialog-content">
         <p>Ingen specifik passcell är vald. Ange när förfrågan gäller.</p>
         <div className="schema-order-time-fields">
@@ -2613,7 +2613,7 @@ function ResourceOrderDialogInner({ state, onConfirm, onCancel }: {
   const [end, setEnd] = useState(state.shift.end);
   const resourceLabel = state.resourceType === 'vikarie' ? 'Vikarie' : 'Extrapass';
   return (
-    <Popup visible={true} onHiding={onCancel} title="Beställ resurs" width={500} height="auto" showCloseButton={true} dragEnabled={false}>
+    <Popup visible={true} onHiding={onCancel} title="Beställ resurs" width={500} height="auto" showCloseButton={true} dragEnabled={false} wrapperAttr={{ 'data-feedback-dialog-type': 'resource-order' }}>
       <div className="schema-dialog-content">
         <div className="schema-confirm-details">
           <div className="schema-confirm-row">
@@ -2867,7 +2867,7 @@ function OrderSubstituteDialog({ order, onConfirm, onCancel }: {
   if (!order) return null;
   const substitute = SUBSTITUTE_CANDIDATES.find(item => item.id === selectedId);
   return (
-    <Popup visible={true} onHiding={onCancel} title="Välj vikarie" width={430} height="auto" showCloseButton={true} dragEnabled={false}>
+    <Popup visible={true} onHiding={onCancel} title="Välj vikarie" width={430} height="auto" showCloseButton={true} dragEnabled={false} wrapperAttr={{ 'data-feedback-dialog-type': 'choose-substitute' }}>
       <div className="schema-dialog-content">
         <p className="schema-dialog-desc"><strong>{order.personName}</strong><br />{order.dateStr} · {order.shift.start}–{order.shift.end}</p>
         <SelectBox dataSource={SUBSTITUTE_CANDIDATES} displayExpr="name" valueExpr="id" value={selectedId} onValueChanged={event => setSelectedId(event.value ?? '')} placeholder="Välj vikarie" width="100%" stylingMode="outlined" />
@@ -7612,6 +7612,7 @@ export const Schema = ({
 
           <Popup
             visible={Boolean(absenceDialogState)}
+            wrapperAttr={{ 'data-feedback-dialog-type': 'create-absence' }}
             onHiding={() => setAbsenceDialogState(null)}
             title="Skapa frånvaro"
             width={460}
@@ -7665,6 +7666,7 @@ export const Schema = ({
           {!hideMinimumStaffing && (
           <Popup
             visible={Boolean(organisationSettings)}
+            wrapperAttr={{ 'data-feedback-dialog-type': 'organisation-settings' }}
             onHiding={() => setOrganisationSettings(null)}
             title={organisationSettings ? `Inställningar – ${organisationSettings.label}` : 'Inställningar'}
             width={460}
@@ -7785,6 +7787,7 @@ export const Schema = ({
 
         <CaseActivityModal
           isOpen={Boolean(orderDetail)}
+          feedbackType="order-detail"
           onClose={() => setOrderDetail(null)}
           contextKey={orderDetail?.id}
           icon="fa-cart-shopping"
@@ -7806,6 +7809,7 @@ export const Schema = ({
 
         <CaseActivityModal
           isOpen={Boolean(detailState)}
+          feedbackType="pass-detail"
           onClose={handleCloseDetail}
           contextKey={passDetailKey}
           icon="fa-calendar-day"
@@ -7861,6 +7865,7 @@ export const Schema = ({
 
         <CaseActivityModal
           isOpen={Boolean(resourceNeedDetail)}
+          feedbackType="resource-need-detail"
           onClose={() => setResourceNeedDetail(null)}
           contextKey={resourceNeedDetail?.id}
           icon="fa-user-clock"
@@ -7884,6 +7889,7 @@ export const Schema = ({
 
         <CaseActivityModal
           isOpen={Boolean(personDetailEmployee)}
+          feedbackType="employee-detail"
           onClose={() => setPersonDetailId(null)}
           contextKey={personDetailEmployee?.id}
           icon="fa-id-card"
@@ -7912,6 +7918,7 @@ export const Schema = ({
 
         <CaseActivityModal
           isOpen={Boolean(substituteDetail && substituteDetailState)}
+          feedbackType="candidate-detail"
           onClose={handleCloseSubstituteDetails}
           contextKey={substituteDetail ? `${substituteDetail.id}|${substituteDetailState?.dateStr ?? ''}` : undefined}
           icon="fa-user-nurse"

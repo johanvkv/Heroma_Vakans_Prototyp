@@ -25,30 +25,59 @@ function routeViewKey() {
 }
 
 function currentViewKey() {
+  const dialog = activeDialog();
+  if (dialog) return `dialog:${dialog.type}`;
   return document.querySelector('[data-feedback-view-context]')?.getAttribute('data-feedback-view-context') || routeViewKey();
 }
 
+interface FeedbackDialog { element: Element; surface: Element; type: string }
+
+function visibleDialog(element: Element) {
+  const rect = element.getBoundingClientRect();
+  return rect.width > 0 && rect.height > 0 && !element.closest('[aria-hidden="true"]')
+    && getComputedStyle(element).visibility !== 'hidden';
+}
+
+function feedbackDialog(element: Element): FeedbackDialog | null {
+  if (element.closest('.feedback-root') || !visibleDialog(element)) return null;
+  if (element.matches('.dx-overlay-wrapper') && !element.querySelector('.dx-popup-content')) return null;
+  const type = element.getAttribute('data-feedback-dialog-type')
+    || Array.from(element.classList).find(name => !name.startsWith('dx-') && name !== 'open')
+    || element.getAttribute('aria-label')?.trim();
+  if (!type) return null;
+  const surface = element.matches('.dx-overlay-wrapper')
+    ? element.querySelector('.dx-overlay-content') ?? element
+    : element;
+  return { element, surface, type: type.slice(0, 100) };
+}
+
+function openDialogs() {
+  return Array.from(document.querySelectorAll('.dx-overlay-wrapper, [role="dialog"]'))
+    .filter(element => !element.matches('[role="dialog"]') || !element.closest('.dx-overlay-wrapper'))
+    .map(feedbackDialog)
+    .filter((dialog): dialog is FeedbackDialog => dialog !== null);
+}
+
+function activeDialog() {
+  const dialogs = openDialogs();
+  return dialogs[dialogs.length - 1] ?? null;
+}
+
+function dialogForTarget(target: Element) {
+  const element = target.closest('.dx-overlay-wrapper') ?? target.closest('[role="dialog"]');
+  const dialog = element ? feedbackDialog(element) : null;
+  return dialog?.surface.contains(target) ? dialog : null;
+}
+
 function tagOpenDialogs() {
-  const duplicates = new Map<string, number>();
-  document.querySelectorAll('.dx-overlay-wrapper, [role="dialog"][aria-label]').forEach(dialog => {
-    if (dialog.getBoundingClientRect().width === 0) return;
-    const label = dialog.matches('.dx-overlay-wrapper')
-      ? dialog.querySelector('.dx-popup-title')?.textContent?.trim()
-      : dialog.getAttribute('aria-label')?.trim();
-    if (!label) return;
-    const base = `dialog:${dialog.matches('.dx-overlay-wrapper') ? 'dx' : 'role'}:${label.slice(0, 80)}`;
-    const index = duplicates.get(base) ?? 0;
-    duplicates.set(base, index + 1);
-    if (!dialog.hasAttribute('data-feedback-anchor')) dialog.setAttribute('data-feedback-anchor', `${base}:${index}`);
+  openDialogs().forEach(({ surface, type }) => {
+    surface.setAttribute('data-feedback-anchor', `dialog:${type}`);
   });
 }
 
-function hasOpenModal() {
-  return Array.from(document.querySelectorAll('.case-activity-overlay, .dx-overlay-wrapper')).some(element => {
-    const rect = element.getBoundingClientRect();
-    if (rect.width === 0 || rect.height === 0 || getComputedStyle(element).visibility === 'hidden') return false;
-    return element.matches('.case-activity-overlay') || !!element.querySelector('.dx-popup-content');
-  });
+function commentMatchesView(comment: FeedbackComment, path: string, viewKey: string) {
+  if (viewKey.startsWith('dialog:')) return comment.viewKey === viewKey;
+  return comment.path === path && (comment.viewKey === viewKey || comment.viewKey === routeViewKey());
 }
 
 function selectorFor(element: Element): string {
@@ -161,7 +190,7 @@ export function FeedbackOverlay() {
   }, [location]);
 
   useEffect(() => {
-    if (!reviewComment || reviewComment.path !== location || (reviewComment.viewKey !== viewKey && reviewComment.viewKey !== routeViewKey())) return;
+    if (!reviewComment || !commentMatchesView(reviewComment, location, viewKey)) return;
     let attempts = 0;
     const timer = window.setInterval(() => {
       let anchor: Element | null = null;
@@ -179,7 +208,9 @@ export function FeedbackOverlay() {
     const target = event.target instanceof Element ? event.target : null;
     if (!target || target.closest('.feedback-ui')) return;
     tagOpenDialogs();
-    const anchor = anchorAt(event.target);
+    const dialog = dialogForTarget(target);
+    if (!dialog && target.closest('.case-activity-overlay, .dx-overlay-wrapper')) return;
+    const anchor = dialog?.surface ?? anchorAt(event.target);
     if (!anchor) return;
     event.preventDefault();
     event.stopPropagation();
@@ -192,7 +223,7 @@ export function FeedbackOverlay() {
       y: Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height)),
       clientX: event.clientX, clientY: event.clientY,
       path: window.location.pathname,
-      viewKey: anchor.closest('[data-feedback-view-context]')?.getAttribute('data-feedback-view-context') || routeViewKey(),
+      viewKey: dialog ? `dialog:${dialog.type}` : anchor.closest('[data-feedback-view-context]')?.getAttribute('data-feedback-view-context') || routeViewKey(),
     });
     setMessage('');
     setError('');
@@ -222,7 +253,7 @@ export function FeedbackOverlay() {
   const visible = useMemo(() => {
     if (!active || !showPins) return [];
     const all = reviewComment ? [...comments.filter(comment => comment.id !== reviewComment.id), reviewComment] : comments;
-    return all.filter(comment => comment.path === location && (comment.viewKey === viewKey || comment.viewKey === routeViewKey()));
+    return all.filter(comment => commentMatchesView(comment, location, viewKey));
   }, [active, showPins, comments, reviewComment, location, viewKey]);
 
   async function save(event: MouseEvent<HTMLButtonElement>) {
@@ -246,9 +277,9 @@ export function FeedbackOverlay() {
     } finally { setSaving(false); }
   }
 
-  const currentComments = comments.filter(comment => comment.path === location && (comment.viewKey === viewKey || comment.viewKey === routeViewKey()));
+  const currentComments = comments.filter(comment => commentMatchesView(comment, location, viewKey));
   void positionVersion;
-  const modalOpen = hasOpenModal();
+  const modalOpen = Boolean(activeDialog());
   const searchRect = document.querySelector('.person-search-container')?.getBoundingClientRect();
   const headerButtonStyle: CSSProperties = modalOpen
     ? { right: 16, top: 8 }
@@ -293,9 +324,9 @@ export function FeedbackOverlay() {
       <div className="feedback-composer-actions"><button type="button" onClick={() => setDraftPoint(null)}>Avbryt</button><button type="button" disabled={saving} onClick={save}>{saving ? 'Sparar…' : 'Spara kommentar'}</button></div>
     </div>}
 
-    {active && showList && <aside className="feedback-my-list" aria-label="Kommentarer i vyn">
-      <div className="feedback-composer-heading"><strong>Kommentarer i vyn ({currentComments.length})</strong><button type="button" aria-label="Stäng listan" onClick={() => setShowList(false)}>×</button></div>
-      {currentComments.length === 0 ? <p>Det finns inga kommentarer i den här vyn ännu.</p> : currentComments.map(comment => <button type="button" key={comment.id} className="feedback-my-item" onClick={() => {
+    {active && showList && <aside className="feedback-my-list" aria-label="Kommentarer här">
+      <div className="feedback-composer-heading"><strong>Kommentarer för {modalOpen ? 'den här dialogtypen' : 'vyn'} ({currentComments.length})</strong><button type="button" aria-label="Stäng listan" onClick={() => setShowList(false)}>×</button></div>
+      {currentComments.length === 0 ? <p>Det finns inga kommentarer för {modalOpen ? 'den här dialogtypen' : 'vyn'} ännu.</p> : currentComments.map(comment => <button type="button" key={comment.id} className="feedback-my-item" onClick={() => {
         setOpenPin(comment.id);
         setShowList(false);
         anchorElement(comment.anchor)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
