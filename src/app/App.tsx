@@ -11,6 +11,7 @@ import { RouterProvider } from 'react-router';
 import { router } from './routes';
 import { RoleProvider } from './components/RoleContext';
 import { PrototypeLogin } from './components/PrototypeLogin';
+import { FeedbackOverlay } from './feedback/FeedbackOverlay';
 
 /**
  * ROOT APP COMPONENT
@@ -28,6 +29,7 @@ export default function App() {
     <PrototypeLogin>
       <RoleProvider>
         <RouterProvider router={router} />
+        <FeedbackOverlay />
       </RoleProvider>
     </PrototypeLogin>
   );

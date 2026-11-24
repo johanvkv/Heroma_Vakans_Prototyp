@@ -1761,7 +1761,7 @@ function SubstitutePanel({
   }, [candidateMatches, contextTarget, onClearSickness, onDirectAssign, onOpenDetails, onReportSick, onRestoreAvailability, onSendRequest, onSetAvailability]);
 
   return (
-    <div className={panelClass} role="region" aria-label={fillLabel} style={preschoolMode && panelLeft !== undefined && panelWidth !== undefined ? { left: panelLeft, width: panelWidth, right: 'auto' } : undefined}>
+    <div className={panelClass} role="region" aria-label={fillLabel} data-feedback-anchor="candidate-panel" style={preschoolMode && panelLeft !== undefined && panelWidth !== undefined ? { left: panelLeft, width: panelWidth, right: 'auto' } : undefined}>
       {/* Header */}
       <div className="schema-sub-panel-header">
         <i className="fa-solid fa-users" />
@@ -2043,6 +2043,7 @@ function SubstitutePanel({
                     >
                       <td
                         className={['schema-employee-cell', 'schema-sub-sticky-col', 'schema-sub-person-context', isExpanded ? 'schema-sub-sticky-expanded' : ''].filter(Boolean).join(' ')}
+                        data-feedback-anchor={`candidate-person:${sub.id}`}
                         data-substitute-id={sub.id}
                         onContextMenu={event => openPersonContext(event, sub.id)}
                         onDoubleClick={() => onOpenDetails(sub.id, defaultContextDate)}
@@ -2239,7 +2240,7 @@ function SubstitutePanel({
                         };
 
                         return (
-                          <td key={ci} className={[
+                          <td key={ci} data-feedback-anchor={`candidate-cell:${sub.id}:${ds}`} className={[
                             'schema-sub-avail-cell',
                             hasBooking ? 'schema-sub-booked-cell' : '',
                             viewType==='month-columns' ? 'schema-month-col-cell' :
@@ -3441,6 +3442,7 @@ function ResourceNeedsList({ needs, unreadMessageEntities, orgOptions, selectedR
   return (
     <div
       className="schema-orders-list schema-resource-needs-list"
+      data-feedback-anchor="resource-needs"
       aria-live="polite"
       onDragEnter={event => { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; }}
       onDragOver={event => { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; }}
@@ -3501,6 +3503,7 @@ function ResourceNeedsList({ needs, unreadMessageEntities, orgOptions, selectedR
             {activeNeeds.map(need => (
               <tr
                 key={need.id}
+                data-feedback-anchor={`resource-need:${need.id}`}
                 className={`schema-order-row schema-resource-need-row schema-resource-need-row-${need.source === 'pass' ? 'extra' : 'absence'}${need.workflowStatus === 'Tillsatt' || need.status === 'Tillsatt' ? ' schema-resource-need-row-filled' : ''}${selectedNeedId === need.id ? ' schema-resource-need-row-selected' : relatedNeedIds.includes(need.id) ? ' schema-resource-need-row-related' : ''}`}
                 onClick={() => onSelectNeed(need)}
                 onDoubleClick={() => onOpenDetails(need)}
@@ -3606,6 +3609,8 @@ export const Schema = ({
   const navigateTo = useNavigate();
   const automation = useOptionalAutomation();
   const { selectedOrganisation, selectedRoleId } = useRole();
+  const feedbackView = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('feedbackView');
+  const feedbackViewParts = feedbackView?.match(/^(schema|orders|resource-needs):(dag|arbetsvecka|vecka|sjuDagar|femDagar|manad|period|ar):(\d{4}-\d{2}-\d{2})$/);
   const isActivityTimelineScenario = selectedOrganisation === 'schoolTimeline';
   const hasActivityTimeline = isActivityTimelineScenario || alwaysShowResourceNeeds;
   const breadcrumbItems: BreadcrumbItem[] = [
@@ -3619,13 +3624,13 @@ export const Schema = ({
   const [selectedActivityFilters, setSelectedActivityFilters] = useState<ActivityFilterKind[]>([]);
   const [selectedPass,   setSelectedPass]   = useState('alla');
   const [textFilter,     setTextFilter]     = useState('');
-  const [period,         setPeriod]         = useState<PeriodType>('vecka');
+  const [period,         setPeriod]         = useState<PeriodType>(() => feedbackViewParts ? feedbackViewParts[2] as PeriodType : 'vecka');
   const [showVacancies,  setShowVacancies]  = useState(false);
   const [showAbsences, setShowAbsences] = useState(false);
   const [showOrders,     setShowOrders]     = useState(false);
   const [showResourceNeeds, setShowResourceNeeds] = useState(false);
-  const [activeView,     setActiveView]     = useState<'schema' | 'orders' | 'resource-needs'>(initialActiveView);
-  const [viewStart, setViewStart] = useState<Date>(() => initialPeriodStart('vecka', new Date(TODAY_STR)));
+  const [activeView,     setActiveView]     = useState<'schema' | 'orders' | 'resource-needs'>(() => feedbackViewParts ? feedbackViewParts[1] as 'schema' | 'orders' | 'resource-needs' : initialActiveView);
+  const [viewStart, setViewStart] = useState<Date>(() => feedbackViewParts ? parseDate(feedbackViewParts[3]) : initialPeriodStart('vecka', new Date(TODAY_STR)));
 
   // ── Fills ──
   const [fills, setFills] = useState<ShiftFill[]>(INITIAL_FILLS);
@@ -5135,12 +5140,15 @@ export const Schema = ({
   [alwaysShowResourceNeeds, hasActivityTimeline]);
 
   const [collapsedGroups, setCollapsedGroups] = useState<string[]>([]);
+  const lastFeedbackPeriodRef = useRef<PeriodType>(period);
   useEffect(() => {
     setSelectedGroups([]);
     setSelectedPass('alla');
     setCollapsedGroups([]);
   }, [selectedOrganisation]);
   useEffect(() => {
+    if (feedbackViewParts && lastFeedbackPeriodRef.current === period) return;
+    lastFeedbackPeriodRef.current = period;
     setViewStart(initialPeriodStart(period, new Date(TODAY_STR)));
   }, [period, selectedOrganisation]);
   const toggleGroup = (id: string) => setCollapsedGroups(current =>
@@ -5476,6 +5484,13 @@ export const Schema = ({
     setSubPanelBrowseAll(true);
     setSubPanelOpen(true);
   }, [handleCloseSubPanel, subPanelBrowseAll, subPanelOpen]);
+
+  const initialFeedbackPanelOpenedRef = useRef(false);
+  useEffect(() => {
+    if (initialFeedbackPanelOpenedRef.current || new URLSearchParams(window.location.search).get('feedbackTarget') !== 'candidate') return;
+    initialFeedbackPanelOpenedRef.current = true;
+    handleOpenAllSubstitutes();
+  }, [handleOpenAllSubstitutes]);
 
   const handleOpenCandidatesFromSelection = useCallback(() => {
     const selectedPass = activeView === 'schema' && isPrimaryScheduleSelection ? highlightedScheduleObject : null;
@@ -6877,7 +6892,7 @@ export const Schema = ({
   return (
     <PageLayout title={activeView === 'schema' ? 'Schema' : activeView === 'orders' ? 'Beställningar' : 'Resursbehov'} breadcrumbItems={breadcrumbItems} hideCaseActivityButton={resourceNeedPrototype}>
       <div className="col-12">
-        <div className={`schema-page-wrapper${subPanelOpen ? ' schema-page-has-panel' : ''}${alwaysShowResourceNeeds ? ' schema-page-hospital' : ''}`}>
+        <div className={`schema-page-wrapper${subPanelOpen ? ' schema-page-has-panel' : ''}${alwaysShowResourceNeeds ? ' schema-page-hospital' : ''}`} data-feedback-anchor="schema-page" data-feedback-view-context={`${activeView}:${period}:${toDateStr(viewStart)}`}>
 
           {alwaysShowResourceNeeds
             ? <VikariehanteringViewSwitcher
@@ -7149,7 +7164,7 @@ export const Schema = ({
                           const dateStr = toDateStr(column.date);
                           const isTargetDay = dateStr === pass.dateStr;
                           const isPast = dateStr < TODAY_STR;
-                          return <td key={`${pass.id}-${index}`} className={[
+                          return <td key={`${pass.id}-${index}`} data-feedback-anchor={`remaining-pass:${pass.id}:${dateStr}`} className={[
                             'schema-day-cell', 'schema-activity-timeline-cell',
                             viewType === 'month-columns' ? 'schema-month-col-cell' : '',
                             column.isWeekend ? 'schema-weekend-cell' : '',
@@ -7192,6 +7207,7 @@ export const Schema = ({
                       <tr className="schema-table-row">
                         <td
                           className={`schema-employee-cell schema-org-employee-cell schema-person-context-cell${alwaysShowResourceNeeds ? ' schema-preschool-employee-cell' : ''}${highlightedPersonId === emp.id ? ' schema-schedule-person-selected' : ''}`}
+                          data-feedback-anchor={`schedule-person:${emp.id}`}
                           style={{ paddingLeft: alwaysShowResourceNeeds ? 12 : 106 }}
                           data-person-id={emp.id}
                           onClick={() => selectSchedulePerson(emp.id)}
@@ -7260,6 +7276,7 @@ export const Schema = ({
                               <td
                                 key={ci}
                                 className="schema-day-cell schema-year-col-cell schema-col-nav"
+                                data-feedback-anchor={`schedule-cell:${emp.id}:${ds}`}
                                 onDoubleClick={() => { setPeriod('manad'); setViewStart(monthStart(col.date)); }}
                                 title="Dubbelklicka för att gå till månadsvyn"
                               >
@@ -7357,6 +7374,7 @@ export const Schema = ({
                                   ctxType ? 'schema-ctx-cell' : '',
                                   highlightedScheduleObject?.personId === emp.id && highlightedScheduleObject.dateStr === ds && !highlightedScheduleObject.activityId ? isPrimaryScheduleSelection ? 'schema-schedule-object-selected' : 'schema-schedule-object-related' : isCandidateBookingRelatedToSchedule(emp.id, ds) ? 'schema-schedule-object-related' : '',
                                 ].filter(Boolean).join(' ')}
+                                data-feedback-anchor={`schedule-cell:${emp.id}:${ds}`}
                                 data-person-id={emp.id}
                                 data-date-str={ds}
                                 data-ctx-type={ctxType}
@@ -7406,6 +7424,7 @@ export const Schema = ({
                               <td
                                 key={ci}
                                 className={['schema-month-col-cell', col.isWeekend ? 'schema-weekend-cell' : '', ds === TODAY_STR ? 'schema-today-col' : '', ctxType ? 'schema-ctx-cell' : '', nightCarryColor ? 'schema-night-carry-cell' : '', highlightedScheduleObject?.personId === emp.id && highlightedScheduleObject.dateStr === ds && !highlightedScheduleObject.activityId ? isPrimaryScheduleSelection ? 'schema-schedule-object-selected' : 'schema-schedule-object-related' : isCandidateBookingRelatedToSchedule(emp.id, ds) ? 'schema-schedule-object-related' : ''].filter(Boolean).join(' ')}
+                                data-feedback-anchor={`schedule-cell:${emp.id}:${ds}`}
                                 data-person-id={emp.id}
                                 data-date-str={ds}
                                 data-ctx-type={ctxType}
@@ -7444,7 +7463,7 @@ export const Schema = ({
 
                           /* Day / week view */
                           return (
-                            <td key={ci} className={[
+                            <td key={ci} data-feedback-anchor={`schedule-cell:${emp.id}:${ds}`} className={[
                               'schema-day-cell',
                               col.isWeekend ? 'schema-weekend-cell' : '',
                               ds === TODAY_STR ? 'schema-today-col' : '',

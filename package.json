@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@netlify/blobs": "^11.1.9",
     "bootstrap": "^5.3.8",
     "devextreme": "^25.2.3",
     "devextreme-react": "^25.2.3",
