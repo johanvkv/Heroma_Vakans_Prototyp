@@ -42,3 +42,12 @@ export function feedbackLink(comment: FeedbackComment) {
   if (comment.anchor.includes('candidate-panel')) query.set('feedbackTarget', 'candidate');
   return `${safePath}?${query}`;
 }
+
+const autoOpenDialogs = new Set([
+  'employee-detail', 'pass-detail', 'candidate-detail', 'resource-need-detail', 'order-detail',
+  'mega-menu-overlay', 'accessibility-panel', 'user-profile-panel', 'header-activity',
+]);
+
+export function feedbackOpensInPlace(comment: FeedbackComment) {
+  return !comment.viewKey.startsWith('dialog:') || autoOpenDialogs.has(comment.viewKey.slice(7));
+}

@@ -28,5 +28,6 @@
 .feedback-overview-card-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.45; margin: 0 0 9px; }
 .feedback-overview-card-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; color: #736c7e; font-size: 12px; margin-bottom: 10px; }
 .feedback-overview-card-main a { color: #5735ac; font-weight: 700; font-size: 13px; }
+.feedback-overview-reopen-note { color: #736c7e; font-size: 12px; margin: 6px 0 0; }
 @media (min-width: 900px) { .feedback-overview-thumbnail { flex-basis: 200px; width: 200px; height: 200px; } }
 @media (max-width: 650px) { .feedback-overview { padding: 18px 12px 60px; } .feedback-overview-intro { display: block; } .feedback-overview-back { margin-top: 12px; } .feedback-overview-card { gap: 10px; padding: 12px; } }

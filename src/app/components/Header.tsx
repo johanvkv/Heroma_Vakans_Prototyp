@@ -28,6 +28,11 @@ export const Header = ({ hideCaseActivityButton = false, showAutomationControls 
     // Optional: Check local storage or system preference here
     // const savedTheme = localStorage.getItem('theme');
     // if (savedTheme === 'dark') setIsDarkMode(true);
+    const feedbackDialog = new URLSearchParams(window.location.search).get('feedbackDialog');
+    if (feedbackDialog === 'mega-menu-overlay') setIsMegaMenuOpen(true);
+    if (feedbackDialog === 'accessibility-panel') setIsAccessibilityOpen(true);
+    if (feedbackDialog === 'user-profile-panel') setIsUserProfileOpen(true);
+    if (feedbackDialog === 'header-activity') setIsCaseActivityOpen(true);
   }, []);
 
   const toggleTheme = () => {

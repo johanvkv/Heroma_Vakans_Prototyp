@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { Layout } from '../components/Layout';
 import { listAllFeedback, type FeedbackComment } from './api';
-import { feedbackContext, feedbackLink } from './context';
+import { feedbackContext, feedbackLink, feedbackOpensInPlace } from './context';
 import './overview.css';
 
 type Group = { key: string; title: string; detail: string; comments: FeedbackComment[] };
@@ -93,7 +93,8 @@ export function FeedbackOverview() {
                   <time dateTime={comment.createdAt}>{new Date(comment.createdAt).toLocaleString('sv-SE')}</time>
                   <span>{group.title} · {group.detail}</span>
                 </div>
-                <Link to={feedbackLink(comment)}>Visa på plats <span aria-hidden="true">↗</span></Link>
+                <Link to={feedbackLink(comment)}>{feedbackOpensInPlace(comment) ? 'Visa på plats' : 'Öppna vyn'} <span aria-hidden="true">↗</span></Link>
+                {!feedbackOpensInPlace(comment) && <p className="feedback-overview-reopen-note">Öppna sedan en dialog av typen {group.title.toLocaleLowerCase('sv-SE')} för att se markeringen.</p>}
               </div>
             </article>)}
           </div>
