@@ -22,6 +22,13 @@
 .feedback-pin-card time { color: #716c79; font-size: 11px; }
 .feedback-pin-card p { margin: 8px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .feedback-pin-card button { border: none; background: none; color: #5636ad; padding: 0; cursor: pointer; }
+.feedback-pin-card-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; }
+.feedback-pin-card-actions button { min-height: 28px; padding: 5px 8px; border: 1px solid #d9d2e5; border-radius: 5px; background: #fff; font-size: 12px; }
+.feedback-pin-card-actions .feedback-pin-delete { border-color: #e7c8cc; color: #a51e35; }
+.feedback-pin-card-actions .feedback-pin-delete:hover:not(:disabled) { background: #fff3f4; }
+.feedback-pin-card-actions .feedback-pin-close { margin-left: auto; }
+.feedback-pin-card-actions button:disabled { opacity: .6; cursor: wait; }
+.feedback-pin-card-error { margin: 8px 0 0 !important; color: #a51e35; font-size: 11px; }
 .feedback-composer { position: absolute; width: 350px; max-width: calc(100vw - 24px); border: 1px solid #c7b9e9; border-radius: 10px; padding: 14px; background: #fff; box-shadow: 0 10px 32px #22133755; pointer-events: auto; font-size: 13px; }
 .feedback-composer { z-index: 12; }
 .feedback-composer-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 14px; }

@@ -1,7 +1,7 @@
 import { type CSSProperties, type MouseEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { router } from '../routes';
-import { createFeedback, listAllFeedback, type FeedbackComment } from './api';
+import { createFeedback, deleteFeedbackComment, feedbackVisitorKey, listAllFeedback, type FeedbackComment } from './api';
 import { captureFeedbackScreenshot } from './screenshot';
 import './feedback.css';
 
@@ -130,11 +130,22 @@ export function FeedbackOverlay() {
   const [draftPoint, setDraftPoint] = useState<DraftPoint | null>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [deleteError, setDeleteError] = useState('');
+  const [visitorOwnershipKey, setVisitorOwnershipKey] = useState<string | null>(null);
+  const [deletingCommentId, setDeletingCommentId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [openPin, setOpenPin] = useState<string | null>(null);
   const [location, setLocation] = useState(() => window.location.pathname);
   const [viewKey, setViewKey] = useState(currentViewKey);
   const [positionVersion, setPositionVersion] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    feedbackVisitorKey(visitorId).then(key => {
+      if (!cancelled) setVisitorOwnershipKey(key);
+    });
+    return () => { cancelled = true; };
+  }, [visitorId]);
 
   useEffect(() => {
     const update = () => { tagOpenDialogs(); setLocation(window.location.pathname); setViewKey(currentViewKey()); };
@@ -298,6 +309,26 @@ export function FeedbackOverlay() {
     } finally { setSaving(false); }
   }
 
+  const isOwnComment = (comment: FeedbackComment) => comment.visitorId === visitorId
+    || Boolean(visitorOwnershipKey && comment.visitorId === visitorOwnershipKey);
+
+  async function removeComment(comment: FeedbackComment) {
+    if (!isOwnComment(comment) || deletingCommentId) return;
+    if (!window.confirm('Ta bort din kommentar och eventuell skärmbild? Åtgärden går inte att ångra.')) return;
+    setDeletingCommentId(comment.id);
+    setDeleteError('');
+    try {
+      await deleteFeedbackComment(comment.id, visitorId);
+      setComments(current => current.filter(item => item.id !== comment.id));
+      setReviewComment(current => current?.id === comment.id ? null : current);
+      setOpenPin(current => current === comment.id ? null : current);
+    } catch (cause) {
+      setDeleteError(cause instanceof Error ? cause.message : 'Kommentaren kunde inte tas bort.');
+    } finally {
+      setDeletingCommentId(null);
+    }
+  }
+
   const currentCommentCount = comments.filter(comment => commentMatchesView(comment, location, viewKey)).length;
   void positionVersion;
   const modalOpen = Boolean(activeDialog());
@@ -334,11 +365,17 @@ export function FeedbackOverlay() {
       const top = rect.top + rect.height * comment.y;
       if (left < 0 || left > window.innerWidth || top < 0 || top > window.innerHeight) return null;
       return <div key={comment.id} className="feedback-pin-wrap" style={{ left, top }}>
-        <button type="button" className="feedback-pin" aria-label={`Kommentar ${index + 1}`} onClick={() => setOpenPin(openPin === comment.id ? null : comment.id)}>{index + 1}</button>
-        {openPin === comment.id && <div className="feedback-pin-card" style={{ left: left > window.innerWidth - 300 ? -282 : 16, top: top > window.innerHeight - 150 ? -160 : 19 }}>
+        <button type="button" className="feedback-pin" aria-label={`Kommentar ${index + 1}`} onClick={() => { setDeleteError(''); setOpenPin(openPin === comment.id ? null : comment.id); }}>{index + 1}</button>
+        {openPin === comment.id && <div className="feedback-pin-card" style={{ left: left > window.innerWidth - 300 ? -282 : 16, top: top > window.innerHeight - 190 ? -200 : 19 }}>
           <strong>Kommentar</strong><time>{new Date(comment.createdAt).toLocaleString('sv-SE')}</time>
           <p>{comment.text}</p>
-          <button type="button" onClick={() => setOpenPin(null)}>Stäng</button>
+          {deleteError && <p className="feedback-pin-card-error" role="alert">{deleteError}</p>}
+          <div className="feedback-pin-card-actions">
+            {isOwnComment(comment) && <button type="button" className="feedback-pin-delete" disabled={deletingCommentId !== null} onClick={() => void removeComment(comment)}>
+              {deletingCommentId === comment.id ? 'Tar bort…' : 'Ta bort'}
+            </button>}
+            <button type="button" className="feedback-pin-close" onClick={() => setOpenPin(null)}>Stäng</button>
+          </div>
         </div>}
       </div>;
     })}
