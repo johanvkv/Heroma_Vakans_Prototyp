@@ -362,7 +362,7 @@ function getContextActions(type: ContextTargetType, resourceNeedMode = false, is
   if (type === 'absence') {
     return [
       { id: 'find-substitute', text: 'Hitta ersättare', icon: 'user' },
-      { id: 'order-resource', text: 'Beställ resurs', icon: 'cart-shopping' },
+      { id: 'order-resource', text: 'Bemanna', icon: 'cart-shopping' },
       ...directAssignment,
       { id: 'make-vacancy', text: resourceNeedMode ? 'Skapa resursbehov' : 'Gör till vakans', icon: 'user-clock' },
       { id: 'simulate', text: 'Simulera', icon: 'flask', beginGroup: true },
@@ -376,7 +376,7 @@ function getContextActions(type: ContextTargetType, resourceNeedMode = false, is
       text: resourceNeedMode ? 'Skapa resursbehov' : type === 'vacant' ? 'Hitta vikarie' : 'Boka extrapass',
       icon: type === 'vacant' ? 'user' : 'plus',
     },
-    { id: 'order-resource', text: 'Beställ resurs', icon: 'cart-shopping' },
+    { id: 'order-resource', text: 'Bemanna', icon: 'cart-shopping' },
     ...directAssignment,
     { id: 'simulate', text: 'Simulera', icon: 'flask', beginGroup: true },
     { id: 'create-absence', text: 'Skapa frånvaro', icon: 'calendar-xmark' },
@@ -4061,7 +4061,7 @@ export const Schema = ({
           actions = [
             { id: 'primary', text: 'Hitta vikarie', icon: 'user' },
             { id: 'find-substitute', text: 'Hitta ersättare', icon: 'user-magnifying-glass' },
-            { id: 'order-resource', text: 'Beställ resurs', icon: 'cart-shopping' },
+            { id: 'order-resource', text: 'Bemanna', icon: 'cart-shopping' },
             ...(resourceNeedPrototype ? [{ id: 'assign-direct' as const, text: 'Tillsätt direkt', icon: 'robot', beginGroup: true }] : []),
             { id: 'show-details', text: 'Visa passdetaljer', icon: 'circle-info', beginGroup: true },
           ];
