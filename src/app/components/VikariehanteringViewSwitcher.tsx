@@ -17,7 +17,7 @@ export function VikariehanteringViewSwitcher({
         <i className="fa-solid fa-calendar-days" /> Schema
       </button>
       <button type="button" className={activeView === 'orders' ? 'active' : ''} role="tab" aria-selected={activeView === 'orders'} onClick={() => onSelect('orders')}>
-        <i className="fa-solid fa-cart-shopping" /> Beställningar{orderCount !== undefined && <span>{orderCount}</span>}
+        <i className="fa-solid fa-users" /> Bemanning{orderCount !== undefined && <span>{orderCount}</span>}
       </button>
       <button type="button" className={activeView === 'settings' ? 'active' : ''} role="tab" aria-selected={activeView === 'settings'} onClick={() => onSelect('settings')}>
         <i className="fa-solid fa-gear" /> Inställningar

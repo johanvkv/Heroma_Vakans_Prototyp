@@ -26,7 +26,7 @@ export function feedbackContext(comment: FeedbackComment) {
   }
   const match = comment.viewKey.match(/^(schema|orders|resource-needs):([^:]+):(\d{4}-\d{2}-\d{2})$/);
   if (match) {
-    const view = { schema: 'Schema', orders: 'Beställningar', 'resource-needs': 'Resursbehov' }[match[1]];
+    const view = { schema: 'Schema', orders: 'Bemanning', 'resource-needs': 'Resursbehov' }[match[1]];
     return { group: `${match[1]}:${match[2]}:${match[3]}`, title: view ?? 'Vy', detail: `${match[2]} · från ${match[3]}` };
   }
   if (comment.anchor.includes('candidate-panel')) return { group: 'candidate-panel', title: 'Kandidatpanelen', detail: 'Kandidater' };
