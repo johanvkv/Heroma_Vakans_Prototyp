@@ -6142,11 +6142,14 @@ export const Schema = ({
       const invites = resourceNeedPrototype
         ? DEFAULT_ORDER_INVITES.map(invite => ({ ...invite, response: 'Avvaktar' as const, responseText: undefined }))
         : DEFAULT_ORDER_INVITES.map(invite => ({ ...invite }));
+      const sentOrder: ResourceOrder = { ...order, status: 'Förfrågan skickad', handledBy: 'Lena Sjöberg', invitedSubstitutes: invites };
       setResourceOrders(previous => previous.map(item => item.id === orderId
-        ? { ...item, status: 'Förfrågan skickad', handledBy: 'Lena Sjöberg', invitedSubstitutes: invites }
+        ? sentOrder
         : item));
       updateLinkedNeedWorkflowStatus(orderId, 'Förfrågan skickad', 'Lena Sjöberg');
       addOrderActivity(orderId, { type: 'status', author: 'Lena Sjöberg', initials: 'LS', time: 'Just nu', text: 'Förfrågan skickad till vikarier', detail: invites.map(invite => invite.name).join(' · ') });
+      const needId = orderId.startsWith('resource-order-') ? orderId.slice('resource-order-'.length) : undefined;
+      scheduleCandidateReply(sentOrder, needId && resourceNeeds.some(need => need.id === needId) ? needId : undefined);
       const responseItems: CaseActivityResponse[] = invites.map((invite): CaseActivityResponse => ({
         id: invite.substituteId,
         name: invite.name,
@@ -6183,7 +6186,7 @@ export const Schema = ({
       updateLinkedNeedAfterBooking(order, invite.substituteId, invite.name);
       addOrderActivity(orderId, { type: 'assignment', author: 'Du', initials: 'JV', time: 'Just nu', text: 'Vikarie vald', detail: `${invite.name} · ${order.shift.start}–${order.shift.end}` });
     }
-  }, [resourceOrders, resourceNeeds, addOrderActivity, addResourceNeedActivity, updateLinkedNeedAfterBooking, updateLinkedNeedWorkflowStatus, resourceNeedPrototype]);
+  }, [resourceOrders, resourceNeeds, addOrderActivity, addResourceNeedActivity, scheduleCandidateReply, updateLinkedNeedAfterBooking, updateLinkedNeedWorkflowStatus, resourceNeedPrototype]);
 
   const handleRegisterOrderResponses = useCallback((orderId: string) => {
     const order = resourceOrders.find(item => item.id === orderId);
@@ -6240,6 +6243,7 @@ export const Schema = ({
     setResourceOrders(previous => previous.map(item => item.id === orderId
       ? { ...item, status, invitedSubstitutes: invites }
       : item));
+    if (status === 'Förfrågan skickad') scheduleCandidateReply({ ...order, status, invitedSubstitutes: invites });
     updateLinkedNeedWorkflowStatus(orderId, status);
     const activityText: Record<Exclude<ResourceOrderStatus, 'Tillsatt' | 'Avbruten'>, string> = {
       'Beställd': 'Beställningen återfördes till beställd',
@@ -6256,7 +6260,7 @@ export const Schema = ({
       type: 'status', author: 'Du', initials: 'JV', time: 'Just nu',
       text: `Beställningen flyttades till ${status}`, detail: `Hanteras av ${order.handledBy}`,
     });
-  }, [addOrderActivity, addResourceNeedActivity, resourceNeeds, resourceOrders, updateLinkedNeedWorkflowStatus]);
+  }, [addOrderActivity, addResourceNeedActivity, resourceNeeds, resourceOrders, scheduleCandidateReply, updateLinkedNeedWorkflowStatus]);
 
   const handleMoveNeedOnBoard = useCallback((needId: string, status: ResourceOrderStatus) => {
     if (status === 'Tillsatt' || status === 'Avbruten') return;
@@ -6285,6 +6289,7 @@ export const Schema = ({
     setResourceOrders(previous => existingOrder
       ? previous.map(item => item.id === id ? order : item)
       : [...previous, order]);
+    if (status === 'Förfrågan skickad') scheduleCandidateReply(order, need.id);
     updateLinkedNeedWorkflowStatus(id, status, order.handledBy);
     const activityText: Record<Exclude<ResourceOrderStatus, 'Tillsatt' | 'Avbruten'>, string> = {
       'Beställd': 'Resurs beställd',
@@ -6300,7 +6305,7 @@ export const Schema = ({
       type: 'status', author: 'Du', initials: 'JV', time: 'Just nu',
       text: activityText[status], detail: `Resursbehovet flyttades till ${status} · Hanteras av ${order.handledBy}`,
     });
-  }, [addOrderActivity, addResourceNeedActivity, resourceNeeds, resourceOrders, updateLinkedNeedWorkflowStatus]);
+  }, [addOrderActivity, addResourceNeedActivity, resourceNeeds, resourceOrders, scheduleCandidateReply, updateLinkedNeedWorkflowStatus]);
 
   const handleReturnOrderToNeed = useCallback((orderId: string) => {
     const order = resourceOrders.find(item => item.id === orderId);
