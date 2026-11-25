@@ -2610,7 +2610,7 @@ function ResourceOrderDialogInner({ state, onConfirm, onCancel }: {
   const [end, setEnd] = useState(state.shift.end);
   const resourceLabel = state.resourceType === 'vikarie' ? 'Vikarie' : 'Extrapass';
   return (
-    <Popup visible={true} onHiding={onCancel} title="Beställ resurs" width={500} height="auto" showCloseButton={true} dragEnabled={false} wrapperAttr={{ 'data-feedback-dialog-type': 'resource-order' }}>
+    <Popup visible={true} onHiding={onCancel} title="Bemanna med resurs" width={500} height="auto" showCloseButton={true} dragEnabled={false} wrapperAttr={{ 'data-feedback-dialog-type': 'resource-order' }}>
       <div className="schema-dialog-content">
         <div className="schema-confirm-details">
           <div className="schema-confirm-row">
@@ -2639,10 +2639,10 @@ function ResourceOrderDialogInner({ state, onConfirm, onCancel }: {
           onValueChanged={e => setMsg(e.value ?? '')}
           height={90}
           stylingMode="outlined"
-          placeholder="Skriv eventuell information om beställningen..."
+          placeholder="Skriv eventuell information om bemanningen..."
         />
         <div className="schema-dialog-actions">
-          <button className="btn-primary" onClick={() => onConfirm({ ...state.shift, start, end }, msg)}>Skicka beställning</button>
+          <button className="btn-primary" onClick={() => onConfirm({ ...state.shift, start, end }, msg)}>Bemanna</button>
           <button className="btn-secondary" onClick={onCancel}>Avbryt</button>
         </div>
       </div>
