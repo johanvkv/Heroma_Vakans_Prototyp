@@ -54,7 +54,6 @@ interface CaseActivityModalProps {
   title?: string;
   description?: string;
   status?: { label: string; tone?: CaseActivityStatusTone };
-  aboveToolbar?: React.ReactNode;
   details?: React.ReactNode;
   actions?: React.ReactNode;
   activities?: CaseActivity[];
@@ -73,7 +72,6 @@ export const CaseActivityModal: React.FC<CaseActivityModalProps> = ({
   title = 'Händelser och kommunikation',
   description = 'All aktivitet i ärendet samlad på ett ställe',
   status,
-  aboveToolbar,
   details,
   actions,
   activities = [],
@@ -81,8 +79,6 @@ export const CaseActivityModal: React.FC<CaseActivityModalProps> = ({
   onSelectCandidates,
   onPostMessage,
 }) => {
-  const hasDetails = Boolean(details);
-  const [activeSection, setActiveSection] = useState<'overview' | 'history'>(() => hasDetails ? 'overview' : 'history');
   const [activeFilter, setActiveFilter] = useState<FilterType>('all');
   const [message, setMessage] = useState('');
   const [isPersonal, setIsPersonal] = useState(false);
@@ -93,7 +89,6 @@ export const CaseActivityModal: React.FC<CaseActivityModalProps> = ({
   const [selectedResponseIds, setSelectedResponseIds] = useState<Record<number, string[]>>({});
 
   useEffect(() => {
-    setActiveSection(hasDetails ? 'overview' : 'history');
     setActiveFilter('all');
     setMessage('');
     setIsPersonal(false);
@@ -102,15 +97,13 @@ export const CaseActivityModal: React.FC<CaseActivityModalProps> = ({
     setQuestionAnswer(null);
     setExpandedResponseIds([]);
     setSelectedResponseIds({});
-  }, [contextKey, hasDetails, isOpen]);
+  }, [contextKey, isOpen]);
 
   const visibleActivities = useMemo(
     () => [...(includeDefaultActivities ? defaultActivities : []), ...activities, ...postedActivities]
       .filter(activity => activeFilter === 'all' || activity.type === activeFilter),
     [activeFilter, activities, includeDefaultActivities, postedActivities],
   );
-  const activityCount = activities.length + postedActivities.length + (includeDefaultActivities ? defaultActivities.length : 0);
-
   if (!isOpen) return null;
 
   const postMessage = () => {
@@ -148,39 +141,25 @@ export const CaseActivityModal: React.FC<CaseActivityModalProps> = ({
         </header>
 
         <div className="case-activity-toolbar">
-          {hasDetails && <div className="case-activity-section-tabs" role="tablist" aria-label="Detaljvy">
-            <button id="case-activity-overview-tab" type="button" role="tab" aria-controls="case-activity-overview-panel" aria-selected={activeSection === 'overview'} className={`case-activity-section-tab${activeSection === 'overview' ? ' active' : ''}`} onClick={() => setActiveSection('overview')}>
-              <i className="fa-solid fa-circle-info" /> Översikt
-            </button>
-            <button id="case-activity-history-tab" type="button" role="tab" aria-controls="case-activity-history-panel" aria-selected={activeSection === 'history'} className={`case-activity-section-tab${activeSection === 'history' ? ' active' : ''}`} onClick={() => setActiveSection('history')}>
-              <i className="fa-solid fa-clock-rotate-left" /> Händelser <span className="case-activity-section-count">{activityCount}</span>
-            </button>
-          </div>}
-          {(!hasDetails || activeSection === 'history') && <>
-            <span className="case-activity-filter-label">Filtrera</span>
-            <div className="case-activity-filters" role="tablist" aria-label="Filtrera händelser">
-              {filters.map(filter => (
-                <button
-                  key={filter.id}
-                  type="button"
-                  className={`case-activity-filter ${activeFilter === filter.id ? 'active' : ''}`}
-                  onClick={() => setActiveFilter(filter.id)}
-                  role="tab"
-                  aria-selected={activeFilter === filter.id}
-                >
-                  <i className={`fa-solid ${filter.icon}`} /> {filter.label}
-                </button>
-              ))}
-            </div>
-          </>}
+          <span className="case-activity-filter-label">Visa</span>
+          <div className="case-activity-filters" role="tablist" aria-label="Filtrera händelser">
+            {filters.map(filter => (
+              <button
+                key={filter.id}
+                type="button"
+                className={`case-activity-filter ${activeFilter === filter.id ? 'active' : ''}`}
+                onClick={() => setActiveFilter(filter.id)}
+                role="tab"
+                aria-selected={activeFilter === filter.id}
+              >
+                <i className={`fa-solid ${filter.icon}`} /> {filter.label}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {hasDetails && activeSection === 'overview' && <div id="case-activity-overview-panel" className="case-activity-overview" role="tabpanel" aria-labelledby="case-activity-overview-tab">
-          {aboveToolbar && <div className="case-activity-above-toolbar">{aboveToolbar}</div>}
-          <div className="case-activity-overview-details">{details}</div>
-        </div>}
-
-        {(!hasDetails || activeSection === 'history') && <div id={hasDetails ? 'case-activity-history-panel' : undefined} className="case-activity-order-layout case-activity-order-layout-empty" role={hasDetails ? 'tabpanel' : undefined} aria-labelledby={hasDetails ? 'case-activity-history-tab' : undefined}>
+        <div className={`case-activity-order-layout${details ? '' : ' case-activity-order-layout-empty'}`}>
+          {details && <aside className="case-activity-order-details">{details}</aside>}
           <div className="case-activity-content">
             <div className="case-activity-stream">
               <div className="case-activity-date">Idag</div>
@@ -274,7 +253,7 @@ export const CaseActivityModal: React.FC<CaseActivityModalProps> = ({
               </div>
             </form>
           </div>
-        </div>}
+        </div>
 
         {actions && <footer className="case-activity-actions">{actions}</footer>}
       </section>

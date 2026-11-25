@@ -269,7 +269,7 @@ interface ResourceNeedAction { id: ResourceNeedActionId; text: string; icon: str
 const TODAY_STR = toDateStr(new Date());
 
 type ContextTargetType = 'absence' | 'vacant' | 'normal';
-type ContextActionId = 'find-substitute' | 'make-vacancy' | 'primary' | 'order-resource' | 'show-details' | 'simulate' | 'create-absence' | 'assign-direct';
+type ContextActionId = 'find-substitute' | 'make-vacancy' | 'primary' | 'order-resource' | 'show-details' | 'create-absence' | 'assign-direct';
 type OrganisationActionId = 'open' | 'close' | 'settings';
 type SubstituteContextActionId = 'show-details' | 'edit-availability' | 'mark-unavailable' | 'restore-availability' | 'report-sick' | 'clear-sickness' | 'send-request' | 'assign-direct';
 interface SubstituteContextAction { id: SubstituteContextActionId; text: string; icon: string; beginGroup?: boolean; }
@@ -365,7 +365,6 @@ function getContextActions(type: ContextTargetType, resourceNeedMode = false, is
       { id: 'order-resource', text: 'Bemanna', icon: 'cart-shopping' },
       ...directAssignment,
       { id: 'make-vacancy', text: resourceNeedMode ? 'Skapa resursbehov' : 'Gör till vakans', icon: 'user-clock' },
-      { id: 'simulate', text: 'Simulera', icon: 'flask', beginGroup: true },
       { id: 'show-details', text: 'Visa frånvarodetaljer', icon: 'circle-info', beginGroup: true },
     ];
   }
@@ -378,7 +377,6 @@ function getContextActions(type: ContextTargetType, resourceNeedMode = false, is
     },
     { id: 'order-resource', text: 'Bemanna', icon: 'cart-shopping' },
     ...directAssignment,
-    { id: 'simulate', text: 'Simulera', icon: 'flask', beginGroup: true },
     { id: 'create-absence', text: 'Skapa frånvaro', icon: 'calendar-xmark' },
     { id: 'show-details', text: 'Visa passdetaljer', icon: 'circle-info', beginGroup: true },
   ];
@@ -2713,72 +2711,12 @@ function PassDetailCard({ state, onSaveTime, resourceNeed, resourceNeedOrder, as
   );
 }
 
-function ActivityScheduleDetail({ schedule, activityFills = {}, assignedSubstituteName, assignedSubstituteId, onOpenSubstitute, hospitalMode = false }: {
-  schedule: EmployeeDaySchedule;
-  activityFills?: Record<string, ActivityFill>;
-  assignedSubstituteName?: string;
-  assignedSubstituteId?: string;
-  onOpenSubstitute?: (substituteId: string) => void;
-  hospitalMode?: boolean;
-}) {
-  const segmentStyle = (from: string, to: string): React.CSSProperties => ({
-    left: `${timeToMinutes(from) / 1440 * 100}%`,
-    width: `${Math.max(0, (timeToMinutes(to) - timeToMinutes(from)) / 1440 * 100)}%`,
-  });
-  const activityTypes = hospitalMode ? HOSPITAL_ACTIVITY_TYPES : PRESCHOOL_ACTIVITY_TYPES;
-  return (
-    <section className={`person-activity-schedule person-activity-schedule-compact${schedule.dateStr < TODAY_STR ? ' person-activity-schedule-past' : ''}`} aria-label={`Dagschema ${fmtDay(parseDate(schedule.dateStr))}`}>
-      <div className="person-activity-schedule-heading">
-        <strong>{fmtDay(parseDate(schedule.dateStr))}</strong>
-        <span>{schedule.shift.start}–{schedule.shift.end}</span>
-      </div>
-      <div className="person-activity-schedule-axis" aria-hidden="true">
-        <span>00:00</span>
-        <span style={{ left: '50%' }}>12:00</span>
-        <span>24:00</span>
-      </div>
-      {schedule.activities.length > 0 && <div className="person-activity-schedule-lanes" aria-label={`Arbetstid ${schedule.shift.start} till ${schedule.shift.end}`}>
-        <div className="person-activity-schedule-row">
-          {schedule.activities.flatMap(activity => (
-            (timeToMinutes(activity.end) <= timeToMinutes(activity.start)
-              ? [{ start: activity.start, end: '24:00' }, { start: '00:00', end: activity.end }]
-              : [{ start: activity.start, end: activity.end }]
-            ).map((segment, index) => <span
-              key={`${activity.id}-detail-${index}`}
-              className={`person-activity-schedule-bar ${schedule.absenceLabel ? 'schema-activity-bar-absence' : activityTypes[activity.kind].className}`}
-              style={segmentStyle(segment.start, segment.end)}
-              title={`${activity.label} · ${activity.start}–${activity.end}`}
-            >{activity.label.slice(0, 3)}</span>)
-          ))}
-        </div>
-      </div>}
-      <div className="person-activity-schedule-list">
-        {schedule.activities.map(activity => {
-          const activityFill = activityFills[activity.id];
-          const substituteName = activityFill?.substituteName ?? assignedSubstituteName;
-          const substituteId = activityFill?.substituteId ?? assignedSubstituteId;
-          return <div key={activity.id}>
-            <i className={`person-activity-schedule-swatch ${schedule.absenceLabel ? 'schema-activity-bar-absence' : activityTypes[activity.kind].className}`} />
-            <span>{activity.label}{substituteName && <small> · {substituteId && onOpenSubstitute
-              ? <button type="button" className="schema-assigned-substitute-link" aria-haspopup="dialog" title={`Visa kandidatdetaljer för ${substituteName}`} onClick={() => onOpenSubstitute(substituteId)}>{substituteName}</button>
-              : substituteName}</small>}</span>
-            <time>{activity.start}–{activity.end}</time>
-          </div>;
-        })}
-      </div>
-      {schedule.absenceLabel && <span className="schema-activity-absence-caption">{schedule.absenceLabel}</span>}
-    </section>
-  );
-}
-
-function PersonDetailCard({ employee, competencies, shiftDates, selectedDate, onSelectDate, activitySchedules, hospitalMode = false }: {
+function PersonDetailCard({ employee, competencies, shiftDates, selectedDate, onSelectDate }: {
   employee: ScheduleEmployee;
   competencies: string[];
   shiftDates: string[];
   selectedDate: string;
   onSelectDate: (dateStr: string) => void;
-  activitySchedules?: Record<string, EmployeeDaySchedule>;
-  hospitalMode?: boolean;
 }) {
   return (
     <div className="order-detail-card person-detail-card">
@@ -2787,12 +2725,9 @@ function PersonDetailCard({ employee, competencies, shiftDates, selectedDate, on
         <DetailFact label="Anställningsgrupp">{employee.fmgGroup}</DetailFact>
         <DetailFact label="Kompetenser"><div className="person-detail-competencies">{competencies.map(competency => <span key={competency}>{competency}</span>)}</div></DetailFact>
       </dl></DetailSection>
-      {activitySchedules && <DetailSection title="Dagschema" icon="fa-calendar-days"><div className="person-activity-schedule-panel">
-        <label className="schema-detail-date-select">Valt datum<select value={selectedDate} onChange={event => onSelectDate(event.currentTarget.value)} disabled={shiftDates.length === 0}>{shiftDates.length > 0 ? shiftDates.map(dateStr => <option key={dateStr} value={dateStr}>{fmtDay(parseDate(dateStr))}</option>) : <option value="">Inget pass i aktuell period</option>}</select></label>
-        {activitySchedules[selectedDate]
-          ? <ActivityScheduleDetail schedule={activitySchedules[selectedDate]} hospitalMode={hospitalMode} />
-          : <p>Inget arbetsschema i aktuell period.</p>}
-      </div></DetailSection>}
+      <DetailSection title="Datum för åtgärd" icon="fa-calendar-check"><dl className="schema-detail-facts">
+        <DetailFact label="Välj passdatum"><select value={selectedDate} onChange={event => onSelectDate(event.currentTarget.value)} disabled={shiftDates.length === 0}>{shiftDates.length > 0 ? shiftDates.map(dateStr => <option key={dateStr} value={dateStr}>{fmtDay(parseDate(dateStr))}</option>) : <option value="">Inget pass i aktuell period</option>}</select></DetailFact>
+      </dl></DetailSection>
     </div>
   );
 }
@@ -4652,22 +4587,6 @@ export const Schema = ({
     }
     setPersonDetailDate(current => personDetailShiftDates.includes(current) ? current : personDetailShiftDates[0] ?? '');
   }, [personDetailEmployee?.id, personDetailShiftDates]);
-  const personDetailSchedules = useMemo<Record<string, EmployeeDaySchedule> | undefined>(() => {
-    if (!personDetailEmployee || !hasActivityTimeline) return undefined;
-    const schedules: Record<string, EmployeeDaySchedule> = {};
-    getPeriodDates(viewStart, period, columns).forEach(date => {
-      const shift = getScheduleShift(personDetailEmployee.id, date, 'alla');
-      if (!shift) return;
-      const dateStr = toDateStr(date);
-      schedules[dateStr] = {
-        dateStr,
-        shift,
-        activities: getCellActivities(personDetailEmployee.id, date),
-        absenceLabel: getAbsenceCaption(personDetailEmployee.id, dateStr),
-      };
-    });
-    return schedules;
-  }, [columns, getCellActivities, getScheduleShift, hasActivityTimeline, period, personDetailEmployee, viewStart]);
   const passDetailKey = detailState ? `${detailState.empId}|${detailState.dateStr}` : '';
   const passDetailAssignmentFailure = detailState ? assignmentFailures[passDetailKey] : undefined;
   const passDetailResourceNeed = resourceNeedPrototype && detailState
@@ -6103,23 +6022,6 @@ export const Schema = ({
     setDetailState(null);
   }, [detailState, openSicknessDialog]);
 
-  const handlePassSimulate = useCallback(() => {
-    if (!detailState) return;
-    const employee = employees.find(emp => emp.id === detailState.empId);
-    if (!employee) return;
-    navigateTo('/vikariehantering/urvalstest', {
-      state: {
-        dateStr: detailState.dateStr,
-        shift: detailState.shift,
-        employeeName: employee.name,
-        employeeRole: employee.role,
-        workplace: employee.department,
-        passInfo: getShiftPassInfo(detailState.empId, detailState.dateStr, selectedOrganisation),
-      },
-    });
-    setDetailState(null);
-  }, [detailState, employees, navigateTo, selectedOrganisation]);
-
   const handlePersonReportSick = useCallback((dateStr: string) => {
     if (!personDetailEmployee) return;
     openSicknessDialog(personDetailEmployee.id, dateStr);
@@ -6733,24 +6635,6 @@ export const Schema = ({
 
     if (action === 'create-absence') {
       openSicknessDialog(target.personId, target.dateStr);
-      return;
-    }
-
-    if (action === 'simulate') {
-      const employee = employees.find(emp => emp.id === target.personId);
-      const shift = getScheduleShift(target.personId, parseDate(target.dateStr), 'alla');
-      if (employee && shift) {
-        navigateTo('/vikariehantering/urvalstest', {
-          state: {
-            dateStr: target.dateStr,
-            shift,
-            employeeName: employee.name,
-            employeeRole: employee.role,
-            workplace: employee.department,
-            passInfo: getShiftPassInfo(target.personId, target.dateStr, selectedOrganisation),
-          },
-        });
-      }
       return;
     }
 
@@ -7846,16 +7730,6 @@ export const Schema = ({
           title={detailState?.empName ?? 'Pass'}
           description={detailState ? `${fmtDay(parseDate(detailState.dateStr))} · ${detailState.shift.start}–${detailState.shift.end} · ${detailState.empRole}` : ''}
           status={passDetailStatusLabel ? { label: passDetailStatusLabel, tone: passDetailStatusTone } : undefined}
-          aboveToolbar={passDetailSchedule ? <DetailSection title="Aktiviteter" icon="fa-list-check"><div className="person-activity-schedule-panel pass-activity-schedule-panel">
-            <ActivityScheduleDetail
-              schedule={passDetailSchedule}
-              activityFills={activityFills}
-              assignedSubstituteName={passDetailAssignedPerson?.name}
-              assignedSubstituteId={passDetailAssignedSubstituteId}
-              onOpenSubstitute={substituteId => detailState && handleOpenSubstituteDetails(substituteId, detailState.dateStr)}
-              hospitalMode={alwaysShowResourceNeeds}
-            />
-          </div></DetailSection> : undefined}
           activities={passDetailActivities}
           includeDefaultActivities={false}
           details={detailState ? (
@@ -7877,7 +7751,6 @@ export const Schema = ({
             {!resourceNeedPrototype && detailState.color === 'normal' && <button type="button" className="btn-primary" onClick={handlePassPrimaryAction}><i className="fa-solid fa-calendar-plus" /> Boka extrapass</button>}
             <button type="button" className="btn-secondary" onClick={handlePassCreateOrder}><i className="fa-solid fa-cart-shopping" /> Beställ resurs</button>
             {detailState.color !== 'absence' && detailState.color !== 'vacant' && <button type="button" className="btn-secondary" onClick={handlePassReportSick}><i className="fa-solid fa-calendar-xmark" /> Sjukanmäl</button>}
-            <button type="button" className="btn-secondary" onClick={handlePassSimulate}><i className="fa-solid fa-flask" /> Simulera urval</button>
             {!passDetailAssignedFill && !passDetailRemainingPass?.assignedSubstituteId && passDetailSchedule?.activities.filter(activity => !activityFills[activity.id]).map(activity => <button key={activity.id} type="button" className="btn-secondary" onClick={() => handleOpenScheduleActivityPanel(
               detailState.empId,
               detailState.dateStr,
@@ -7933,8 +7806,6 @@ export const Schema = ({
               shiftDates={personDetailShiftDates}
               selectedDate={personDetailDate}
               onSelectDate={setPersonDetailDate}
-              activitySchedules={personDetailSchedules}
-              hospitalMode={alwaysShowResourceNeeds}
             />
           ) : null}
           actions={personDetailEmployee && <div className="case-activity-action-buttons">
