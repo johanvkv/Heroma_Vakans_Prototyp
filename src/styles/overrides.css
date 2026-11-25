@@ -11303,6 +11303,10 @@ input.schema-sub-checkbox:checked::after {
 .schema-resource-need-row-extra td:first-child { border-left: 4px solid #2672b8; }
 .schema-resource-need-row-absence td:nth-child(2) { color: #c62828; }
 .schema-resource-need-row-extra td:nth-child(2) { color: #2672b8; }
+.schema-resource-order-row td:first-child { border-left: 4px solid #6847bd; }
+.schema-resource-order-row td:nth-child(2) { color: #5236ab; }
+.schema-resource-order-row .schema-resource-need-kind { color: #6847bd; }
+.schema-resource-order-row td:nth-child(4) small { display: block; margin-top: 3px; color: var(--muted-foreground); font-size: 11px; line-height: 1.2; }
 .schema-resource-need-kind { margin-right: 6px; font-size: 11px; font-weight: 700; }
 .schema-resource-needs-bulk-actions {
   display: flex;

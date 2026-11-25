@@ -3392,23 +3392,31 @@ function getResourceNeedActions(need: ResourceNeed): ResourceNeedAction[] {
   ];
 }
 
-function ResourceNeedsList({ needs, unreadMessageEntities, orgOptions, selectedRoleId, selectedNeedId, relatedNeedIds, onSelectNeed, onClose, onOpenDetails, onAction, onDropPass, onOrderAll, onAssignAll }: {
+function ResourceNeedsList({ needs, orders, unreadMessageEntities, orgOptions, selectedRoleId, selectedNeedId, selectedOrderId, relatedNeedIds, relatedOrderIds, onSelectNeed, onSelectOrder, onClose, onOpenDetails, onOpenOrder, onAction, onOrderAction, onDropPass, onOrderAll, onAssignAll }: {
   needs: ResourceNeed[];
+  orders: ResourceOrder[];
   unreadMessageEntities: Set<string>;
   orgOptions: ResourceBoardOrgOption[];
   selectedRoleId: string;
   selectedNeedId: string | null;
+  selectedOrderId: string | null;
   relatedNeedIds: string[];
+  relatedOrderIds: string[];
   onSelectNeed: (need: ResourceNeed) => void;
+  onSelectOrder: (order: ResourceOrder) => void;
   onClose?: () => void;
   onOpenDetails: (need: ResourceNeed) => void;
+  onOpenOrder: (order: ResourceOrder) => void;
   onAction: (needId: string, action: ResourceNeedAction) => void;
+  onOrderAction: (orderId: string, action: OrderContextAction) => void;
   onDropPass: (event: React.DragEvent<HTMLDivElement>) => void;
   onOrderAll: (needIds: string[]) => void;
   onAssignAll?: (needIds: string[]) => void;
 }) {
   const [contextNeedId, setContextNeedId] = useState<string | null>(null);
   const [contextActions, setContextActions] = useState<ResourceNeedAction[]>([]);
+  const [contextOrderId, setContextOrderId] = useState<string | null>(null);
+  const [contextOrderActions, setContextOrderActions] = useState<OrderContextAction[]>([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedOrgId, setSelectedOrgId] = useState('all');
   const [timeWindowFilter, setTimeWindowFilter] = useState<ResourceNeedTimeWindow>('all');
@@ -3431,6 +3439,21 @@ function ResourceNeedsList({ needs, unreadMessageEntities, orgOptions, selectedR
     if (!matchesResourceNeedTimeWindow(need.dateStr, timeWindowFilter)) return false;
     return true;
   });
+  const activeNeedIds = new Set(needs.filter(need => need.status !== 'Borttaget').map(need => need.id));
+  const activeOrders = orders.filter(order => {
+    if (order.status === 'Avbruten') return false;
+    const linkedNeedId = order.id.startsWith('resource-order-') ? order.id.slice('resource-order-'.length) : '';
+    if (linkedNeedId && activeNeedIds.has(linkedNeedId)) return false;
+    if (statusFilter !== 'all' && order.status !== statusFilter) return false;
+    if (selectedOrg && !selectedOrg.personIds.includes(order.personId)) return false;
+    if (!matchesResourceNeedTimeWindow(order.dateStr, timeWindowFilter)) return false;
+    return true;
+  });
+  const visibleItems = [
+    ...activeNeeds.map(need => ({ kind: 'need' as const, item: need })),
+    ...activeOrders.map(order => ({ kind: 'order' as const, item: order })),
+  ].sort((left, right) => left.item.dateStr.localeCompare(right.item.dateStr)
+    || left.item.shift.start.localeCompare(right.item.shift.start));
   const allVisibleNeedsSelected = activeNeeds.length > 0 && activeNeeds.every(need => selectedNeedIds.includes(need.id));
   const selectedVisibleNeedCount = activeNeeds.filter(need => selectedNeedIds.includes(need.id)).length;
   const selectedOpenNeedIds = activeNeeds
@@ -3448,10 +3471,10 @@ function ResourceNeedsList({ needs, unreadMessageEntities, orgOptions, selectedR
       <div className="schema-orders-list-header">
         <div>
           <h2><i className="fa-solid fa-user-clock" aria-hidden="true" /> Resursbehov</h2>
-          <p>Frånvaro, vakanser och extrapass som behöver tillsättas.</p>
+          <p>Frånvaro, vakanser, extrapass och bemanningsärenden med aktuell status.</p>
         </div>
         <div className="schema-orders-header-actions">
-          <span className="schema-orders-count">{activeNeeds.length}</span>
+          <span className="schema-orders-count">{visibleItems.length}</span>
           {onClose && <button className="schema-orders-close" onClick={onClose} aria-label="Stäng resursbehov"><i className="fa-solid fa-xmark" /></button>}
         </div>
       </div>
@@ -3483,8 +3506,8 @@ function ResourceNeedsList({ needs, unreadMessageEntities, orgOptions, selectedR
         <ResourceNeedTimeWindowFilter value={timeWindowFilter} onChange={setTimeWindowFilter} compact />
       </div>
       <div className="schema-resource-needs-drop-hint"><i className="fa-solid fa-hand-pointer" /> Dra ett pass hit för att skapa ett resursbehov</div>
-      {activeNeeds.length === 0 ? (
-        <div className="schema-orders-empty"><i className="fa-solid fa-user-clock" /><span>Inga resursbehov att visa.</span></div>
+      {visibleItems.length === 0 ? (
+        <div className="schema-orders-empty"><i className="fa-solid fa-user-clock" /><span>Inga resursbehov eller bemanningsärenden att visa.</span></div>
       ) : (
         <table className="schema-orders-table">
           <colgroup><col style={{ width: '8%' }} /><col style={{ width: '16%' }} /><col style={{ width: '29%' }} /><col style={{ width: '22%' }} /><col style={{ width: '25%' }} /></colgroup>
@@ -3497,9 +3520,53 @@ function ResourceNeedsList({ needs, unreadMessageEntities, orgOptions, selectedR
             onChange={event => setSelectedNeedIds(event.target.checked ? activeNeeds.map(need => need.id) : [])}
           /></th><th>Behov</th><th>Medarbetare</th><th>Status</th><th>Pass / aktivitet</th></tr></thead>
           <tbody>
-            {activeNeeds.map(need => (
+            {visibleItems.map(entry => {
+              if (entry.kind === 'order') {
+                const order = entry.item;
+                const assignedSubstitute = order.acceptedSubstituteId
+                  ? SUBSTITUTE_CANDIDATES.find(candidate => candidate.id === order.acceptedSubstituteId)?.name
+                  : undefined;
+                return <tr
+                  key={`order:${order.id}`}
+                  data-feedback-anchor={`resource-order:${order.id}`}
+                  className={`schema-order-row schema-resource-order-row${order.status === 'Tillsatt' ? ' schema-resource-need-row-filled' : ''}${selectedOrderId === order.id ? ' schema-order-row-selected' : relatedOrderIds.includes(order.id) ? ' schema-order-row-related' : ''}`}
+                  onClick={() => onSelectOrder(order)}
+                  onDoubleClick={() => onOpenOrder(order)}
+                  onContextMenu={event => {
+                    event.preventDefault();
+                    onSelectOrder(order);
+                    setContextOrderId(order.id);
+                    setContextOrderActions(getOrderContextActions(order));
+                  }}
+                  title="Dubbelklicka för detaljer eller högerklicka för åtgärder"
+                >
+                  <td className="schema-resource-need-select-cell"><input
+                    type="checkbox"
+                    className="schema-resource-need-checkbox"
+                    aria-label={`Bemanning ${order.resourceType === 'vikarie' ? 'Vikarie' : 'Extrapass'} för ${order.personName} ${order.dateStr}`}
+                    title="Välj resursbehov separat för massåtgärder"
+                    disabled
+                  /></td>
+                  <td className="schema-resource-need-type-cell">
+                    <span className="schema-resource-need-type-heading"><strong className={`schema-resource-need-kind ${order.resourceType === 'extrapass' ? 'schema-resource-need-kind-extra' : 'schema-resource-need-kind-absence'}`}>{order.resourceType === 'vikarie' ? 'Vikarie' : 'Extrapass'}</strong>{unreadMessageEntities.has(`order:${order.id}`) && <NewMessageIndicator />}</span>
+                    <span title={order.dateStr}>{DAY_NAMES[dayIdx(parseDate(order.dateStr))]}</span>
+                  </td>
+                  <td><strong>{order.personName}</strong><span className="schema-order-person-role">{order.role}</span></td>
+                  <td className="schema-resource-need-status-cell">
+                    <span className="schema-order-status">{order.status}</span>
+                    <small>Bemanning · {order.handledBy}</small>
+                    {assignedSubstitute && <small>Tillsatt med · {assignedSubstitute}</small>}
+                  </td>
+                  <td className="schema-resource-need-pass-cell schema-context-host">
+                    <strong className={`schema-resource-need-pass-time schema-resource-need-pass-${order.shift.type}`}>{order.shift.start}–{order.shift.end}</strong>
+                    <ContextKebabButton className="schema-context-kebab-cell" targetSelector=".schema-resource-order-row" label={`Fler åtgärder för bemanning ${order.personName}`} />
+                  </td>
+                </tr>;
+              }
+              const need = entry.item;
+              return (
               <tr
-                key={need.id}
+                key={`need:${need.id}`}
                 data-feedback-anchor={`resource-need:${need.id}`}
                 className={`schema-order-row schema-resource-need-row schema-resource-need-row-${need.source === 'pass' ? 'extra' : 'absence'}${need.workflowStatus === 'Tillsatt' || need.status === 'Tillsatt' ? ' schema-resource-need-row-filled' : ''}${selectedNeedId === need.id ? ' schema-resource-need-row-selected' : relatedNeedIds.includes(need.id) ? ' schema-resource-need-row-related' : ''}`}
                 onClick={() => onSelectNeed(need)}
@@ -3541,7 +3608,8 @@ function ResourceNeedsList({ needs, unreadMessageEntities, orgOptions, selectedR
                   <ContextKebabButton className="schema-context-kebab-cell" targetSelector=".schema-resource-need-row" label={`Fler åtgärder för resursbehov ${need.personName}`} />
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       )}
@@ -3560,6 +3628,15 @@ function ResourceNeedsList({ needs, unreadMessageEntities, orgOptions, selectedR
         itemRender={renderSchemaContextMenuItem}
         onItemClick={event => {
           if (contextNeedId && event.itemData) onAction(contextNeedId, event.itemData as ResourceNeedAction);
+        }}
+      />
+      <ContextMenu
+        target=".schema-resource-order-row"
+        showEvent="contextmenu"
+        dataSource={contextOrderActions}
+        itemRender={renderSchemaContextMenuItem}
+        onItemClick={event => {
+          if (contextOrderId && event.itemData) onOrderAction(contextOrderId, event.itemData as OrderContextAction);
         }}
       />
     </div>
@@ -6796,9 +6873,10 @@ export const Schema = ({
   const isResourceNeedAcute = useCallback((need: ResourceNeed) =>
     need.dateStr === TODAY_STR || isAkutShift(need.personId, need.dateStr, selectedOrganisation),
   [selectedOrganisation]);
-  const resourceNeedBoardCount = resourceOrders.filter(order => order.status !== 'Avbruten').length
-    + resourceNeeds.filter(need => need.status !== 'Borttaget' && isResourceNeedAcute(need)
-      && !resourceOrders.some(order => order.id === `resource-order-${need.id}` && order.status !== 'Avbruten')).length;
+  const activeResourceOrders = resourceOrders.filter(order => order.status !== 'Avbruten');
+  const activeResourceOrderIds = new Set(activeResourceOrders.map(order => order.id));
+  const resourceNeedBoardCount = activeResourceOrders.length
+    + resourceNeeds.filter(need => need.status !== 'Borttaget' && !activeResourceOrderIds.has(`resource-order-${need.id}`)).length;
 
   // ─── Render ───────────────────────────────────────────────────────────────
 
@@ -6856,7 +6934,7 @@ export const Schema = ({
             </div>
           ) : activeView === 'resource-needs' ? (
             <div className="schema-orders-page-view">
-              <ResourceNeedsList needs={resourceNeeds} unreadMessageEntities={unreadMessageEntities} orgOptions={resourceBoardOrgOptions} selectedRoleId={selectedRoleId} selectedNeedId={highlightedNeedId} relatedNeedIds={relatedNeedIds} onSelectNeed={selectResourceNeed} onClose={() => setActiveView('schema')} onOpenDetails={setResourceNeedDetail} onAction={handleResourceNeedAction} onDropPass={handleResourceNeedDrop} onOrderAll={handleOrderAllResourceNeeds} onAssignAll={isActivityTimelineScenario ? undefined : handleAssignAllResourceNeeds} />
+              <ResourceNeedsList needs={resourceNeeds} orders={resourceOrders} unreadMessageEntities={unreadMessageEntities} orgOptions={resourceBoardOrgOptions} selectedRoleId={selectedRoleId} selectedNeedId={highlightedNeedId} selectedOrderId={highlightedOrderId} relatedNeedIds={relatedNeedIds} relatedOrderIds={relatedOrderIds} onSelectNeed={selectResourceNeed} onSelectOrder={selectResourceOrder} onClose={() => setActiveView('schema')} onOpenDetails={setResourceNeedDetail} onOpenOrder={setOrderDetail} onAction={handleResourceNeedAction} onOrderAction={handleOrderAction} onDropPass={handleResourceNeedDrop} onOrderAll={handleOrderAllResourceNeeds} onAssignAll={isActivityTimelineScenario ? undefined : handleAssignAllResourceNeeds} />
             </div>
           ) : <>
 
@@ -7493,7 +7571,7 @@ export const Schema = ({
           </div>, document.body)}
           </div>
           {showOrders && <ResourceOrdersList orders={resourceOrders} unreadMessageEntities={unreadMessageEntities} selectedOrderId={highlightedOrderId} selectedPersonId={highlightedPersonId} relatedOrderIds={relatedOrderIds} onSelectOrder={selectResourceOrder} onSelectPerson={selectOrderPerson} onClose={() => setShowOrders(false)} onAction={handleOrderAction} onOpenDetails={setOrderDetail} onChooseSubstitute={alwaysShowResourceNeeds ? handleOpenCandidatesFromSelection : handleOpenAllSubstitutes} onOpenSubstitute={handleOpenSubstituteDetails} candidateButtonLabel={alwaysShowResourceNeeds ? 'Kandidater' : undefined} />}
-          {resourceNeedPrototype && (showResourceNeeds || alwaysShowResourceNeeds) && <ResourceNeedsList needs={resourceNeeds} unreadMessageEntities={unreadMessageEntities} orgOptions={resourceBoardOrgOptions} selectedRoleId={selectedRoleId} selectedNeedId={highlightedNeedId} relatedNeedIds={relatedNeedIds} onSelectNeed={selectResourceNeed} onClose={alwaysShowResourceNeeds ? undefined : () => setShowResourceNeeds(false)} onOpenDetails={setResourceNeedDetail} onAction={handleResourceNeedAction} onDropPass={handleResourceNeedDrop} onOrderAll={handleOrderAllResourceNeeds} onAssignAll={alwaysShowResourceNeeds || !isActivityTimelineScenario ? handleAssignAllResourceNeeds : undefined} />}
+          {resourceNeedPrototype && (showResourceNeeds || alwaysShowResourceNeeds) && <ResourceNeedsList needs={resourceNeeds} orders={resourceOrders} unreadMessageEntities={unreadMessageEntities} orgOptions={resourceBoardOrgOptions} selectedRoleId={selectedRoleId} selectedNeedId={highlightedNeedId} selectedOrderId={highlightedOrderId} relatedNeedIds={relatedNeedIds} relatedOrderIds={relatedOrderIds} onSelectNeed={selectResourceNeed} onSelectOrder={selectResourceOrder} onClose={alwaysShowResourceNeeds ? undefined : () => setShowResourceNeeds(false)} onOpenDetails={setResourceNeedDetail} onOpenOrder={setOrderDetail} onAction={handleResourceNeedAction} onOrderAction={handleOrderAction} onDropPass={handleResourceNeedDrop} onOrderAll={handleOrderAllResourceNeeds} onAssignAll={alwaysShowResourceNeeds || !isActivityTimelineScenario ? handleAssignAllResourceNeeds : undefined} />}
           </div>
 
           </>}
