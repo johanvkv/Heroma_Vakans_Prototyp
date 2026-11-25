@@ -28,6 +28,10 @@
 .feedback-overview-card-text { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.45; margin: 0 0 9px; }
 .feedback-overview-card-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; color: #736c7e; font-size: 12px; margin-bottom: 10px; }
 .feedback-overview-card-main a { color: #5735ac; font-weight: 700; font-size: 13px; }
+.feedback-overview-card-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; }
+.feedback-overview-card-actions button { display: inline-flex; align-items: center; gap: 6px; border: 1px solid #d9c6ca; border-radius: 4px; padding: 5px 8px; background: #fff; color: #8c2635; font-size: 12px; cursor: pointer; }
+.feedback-overview-card-actions button:hover:not(:disabled) { background: #fff3f4; border-color: #bd7c85; }
+.feedback-overview-card-actions button:disabled { opacity: .6; cursor: wait; }
 .feedback-overview-reopen-note { color: #736c7e; font-size: 12px; margin: 6px 0 0; }
 @media (min-width: 900px) { .feedback-overview-thumbnail { flex-basis: 200px; width: 200px; height: 200px; } }
 @media (max-width: 650px) { .feedback-overview { padding: 18px 12px 60px; } .feedback-overview-intro { display: block; } .feedback-overview-back { margin-top: 12px; } .feedback-overview-card { gap: 10px; padding: 12px; } }

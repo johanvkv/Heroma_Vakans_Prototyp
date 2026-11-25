@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { Layout } from '../components/Layout';
-import { listAllFeedback, type FeedbackComment } from './api';
+import { deleteFeedbackComment, feedbackVisitorKey, listAllFeedback, savedFeedbackVisitorId, type FeedbackComment } from './api';
 import { feedbackContext, feedbackLink, feedbackOpensInPlace } from './context';
 import './overview.css';
 
@@ -23,6 +23,10 @@ export function FeedbackOverview() {
   const [truncated, setTruncated] = useState(false);
   const [search, setSearch] = useState('');
   const [kind, setKind] = useState<'all' | 'page' | 'dialog'>('all');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteError, setDeleteError] = useState('');
+  const [currentVisitorId, setCurrentVisitorId] = useState<string | null>(null);
+  const [currentVisitorKey, setCurrentVisitorKey] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -38,6 +42,32 @@ export function FeedbackOverview() {
     });
     return () => { cancelled = true; };
   }, []);
+
+  useEffect(() => {
+    const visitorId = savedFeedbackVisitorId();
+    if (!visitorId) return;
+    let cancelled = false;
+    setCurrentVisitorId(visitorId);
+    feedbackVisitorKey(visitorId).then(key => {
+      if (!cancelled) setCurrentVisitorKey(key);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  const removeComment = async (comment: FeedbackComment) => {
+    if (!currentVisitorId || comment.visitorId !== currentVisitorKey || deletingId) return;
+    if (!window.confirm('Ta bort din kommentar och eventuell skärmbild? Åtgärden går inte att ångra.')) return;
+    setDeletingId(comment.id);
+    setDeleteError('');
+    try {
+      await deleteFeedbackComment(comment.id, currentVisitorId);
+      setComments(current => current.filter(item => item.id !== comment.id));
+    } catch (cause) {
+      setDeleteError(cause instanceof Error ? cause.message : 'Kommentaren kunde inte tas bort.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const groups = useMemo(() => {
     const query = search.trim().toLocaleLowerCase('sv-SE');
@@ -77,6 +107,8 @@ export function FeedbackOverview() {
         </div>
         <span className="feedback-overview-count">{visibleCount} {visibleCount === 1 ? 'kommentar' : 'kommentarer'}</span>
       </div>
+      {currentVisitorKey && <p className="feedback-overview-delete-note">Du kan ta bort kommentarer som skapats i den här webbläsaren.</p>}
+      {deleteError && <p className="feedback-overview-state feedback-overview-error" role="alert">{deleteError}</p>}
       {loading && <p className="feedback-overview-state" role="status">Hämtar kommentarer…</p>}
       {error && <p className="feedback-overview-state feedback-overview-error" role="alert">{error}</p>}
       {truncated && <p className="feedback-overview-state">Visar de senaste 5 000 kommentarerna.</p>}
@@ -93,7 +125,13 @@ export function FeedbackOverview() {
                   <time dateTime={comment.createdAt}>{new Date(comment.createdAt).toLocaleString('sv-SE')}</time>
                   <span>{group.title} · {group.detail}</span>
                 </div>
-                <Link to={feedbackLink(comment)}>{feedbackOpensInPlace(comment) ? 'Visa på plats' : 'Öppna vyn'} <span aria-hidden="true">↗</span></Link>
+                <div className="feedback-overview-card-actions">
+                  <Link to={feedbackLink(comment)}>{feedbackOpensInPlace(comment) ? 'Visa på plats' : 'Öppna vyn'} <span aria-hidden="true">↗</span></Link>
+                  {currentVisitorKey && comment.visitorId === currentVisitorKey && <button type="button" onClick={() => void removeComment(comment)} disabled={deletingId !== null} aria-label="Ta bort din kommentar" title="Ta bort din kommentar">
+                    <i className={`fa-solid ${deletingId === comment.id ? 'fa-spinner fa-spin' : 'fa-trash'}`} aria-hidden="true" />
+                    {deletingId === comment.id ? 'Tar bort…' : 'Ta bort'}
+                  </button>}
+                </div>
                 {!feedbackOpensInPlace(comment) && <p className="feedback-overview-reopen-note">Öppna sedan en dialog av typen {group.title.toLocaleLowerCase('sv-SE')} för att se markeringen.</p>}
               </div>
             </article>)}
