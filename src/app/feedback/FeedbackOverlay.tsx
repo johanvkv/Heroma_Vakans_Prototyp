@@ -304,18 +304,25 @@ export function FeedbackOverlay() {
     : searchRect && searchRect.width > 0 && searchRect.left > 180
     ? { left: searchRect.left - 8, top: searchRect.top + searchRect.height / 2, transform: 'translate(-100%, -50%)' }
     : { right: 16, top: searchRect && searchRect.width > 0 ? Math.max(8, searchRect.top - 44) : 84 };
+  const selectMode = (nextActive: boolean) => {
+    if (nextActive === active) return;
+    setActive(nextActive);
+    setDraftPoint(null);
+    setOpenPin(null);
+    setError('');
+  };
   return createPortal(<div className="feedback-ui feedback-root">
-    <button type="button" className={`feedback-header-button${active ? ' is-active' : ''}${modalOpen ? ' is-over-modal' : ''}`} style={headerButtonStyle}
-      aria-pressed={active} title={active ? 'Stäng kommentarsläget' : 'Visa markeringar och kommentera'} onClick={() => {
-        setActive(value => !value);
-        setDraftPoint(null);
-        setOpenPin(null);
-        setError('');
-      }}>
-      <i className="fa-regular fa-comment" aria-hidden="true" />
-      <span>Kommentarer</span>
-      {currentCommentCount > 0 && <span className="feedback-header-count">{currentCommentCount}</span>}
-    </button>
+    <div className={`feedback-mode-switch${modalOpen ? ' is-over-modal' : ''}`} style={headerButtonStyle} role="group" aria-label="Välj kommentarläge">
+      <button type="button" className="feedback-mode-option" aria-pressed={!active} onClick={() => selectMode(false)} title="Växla till vanligt läge">
+        <i className="fa-solid fa-arrow-pointer" aria-hidden="true" />
+        <span>Vanligt läge</span>
+      </button>
+      <button type="button" className="feedback-mode-option feedback-mode-option-comment" aria-pressed={active} onClick={() => selectMode(true)} title="Växla till kommentarsläge">
+        <i className="fa-regular fa-comment" aria-hidden="true" />
+        <span>Kommentarsläge</span>
+        {currentCommentCount > 0 && <span className="feedback-header-count">{currentCommentCount}</span>}
+      </button>
+    </div>
     {active && <div className="feedback-mode-tint" aria-hidden="true" />}
     {visible.map((comment, index) => {
       const rect = anchorRect(comment.anchor);
