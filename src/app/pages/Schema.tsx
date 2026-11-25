@@ -1186,7 +1186,7 @@ function ShiftDayCell({ shift, color, passInfo, isAkut, orderedBy, orderStatus, 
         )}
         {color === 'absence' && <span className="schema-absence-badge"><i className="fa-solid fa-user-clock" /> Frånvaro</span>}
         {color === 'vacant' && <span className="schema-vacancy-badge"><i className="fa-solid fa-user-plus" /> {resourceNeedMode ? 'Resursbehov' : 'Vakans'}</span>}
-        {resourceNeedMode && resourceNeedCreatedBy && <span className={`schema-resource-need-badge${resourceNeedHandler === 'Maja Andersson' ? ' schema-resource-need-badge-requester' : ''}`} title={`${resourceNeedLabel(resourceNeedSource)} · Skapad av ${resourceNeedCreatedBy} · ${resourceNeedDisplayStatus ?? 'Öppet'} · Hanteras av ${resourceNeedHandler ?? resourceNeedCreatedBy}`}><i className="fa-solid fa-user-clock" /> {resourceNeedLabel(resourceNeedSource)} · {resourceNeedCreatedBy}</span>}
+        {resourceNeedMode && resourceNeedSource && <span className={`schema-resource-need-badge${resourceNeedHandler === 'Maja Andersson' ? ' schema-resource-need-badge-requester' : ''}`} title={`${resourceNeedLabel(resourceNeedSource)}${resourceNeedCreatedBy ? ` · Skapad av ${resourceNeedCreatedBy}` : ''} · ${resourceNeedDisplayStatus ?? 'Öppet'}${resourceNeedHandler ? ` · Hanteras av ${resourceNeedHandler}` : ''}`}><i className="fa-solid fa-user-clock" /> {resourceNeedLabel(resourceNeedSource)}{resourceNeedCreatedBy ? ` · ${resourceNeedCreatedBy}` : ''}</span>}
         {orderedBy && <span className="schema-order-badge" title={resourceNeedMode ? `Beställning · ${orderStatus ?? 'Beställd'} · Hanteras av ${orderHandledBy ?? orderedBy}` : `Beställd av ${orderedBy}`}><i className="fa-solid fa-cart-shopping" /><span className="schema-order-badge-text">{resourceNeedMode ? `${orderStatus ?? 'Beställd'} · ${orderHandledBy ?? orderedBy}` : `Beställd av ${orderedBy}`}</span></span>}
         {assignmentFailure && <span className="schema-assignment-failure-badge" title={assignmentFailure}><i className="fa-solid fa-robot" /><i className="fa-solid fa-triangle-exclamation" /> Kunde inte tillsättas</span>}
       </div>
@@ -1233,7 +1233,7 @@ function ShiftMonthCell({ shift, color, passInfo, isAkut, orderedBy, orderStatus
         )}
         {color === 'absence' && <span className="schema-absence-badge schema-absence-badge-month" title="Frånvaro"><i className="fa-solid fa-user-clock" /></span>}
         {color === 'vacant' && <span className="schema-vacancy-badge schema-vacancy-badge-month" title={resourceNeedMode ? 'Resursbehov' : 'Vakans'}><i className="fa-solid fa-user-plus" /></span>}
-        {resourceNeedMode && resourceNeedCreatedBy && <span className={`schema-resource-need-badge schema-resource-need-badge-month${resourceNeedHandler === 'Maja Andersson' ? ' schema-resource-need-badge-requester' : ''}`} title={`${resourceNeedLabel(resourceNeedSource)} · Skapad av ${resourceNeedCreatedBy} · ${resourceNeedDisplayStatus ?? 'Öppet'} · Hanteras av ${resourceNeedHandler ?? resourceNeedCreatedBy}`}><i className="fa-solid fa-user-clock" /><span>{resourceNeedSource === 'frånvaro' ? 'F' : resourceNeedSource === 'vakans' ? 'V' : 'E'}·{needCreatorTag || needStatusText}{needHandlerTag ? ` · ${needHandlerTag}` : ''}</span></span>}
+        {resourceNeedMode && resourceNeedSource && <span className={`schema-resource-need-badge schema-resource-need-badge-month${resourceNeedHandler === 'Maja Andersson' ? ' schema-resource-need-badge-requester' : ''}`} title={`${resourceNeedLabel(resourceNeedSource)}${resourceNeedCreatedBy ? ` · Skapad av ${resourceNeedCreatedBy}` : ''} · ${resourceNeedDisplayStatus ?? 'Öppet'}${resourceNeedHandler ? ` · Hanteras av ${resourceNeedHandler}` : ''}`}><i className="fa-solid fa-user-clock" /><span>{resourceNeedSource === 'frånvaro' ? 'F' : resourceNeedSource === 'vakans' ? 'V' : 'E'}·{needCreatorTag || needStatusText}{needHandlerTag ? ` · ${needHandlerTag}` : ''}</span></span>}
         {orderedBy && <span className="schema-order-badge schema-order-badge-month" title={resourceNeedMode ? `Beställning · ${orderStatus ?? 'Beställd'} · Hanteras av ${orderHandledBy ?? orderedBy}` : `Beställd av ${orderedBy}`}><i className="fa-solid fa-cart-shopping" /><span className="schema-order-badge-text">{resourceNeedMode ? `${orderStatusText}${orderHandlerTag ? ` · ${orderHandlerTag}` : ''}` : `Beställd av ${orderedBy}`}</span></span>}
         {assignmentFailure && <span className="schema-assignment-failure-badge schema-assignment-failure-badge-month" title={assignmentFailure}><i className="fa-solid fa-robot" /><i className="fa-solid fa-triangle-exclamation" /></span>}
       </div>
@@ -1387,10 +1387,10 @@ function ActivityTimelineCell({ shift, activities, activityFills, availability, 
           title={fmtAvailTime(availability)}
         />}
       <div className={`schema-activity-captions${hospitalMode ? ' schema-activity-captions-hospital' : ''}`}>
-        {totalTime && <span className="schema-activity-time-line"><span className="schema-activity-total-time">{totalTime}</span>{resourceNeedCreatedBy && <span className="schema-activity-resource-need-caption" aria-hidden="true" title={`${needTypeLabel} resursbehov`}><i className="fa-solid fa-user-clock" /></span>}</span>}
+        {totalTime && <span className="schema-activity-time-line"><span className="schema-activity-total-time">{totalTime}</span>{resourceNeedSource && <span className="schema-activity-resource-need-caption" aria-hidden="true" title={`${needTypeLabel} resursbehov`}><i className="fa-solid fa-user-clock" /></span>}</span>}
         {carryInShift?.type === 'night' && <span className="schema-activity-carry-time">22:00–{carryInShift.end} · fortsättning</span>}
-        {assignedSubstituteName && !resourceNeedCreatedBy && <span className="schema-activity-assignment-caption">Tillsatt med {assignedSubstituteName}</span>}
-        {resourceNeedCreatedBy
+        {assignedSubstituteName && !resourceNeedSource && <span className="schema-activity-assignment-caption">Tillsatt med {assignedSubstituteName}</span>}
+        {resourceNeedSource
           ? <span className={`schema-activity-resource-status-caption${resourceStatusText === 'Tillsatt' ? ' schema-activity-resource-status-filled' : ''}`} title={`${resourceStatusCaption}${resourceNeedHandler ? ` · Hanteras av ${resourceNeedHandler}` : ''}`}>{resourceStatusCaption}</span>
           : statusCaption && <span className={`schema-activity-absence-caption${vacancyLabel ? ' schema-activity-vacancy-caption' : ''}${resourceStatus ? ' schema-activity-resource-status-caption' : ''}`}>{statusCaption}</span>}
       </div>
@@ -7065,6 +7065,15 @@ export const Schema = ({
                   if (row.type === 'remaining-pass') {
                     const pass = row.pass;
                     const isVacant = !pass.assignedSubstituteId;
+                    const resourceNeed = resourceNeedPrototype
+                      ? resourceNeeds.find(need => need.personId === pass.id && need.dateStr === pass.dateStr && need.status !== 'Borttaget')
+                      : undefined;
+                    const resourceNeedOrder = resourceNeed
+                      ? resourceOrders.find(order => order.id === `resource-order-${resourceNeed.id}`)
+                      : undefined;
+                    const activeResourceNeedOrder = resourceNeedOrder?.status !== 'Avbruten' ? resourceNeedOrder : undefined;
+                    const resourceNeedDisplayStatus = activeResourceNeedOrder?.status ?? resourceNeed?.workflowStatus ?? resourceNeed?.status;
+                    const resourceNeedHandler = activeResourceNeedOrder?.handledBy ?? resourceNeed?.handledBy;
                     const passActivities = pass.activities.filter(activity => selectedActivityFilters.length === 0
                       || selectedActivityFilters.includes(activity.kind));
                     return (
@@ -7097,9 +7106,15 @@ export const Schema = ({
                               activities={passActivities}
                               activityFills={activityFills}
                               availability={null}
-                              vacancyLabel={pass.assignedSubstituteId ? undefined : 'Vakans'}
-                              statusLabel={pass.assignedSubstituteId ? `Tillsatt · ${pass.assignedSubstituteName ?? ''}` : undefined}
-                              assignedSubstituteName={pass.assignedSubstituteName}
+                              vacancyLabel={resourceNeed ? undefined : pass.assignedSubstituteId ? undefined : 'Vakans'}
+                              statusLabel={resourceNeed ? undefined : pass.assignedSubstituteId ? `Tillsatt · ${pass.assignedSubstituteName ?? ''}` : undefined}
+                              assignedSubstituteName={resourceNeed?.assignedSubstituteName ?? pass.assignedSubstituteName}
+                              resourceNeedCreatedBy={resourceNeed?.createdBy}
+                              resourceNeedSource={resourceNeed?.source}
+                              resourceNeedDisplayStatus={resourceNeedDisplayStatus}
+                              resourceNeedHandler={resourceNeedHandler}
+                              isOrdered={Boolean(activeResourceNeedOrder && activeResourceNeedOrder.status !== 'Tillsatt')}
+                              resourceStatus={Boolean(resourceNeed)}
                               isPast={isPast}
                               selectedActivityId={highlightedScheduleObject?.personId === pass.id && highlightedScheduleObject.dateStr === dateStr ? highlightedScheduleObject.activityId : undefined}
                               onPassDragOver={handleCellDragOver}
