@@ -2025,6 +2025,7 @@ function SubstitutePanel({
                 return (
                   <React.Fragment key={sub.id}>
                     <tr
+                      data-native-context-menu="true"
                       className={[
                         'schema-sub-row',
                         candidateMatches[sub.id]?.tone === 'red' ? 'schema-candidate-low-match' : '',
@@ -2033,6 +2034,7 @@ function SubstitutePanel({
                       ].filter(Boolean).join(' ')}
                       draggable={candidateMatches[sub.id]?.tone !== 'red'}
                       onDragStart={e => { if (candidateMatches[sub.id]?.tone === 'red') e.preventDefault(); else onDragStart(e, sub.id); }}
+                      onContextMenu={event => openPersonContext(event, sub.id)}
                       onClick={event => {
                         if ((event.target as HTMLElement).closest('input, button, a')) return;
                         onSelectCandidate?.(sub.id);
@@ -2665,6 +2667,17 @@ const SHIFT_LABELS: Record<ShiftType, string> = {
   morning: 'Morgonpass', day: 'Dagpass', evening: 'Kvällspass', night: 'Nattpass',
 };
 
+function DetailSection({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
+  return <section className="schema-detail-section">
+    <h3 className="schema-detail-section-title"><i className={`fa-solid ${icon}`} aria-hidden="true" />{title}</h3>
+    {children}
+  </section>;
+}
+
+function DetailFact({ label, children }: { label: string; children: React.ReactNode }) {
+  return <div><dt>{label}</dt><dd>{children}</dd></div>;
+}
+
 function PassDetailCard({ state, onSaveTime, resourceNeed, resourceNeedOrder, assignedPerson, assignmentFailure, onOpenSubstitute, organisation = 'clinic' }: {
   state: DetailState;
   onSaveTime: (start: string, end: string) => void;
@@ -2683,19 +2696,19 @@ function PassDetailCard({ state, onSaveTime, resourceNeed, resourceNeedOrder, as
 
   return (
     <div className="order-detail-card pass-detail-card">
-      <dl>
-        <div><dt>Pass</dt><dd><div className="order-detail-time-editor"><label>Starttid<input type="time" value={start} onChange={event => setStart(event.currentTarget.value)} /></label><span>–</span><label>Sluttid<input type="time" value={end} onChange={event => setEnd(event.currentTarget.value)} /></label>{timeChanged && <button type="button" className="btn-secondary" onClick={() => onSaveTime(start, end)}>Spara tid</button>}</div></dd></div>
-        {!isSchoolScenario(organisation) && <div><dt>Passtyp</dt><dd>{SHIFT_LABELS[state.shift.type]}{passInfo ? ` · ${passInfo}` : ''}</dd></div>}
-        {assignmentFailure && <div><dt>Orsak</dt><dd>{assignmentFailure}</dd></div>}
-        {resourceNeed && <div><dt>Resursbehov</dt><dd>{resourceNeed.createdBy}{resourceNeed.reason ? ` · ${resourceNeed.reason}` : ''}</dd></div>}
-        {resourceNeedOrder && <div><dt>Beställning</dt><dd>Beställd av {resourceNeedOrder.orderedBy} · {resourceNeedOrder.status} · Hanteras av {resourceNeedOrder.handledBy}</dd></div>}
-        {assignedPerson && <div><dt>Tillsatt med</dt><dd>
+      <DetailSection title="Passuppgifter" icon="fa-calendar-day"><dl className="schema-detail-facts">
+        <DetailFact label="Arbetstid"><div className="order-detail-time-editor"><label>Starttid<input type="time" value={start} onChange={event => setStart(event.currentTarget.value)} /></label><span>–</span><label>Sluttid<input type="time" value={end} onChange={event => setEnd(event.currentTarget.value)} /></label>{timeChanged && <button type="button" className="btn-secondary" onClick={() => onSaveTime(start, end)}>Spara tid</button>}</div></DetailFact>
+        {!isSchoolScenario(organisation) && <DetailFact label="Passtyp">{SHIFT_LABELS[state.shift.type]}{passInfo ? ` · ${passInfo}` : ''}</DetailFact>}
+        {assignmentFailure && <DetailFact label="Bemanningshinder">{assignmentFailure}</DetailFact>}
+        {resourceNeed && <DetailFact label="Kopplat resursbehov">{resourceNeed.createdBy}{resourceNeed.reason ? ` · ${resourceNeed.reason}` : ''}</DetailFact>}
+        {resourceNeedOrder && <DetailFact label="Bemanning">{resourceNeedOrder.status} · Hanteras av {resourceNeedOrder.handledBy}</DetailFact>}
+        {assignedPerson && <DetailFact label="Tillsatt med">
           {assignedPerson.substituteId && onOpenSubstitute
             ? <button type="button" className="schema-assigned-substitute-link" aria-haspopup="dialog" title={`Visa kandidatdetaljer för ${assignedPerson.name}`} onClick={() => onOpenSubstitute(assignedPerson.substituteId!)}>{assignedPerson.name}</button>
             : assignedPerson.name}
           {' · '}{assignedPerson.role}
-        </dd></div>}
-      </dl>
+        </DetailFact>}
+      </dl></DetailSection>
     </div>
   );
 }
@@ -2769,18 +2782,17 @@ function PersonDetailCard({ employee, competencies, shiftDates, selectedDate, on
 }) {
   return (
     <div className="order-detail-card person-detail-card">
-      <dl>
-        <div><dt>Organisation</dt><dd>{employee.organisation}</dd></div>
-        <div><dt>Anställningsgrupp</dt><dd>{employee.fmgGroup}</dd></div>
-        <div><dt>Kompetenser</dt><dd><div className="person-detail-competencies">{competencies.map(competency => <span key={competency}>{competency}</span>)}</div></dd></div>
-        <div><dt>Vald dag</dt><dd><select value={selectedDate} onChange={event => onSelectDate(event.currentTarget.value)} disabled={shiftDates.length === 0}>{shiftDates.length > 0 ? shiftDates.map(dateStr => <option key={dateStr} value={dateStr}>{fmtDay(parseDate(dateStr))}</option>) : <option value="">Inget pass i aktuell period</option>}</select></dd></div>
-      </dl>
-      {activitySchedules && <div className="person-activity-schedule-panel">
-        <h4>Dagschema</h4>
+      <DetailSection title="Medarbetarprofil" icon="fa-id-card"><dl className="schema-detail-facts">
+        <DetailFact label="Organisation">{employee.organisation}</DetailFact>
+        <DetailFact label="Anställningsgrupp">{employee.fmgGroup}</DetailFact>
+        <DetailFact label="Kompetenser"><div className="person-detail-competencies">{competencies.map(competency => <span key={competency}>{competency}</span>)}</div></DetailFact>
+      </dl></DetailSection>
+      {activitySchedules && <DetailSection title="Dagschema" icon="fa-calendar-days"><div className="person-activity-schedule-panel">
+        <label className="schema-detail-date-select">Valt datum<select value={selectedDate} onChange={event => onSelectDate(event.currentTarget.value)} disabled={shiftDates.length === 0}>{shiftDates.length > 0 ? shiftDates.map(dateStr => <option key={dateStr} value={dateStr}>{fmtDay(parseDate(dateStr))}</option>) : <option value="">Inget pass i aktuell period</option>}</select></label>
         {activitySchedules[selectedDate]
           ? <ActivityScheduleDetail schedule={activitySchedules[selectedDate]} hospitalMode={hospitalMode} />
           : <p>Inget arbetsschema i aktuell period.</p>}
-      </div>}
+      </div></DetailSection>}
     </div>
   );
 }
@@ -2816,19 +2828,24 @@ function SubstituteDetailCard({ substitute, details, dateStr, dateOptions, avail
 
   return (
     <div className="order-detail-card person-detail-card substitute-detail-card">
-      <dl>
-        {details && <div><dt>Kontakt</dt><dd><a href={`tel:${details.phone.replace(/\s/g, '')}`}>{details.phone}</a><br /><a href={`mailto:${details.email}`}>{details.email}</a></dd></div>}
-        {isHourlyCandidate(substitute) && <div><dt>LAS-timmar</dt><dd>{candidateLasHours(substitute.id)} av {LAS_MAX_HOURS} prototypstimmar</dd></div>}
-        {isPermanentCandidate(substitute) && <div><dt>ATL-timmar</dt><dd>{candidateAtlHours(substitute.id, details)} av {ATL_MAX_HOURS} timmar</dd></div>}
-        {competencies.length > 0 && <div><dt>Kompetenser</dt><dd><div className="person-detail-competencies">{competencies.map(competency => <span key={competency}>{competency}</span>)}</div></dd></div>}
+      <DetailSection title={preschoolMode ? 'Kandidatprofil' : 'Vikarieprofil'} icon="fa-user-nurse"><dl className="schema-detail-facts">
+        {details && <DetailFact label="Kontakt"><a href={`tel:${details.phone.replace(/\s/g, '')}`}>{details.phone}</a><br /><a href={`mailto:${details.email}`}>{details.email}</a></DetailFact>}
+        {isHourlyCandidate(substitute) && <DetailFact label="LAS-timmar">{candidateLasHours(substitute.id)} av {LAS_MAX_HOURS} prototypstimmar</DetailFact>}
+        {isPermanentCandidate(substitute) && <DetailFact label="ATL-timmar">{candidateAtlHours(substitute.id, details)} av {ATL_MAX_HOURS} timmar</DetailFact>}
+        {competencies.length > 0 && <DetailFact label="Kompetenser"><div className="person-detail-competencies">{competencies.map(competency => <span key={competency}>{competency}</span>)}</div></DetailFact>}
         {screeningFlags && <>
-          <div><dt>Kontinuitet</dt><dd>{screeningFlags.continuity ? 'Arbetat på enheten senaste halvåret' : 'Ingen kontinuitet registrerad'}</dd></div>
-          <div><dt>Belastningsregister</dt><dd>{screeningFlags.clearance ? 'Utdrag finns' : 'Utdrag saknas'}</dd></div>
-          <div><dt>Inskolning</dt><dd>{screeningFlags.onboarded ? 'Inskolad' : 'Inte inskolad'}</dd></div>
+          <DetailFact label="Kontinuitet">{screeningFlags.continuity ? 'Arbetat på enheten senaste halvåret' : 'Ingen kontinuitet registrerad'}</DetailFact>
+          <DetailFact label="Belastningsregister">{screeningFlags.clearance ? 'Utdrag finns' : 'Utdrag saknas'}</DetailFact>
+          <DetailFact label="Inskolning">{screeningFlags.onboarded ? 'Inskolad' : 'Inte inskolad'}</DetailFact>
         </>}
-        <div><dt>Datum</dt><dd><select value={dateStr} onChange={event => onSelectDate(event.currentTarget.value)}>{dateOptions.map(option => <option key={option} value={option}>{fmtDay(parseDate(option))}</option>)}</select></dd></div>
-        <div><dt>Tillgänglighet</dt><dd><div className="order-detail-time-editor"><label>Från<input type="time" value={start} disabled={!canEdit} onChange={event => setStart(event.currentTarget.value)} /></label><span>–</span><label>Till<input type="time" value={end} disabled={!canEdit} onChange={event => setEnd(event.currentTarget.value)} /></label>{canEdit && <button type="button" className="btn-secondary" onClick={saveAvailability}>Spara</button>}</div></dd></div>
-      </dl>
+      </dl></DetailSection>
+      <DetailSection title="Valt datum" icon="fa-calendar-check"><dl className="schema-detail-facts">
+        <DetailFact label="Datum"><select value={dateStr} onChange={event => onSelectDate(event.currentTarget.value)}>{dateOptions.map(option => <option key={option} value={option}>{fmtDay(parseDate(option))}</option>)}</select></DetailFact>
+        {booking && <DetailFact label="Bokning">Bokad {booking.start}–{booking.end}</DetailFact>}
+        {absenceReason && <DetailFact label="Frånvaro">{absenceReason}</DetailFact>}
+        {!booking && !absenceReason && <DetailFact label="Tillgänglighet">{availability ? `${formatTime(availability.startH, availability.startM)}–${formatTime(availability.endH, availability.endM)}` : 'Ingen tillgänglig tid registrerad'}</DetailFact>}
+        <DetailFact label="Ändra tillgänglighet"><div className="order-detail-time-editor"><label>Från<input type="time" value={start} disabled={!canEdit} onChange={event => setStart(event.currentTarget.value)} /></label><span>–</span><label>Till<input type="time" value={end} disabled={!canEdit} onChange={event => setEnd(event.currentTarget.value)} /></label>{canEdit && <button type="button" className="btn-secondary" onClick={saveAvailability}>Spara</button>}</div></DetailFact>
+      </dl></DetailSection>
     </div>
   );
 }
@@ -3357,12 +3374,12 @@ function OrderDetailCard({ order, onSaveTime, onOpenSubstitute }: {
 
   return (
     <div className="order-detail-card">
-      <dl>
-        <div><dt>Pass</dt><dd><div className="order-detail-time-editor"><label>Starttid<input type="time" value={start} onChange={event => setStart(event.currentTarget.value)} /></label><span>–</span><label>Sluttid<input type="time" value={end} onChange={event => setEnd(event.currentTarget.value)} /></label>{timeChanged && <button type="button" className="btn-secondary" onClick={() => onSaveTime(order.id, start, end)}>Spara tid</button>}</div></dd></div>
-        <div><dt>Beställd av</dt><dd>{order.orderedBy}</dd></div>
-        <div><dt>Handläggare</dt><dd>{order.handledBy}</dd></div>
-        {order.acceptedSubstituteId && <div><dt>Tillsatt med</dt><dd><SubstituteDetailLink name={SUBSTITUTE_CANDIDATES.find(candidate => candidate.id === order.acceptedSubstituteId)?.name ?? 'Vikarie bokad'} substituteId={order.acceptedSubstituteId} dateStr={order.dateStr} onOpen={onOpenSubstitute} /></dd></div>}
-      </dl>
+      <DetailSection title="Bemanningsinformation" icon="fa-people-arrows-left-right"><dl className="schema-detail-facts">
+        <DetailFact label="Passets tid"><div className="order-detail-time-editor"><label>Starttid<input type="time" value={start} onChange={event => setStart(event.currentTarget.value)} /></label><span>–</span><label>Sluttid<input type="time" value={end} onChange={event => setEnd(event.currentTarget.value)} /></label>{timeChanged && <button type="button" className="btn-secondary" onClick={() => onSaveTime(order.id, start, end)}>Spara tid</button>}</div></DetailFact>
+        <DetailFact label="Initierat av">{order.orderedBy}</DetailFact>
+        <DetailFact label="Ansvarig handläggare">{order.handledBy}</DetailFact>
+        {order.acceptedSubstituteId && <DetailFact label="Tillsatt med"><SubstituteDetailLink name={SUBSTITUTE_CANDIDATES.find(candidate => candidate.id === order.acceptedSubstituteId)?.name ?? 'Vikarie bokad'} substituteId={order.acceptedSubstituteId} dateStr={order.dateStr} onOpen={onOpenSubstitute} /></DetailFact>}
+      </dl></DetailSection>
     </div>
   );
 }
@@ -3517,6 +3534,7 @@ function ResourceNeedsList({ needs, orders, unreadMessageEntities, orgOptions, s
                 return <tr
                   key={`order:${order.id}`}
                   data-feedback-anchor={`resource-order:${order.id}`}
+                  data-native-context-menu="true"
                   className={`schema-order-row schema-resource-order-row${order.status === 'Tillsatt' ? ' schema-resource-need-row-filled' : ''}${selectedOrderId === order.id ? ' schema-order-row-selected' : relatedOrderIds.includes(order.id) ? ' schema-order-row-related' : ''}`}
                   onClick={() => onSelectOrder(order)}
                   onDoubleClick={() => onOpenOrder(order)}
@@ -3561,6 +3579,7 @@ function ResourceNeedsList({ needs, orders, unreadMessageEntities, orgOptions, s
               <tr
                 key={`need:${need.id}`}
                 data-feedback-anchor={`resource-need:${need.id}`}
+                data-native-context-menu="true"
                 className={`schema-order-row schema-resource-need-row schema-resource-need-row-${need.source === 'pass' ? 'extra' : 'absence'}${need.workflowStatus === 'Tillsatt' || need.status === 'Tillsatt' ? ' schema-resource-need-row-filled' : ''}${selectedNeedId === need.id ? ' schema-resource-need-row-selected' : relatedNeedIds.includes(need.id) ? ' schema-resource-need-row-related' : ''}`}
                 onClick={() => onSelectNeed(need)}
                 onDoubleClick={() => onOpenDetails(need)}
@@ -3644,13 +3663,18 @@ function ResourceNeedDetailCard({ need, order, onOpenSubstitute }: {
 }) {
   return (
     <div className="order-detail-card">
-      <dl>
-        <div><dt>Orsak</dt><dd>{need.reason ?? 'Skapat från pass'}</dd></div>
-        <div><dt>Skapat av</dt><dd>{need.createdBy}</dd></div>
-        <div><dt>Hanteras av</dt><dd>{need.handledBy}</dd></div>
-        {need.assignedSubstituteId && <div><dt>Tillsatt med</dt><dd><SubstituteDetailLink name={need.assignedSubstituteName ?? SUBSTITUTE_CANDIDATES.find(candidate => candidate.id === need.assignedSubstituteId)?.name ?? 'Vikarie'} substituteId={need.assignedSubstituteId} dateStr={need.dateStr} onOpen={onOpenSubstitute} /></dd></div>}
-        {order && <div><dt>Beställning</dt><dd>Beställd av {order.orderedBy} · {order.status} · Hanteras av {order.handledBy}</dd></div>}
-      </dl>
+      <DetailSection title="Behovsöversikt" icon="fa-user-clock"><dl className="schema-detail-facts">
+        <DetailFact label="Behovstyp">{resourceNeedLabel(need.source)}</DetailFact>
+        <DetailFact label="Orsak">{need.reason ?? 'Skapat från pass'}</DetailFact>
+        <DetailFact label="Skapat av">{need.createdBy}</DetailFact>
+        <DetailFact label="Hanteras av">{need.handledBy}</DetailFact>
+        {need.assignedSubstituteId && <DetailFact label="Tillsatt med"><SubstituteDetailLink name={need.assignedSubstituteName ?? SUBSTITUTE_CANDIDATES.find(candidate => candidate.id === need.assignedSubstituteId)?.name ?? 'Vikarie'} substituteId={need.assignedSubstituteId} dateStr={need.dateStr} onOpen={onOpenSubstitute} /></DetailFact>}
+      </dl></DetailSection>
+      {order && <DetailSection title="Kopplat bemanningsärende" icon="fa-people-arrows-left-right"><dl className="schema-detail-facts">
+        <DetailFact label="Status">{order.status}</DetailFact>
+        <DetailFact label="Initierat av">{order.orderedBy}</DetailFact>
+        <DetailFact label="Ansvarig handläggare">{order.handledBy}</DetailFact>
+      </dl></DetailSection>}
     </div>
   );
 }
@@ -7822,8 +7846,7 @@ export const Schema = ({
           title={detailState?.empName ?? 'Pass'}
           description={detailState ? `${fmtDay(parseDate(detailState.dateStr))} · ${detailState.shift.start}–${detailState.shift.end} · ${detailState.empRole}` : ''}
           status={passDetailStatusLabel ? { label: passDetailStatusLabel, tone: passDetailStatusTone } : undefined}
-          aboveToolbar={passDetailSchedule ? <div className="person-activity-schedule-panel pass-activity-schedule-panel">
-            <h4>Aktiviteter</h4>
+          aboveToolbar={passDetailSchedule ? <DetailSection title="Aktiviteter" icon="fa-list-check"><div className="person-activity-schedule-panel pass-activity-schedule-panel">
             <ActivityScheduleDetail
               schedule={passDetailSchedule}
               activityFills={activityFills}
@@ -7832,7 +7855,7 @@ export const Schema = ({
               onOpenSubstitute={substituteId => detailState && handleOpenSubstituteDetails(substituteId, detailState.dateStr)}
               hospitalMode={alwaysShowResourceNeeds}
             />
-          </div> : undefined}
+          </div></DetailSection> : undefined}
           activities={passDetailActivities}
           includeDefaultActivities={false}
           details={detailState ? (

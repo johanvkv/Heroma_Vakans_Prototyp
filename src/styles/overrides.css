@@ -13516,6 +13516,9 @@ input.schema-sub-checkbox:checked::after {
 .schema-candidate-low-match .schema-sub-name-block > .schema-sub-category-cost { opacity: .48; }
 .schema-candidate-low-match .schema-sub-checkbox { cursor: not-allowed; }
 .schema-candidate-match-popup.dx-overlay-wrapper { z-index: 11050 !important; }
+.schema-candidate-match-popup .dx-overlay-content { overflow: hidden; border: 1px solid #e5e0ee; border-radius: 14px; box-shadow: 0 24px 70px rgba(42,28,72,.23); }
+.schema-candidate-match-popup .dx-popup-title { padding: 14px 20px; border-bottom: 1px solid #ece9f1; color: #292331; background: #fff; font-size: 16px; font-weight: 700; }
+.schema-candidate-match-popup .dx-popup-content { padding: 0; }
 .schema-candidate-match-detail { padding: 8px 14px 14px; font-size: 12px; }
 .schema-candidate-match-detail > p { margin: 8px 0 14px; }
 .schema-candidate-match-detail ul { list-style: none; margin: 0; padding: 0; }

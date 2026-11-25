@@ -224,6 +224,9 @@ export function FeedbackOverlay() {
   const placeDraft = useCallback((event: globalThis.MouseEvent) => {
     const target = event.target instanceof Element ? event.target : null;
     if (!target || target.closest('.feedback-ui')) return;
+    // Keep application actions reachable in comment mode. A regular click can still place feedback on these rows.
+    if (event.type === 'contextmenu' && target.closest('[data-native-context-menu="true"]')) return;
+    if (event.type === 'click' && target.closest('.schema-sub-context-menu, .dx-context-menu, .schema-resource-context-menu')) return;
     tagOpenDialogs();
     const dialog = dialogForTarget(target);
     if (!dialog && target.closest('.case-activity-overlay, .dx-overlay-wrapper')) return;
@@ -317,7 +320,7 @@ export function FeedbackOverlay() {
         <i className="fa-solid fa-arrow-pointer" aria-hidden="true" />
         <span>Vanligt läge</span>
       </button>
-      <button type="button" className="feedback-mode-option feedback-mode-option-comment" aria-pressed={active} onClick={() => selectMode(true)} title="Växla till kommentarsläge">
+      <button type="button" className="feedback-mode-option feedback-mode-option-comment" aria-pressed={active} onClick={() => selectMode(true)} title={active ? 'Klicka för att kommentera. Högerklick på objekt med meny visar åtgärder.' : 'Växla till kommentarsläge'}>
         <i className="fa-regular fa-comment" aria-hidden="true" />
         <span>Kommentarsläge</span>
         {currentCommentCount > 0 && <span className="feedback-header-count">{currentCommentCount}</span>}
