@@ -1,9 +1,10 @@
-import { createBrowserRouter, redirect } from "react-router";
+import { createBrowserRouter } from "react-router";
+import { FeedbackOverview } from './feedback/FeedbackOverview';
 
 export const router = createBrowserRouter([
   {
     path: "/kommentarer/sammanstallning",
-    loader: () => redirect("/vikariehantering/schema"),
+    Component: FeedbackOverview,
   },
   {
     path: "/",

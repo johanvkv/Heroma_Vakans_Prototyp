@@ -15,6 +15,8 @@
 .feedback-panel-heading span { display: block; margin-top: 3px; color: #766d87; font-size: 12px; }
 .feedback-panel-heading button { border: 0; background: transparent; color: #655a79; font-size: 25px; line-height: 1; cursor: pointer; }
 .feedback-panel-instruction { margin: 0; padding: 10px 16px; border-top: 1px solid #eeeaf5; border-bottom: 1px solid #eeeaf5; background: #f7f3ff; color: #493780; font-size: 12px; }
+.feedback-panel-all-link { align-self: flex-start; margin: 8px 16px 0; padding: 0; border: 0; background: transparent; color: #5636ad; font-size: 12px; font-weight: 700; cursor: pointer; }
+.feedback-panel-all-link:hover { text-decoration: underline; }
 .feedback-panel-note { margin: 0; padding: 9px 15px; background: #faf9fc; color: #6a6179; font-size: 12px; }
 .feedback-panel > .feedback-error { padding: 0 15px; }
 .feedback-panel-list { min-height: 0; flex: 1; overflow: auto; padding: 12px 15px 16px; }

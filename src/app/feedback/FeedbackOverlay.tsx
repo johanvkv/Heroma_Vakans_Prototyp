@@ -2,6 +2,8 @@ import { type CSSProperties, type MouseEvent, useCallback, useEffect, useMemo, u
 import { createPortal } from 'react-dom';
 import { router } from '../routes';
 import { createFeedback, listAllFeedback, localDemo, type FeedbackComment } from './api';
+import { dialogNames } from './context';
+import { captureFeedbackScreenshot } from './screenshot';
 import './feedback.css';
 
 const visitorKey = 'heroma-feedback-visitor-id';
@@ -21,6 +23,7 @@ function routeViewKey() {
   query.delete('feedbackId');
   query.delete('feedbackView');
   query.delete('feedbackTarget');
+  query.delete('feedbackDialog');
   return `${window.location.pathname}${query.size ? `?${query}` : ''}`;
 }
 
@@ -79,24 +82,6 @@ function commentMatchesView(comment: FeedbackComment, path: string, viewKey: str
   if (viewKey.startsWith('dialog:')) return comment.viewKey === viewKey;
   return comment.path === path && (comment.viewKey === viewKey || comment.viewKey === routeViewKey());
 }
-
-const dialogNames: Record<string, string> = {
-  'employee-detail': 'Medarbetardetaljer',
-  'pass-detail': 'Passdetaljer',
-  'candidate-detail': 'Kandidatdetaljer',
-  'resource-need-detail': 'Resursbehovsdetaljer',
-  'order-detail': 'Beställningsdetaljer',
-  'candidate-match': 'Kandidatmatchning',
-  'confirm-assignment': 'Bekräfta tillsättning',
-  'open-request': 'Skicka förfrågan',
-  'resource-order': 'Beställ resurs',
-  'choose-substitute': 'Välj vikarie',
-  'create-absence': 'Skapa frånvaro',
-  'organisation-settings': 'Organisationsinställningar',
-  'mega-menu-overlay': 'Huvudmeny',
-  'accessibility-panel': 'Tillgänglighetsinställningar',
-  'user-profile-panel': 'Profil',
-};
 
 function commentPeriod(comment: FeedbackComment) {
   const [, period, start] = comment.viewKey.split(':');
@@ -214,6 +199,13 @@ export function FeedbackOverlay() {
   }, [active, refreshComments]);
 
   useEffect(() => {
+    if (location === '/kommentarer/sammanstallning') {
+      setActive(false);
+      setDraftPoint(null);
+    }
+  }, [location]);
+
+  useEffect(() => {
     const id = new URLSearchParams(window.location.search).get('feedbackId');
     if (!id) return;
     let cancelled = false;
@@ -298,10 +290,13 @@ export function FeedbackOverlay() {
     setSaving(true);
     setError('');
     try {
+      // A failed capture must never prevent the comment itself from being saved.
+      const screenshot = await captureFeedbackScreenshot(draftPoint.clientX, draftPoint.clientY).catch(() => undefined);
       const result = await createFeedback({
         visitorId, text: message.trim(),
         path: draftPoint.path, viewKey: draftPoint.viewKey,
         anchor: draftPoint.anchor, x: draftPoint.x, y: draftPoint.y,
+        screenshot,
       });
       setComments(current => [result.comment, ...current]);
       setDraftPoint(null);
@@ -369,6 +364,11 @@ export function FeedbackOverlay() {
         <button type="button" aria-label="Stäng kommentarer" onClick={() => { setActive(false); setDraftPoint(null); setOpenPin(null); }}>×</button>
       </div>
       <p className="feedback-panel-instruction">Klicka eller högerklicka där du vill kommentera.</p>
+      <button type="button" className="feedback-panel-all-link" onClick={() => {
+        setActive(false);
+        setDraftPoint(null);
+        void router.navigate('/kommentarer/sammanstallning');
+      }}>Se alla kommentarer</button>
       {loading && <p className="feedback-panel-note" role="status">Hämtar kommentarer…</p>}
       {truncated && <p className="feedback-panel-note">Listan visar högst 5 000 kommentarer.</p>}
       {localDemo && <p className="feedback-panel-note">Lokal förhandsvisning</p>}

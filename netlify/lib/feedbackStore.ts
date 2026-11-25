@@ -14,6 +14,7 @@ export interface FeedbackComment {
   x: number;
   y: number;
   status: FeedbackStatus;
+  hasScreenshot?: boolean;
 }
 
 // A site-wide store survives deploys. Runtime BRANCH is not guaranteed by
@@ -25,6 +26,7 @@ export function commentPrefix(request: Request) {
 }
 export const feedbackStore = () => getStore({ name: 'prototype-feedback', region: 'eu-central-1', consistency: 'strong' });
 export const commentKey = (request: Request, visitorId: string, id: string) => `${commentPrefix(request)}${visitorId}/${id}`;
+export const imageKey = (request: Request, id: string) => `${commentPrefix(request).replace(/^comments\//, 'images/')}${id}`;
 
 export const visitorIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 

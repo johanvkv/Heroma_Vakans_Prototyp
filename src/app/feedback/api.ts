@@ -12,9 +12,11 @@ export interface FeedbackComment {
   x: number;
   y: number;
   status: FeedbackStatus;
+  hasScreenshot?: boolean;
+  screenshotUrl?: string;
 }
 
-export type FeedbackDraft = Pick<FeedbackComment, 'visitorId' | 'text' | 'path' | 'viewKey' | 'anchor' | 'x' | 'y'>;
+export type FeedbackDraft = Pick<FeedbackComment, 'visitorId' | 'text' | 'path' | 'viewKey' | 'anchor' | 'x' | 'y'> & { screenshot?: string };
 
 const localKey = 'heroma-feedback-local-demo';
 export const localDemo = import.meta.env.DEV;
@@ -42,7 +44,8 @@ const jsonBody = (body: unknown) => ({ headers: { 'Content-Type': 'application/j
 
 export async function createFeedback(draft: FeedbackDraft) {
   if (localDemo) {
-    const comment: FeedbackComment = { ...draft, displayName: 'Anonym', id: crypto.randomUUID(), createdAt: new Date().toISOString(), status: 'open' };
+    const { screenshot, ...fields } = draft;
+    const comment: FeedbackComment = { ...fields, displayName: 'Anonym', id: crypto.randomUUID(), createdAt: new Date().toISOString(), status: 'open', hasScreenshot: Boolean(screenshot), screenshotUrl: screenshot };
     saveLocal([comment, ...localComments()]);
     return { comment };
   }

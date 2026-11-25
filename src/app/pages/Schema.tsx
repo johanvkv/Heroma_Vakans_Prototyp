@@ -3610,6 +3610,7 @@ export const Schema = ({
   const automation = useOptionalAutomation();
   const { selectedOrganisation, selectedRoleId } = useRole();
   const feedbackView = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('feedbackView');
+  const feedbackDialog = typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('feedbackDialog');
   const feedbackViewParts = feedbackView?.match(/^(schema|orders|resource-needs):(dag|arbetsvecka|vecka|sjuDagar|femDagar|manad|period|ar):(\d{4}-\d{2}-\d{2})$/);
   const isActivityTimelineScenario = selectedOrganisation === 'schoolTimeline';
   const hasActivityTimeline = isActivityTimelineScenario || alwaysShowResourceNeeds;
@@ -5920,6 +5921,37 @@ export const Schema = ({
   }, []);
 
   const handleCloseDetail = useCallback(() => setDetailState(null), []);
+
+  // A feedback link refers to the dialog type, not to a named person or pass.
+  // Open a representative instance so a shared comment is visible immediately.
+  const initialFeedbackDialogOpenedRef = useRef(false);
+  useEffect(() => {
+    if (initialFeedbackDialogOpenedRef.current || !feedbackDialog) return;
+    if (feedbackDialog === 'employee-detail' && employees[0]) {
+      setPersonDetailId(employees[0].id);
+    } else if (feedbackDialog === 'pass-detail') {
+      const days = Array.from({ length: 7 }, (_, index) => {
+        const date = new Date(viewStart);
+        date.setDate(date.getDate() + index);
+        return date;
+      });
+      const match = days.flatMap(date => employees.map(employee => ({ employee, date, shift: getScheduleShift(employee.id, date, 'alla') })))
+        .find(item => item.shift);
+      if (!match?.shift) return;
+      setDetailState({ empId: match.employee.id, empName: match.employee.name, empRole: match.employee.role,
+        dateStr: toDateStr(match.date), shift: match.shift, color: 'normal' });
+    } else if (feedbackDialog === 'resource-need-detail') {
+      if (!resourceNeeds[0]) return;
+      setResourceNeedDetail(resourceNeeds[0]);
+    } else if (feedbackDialog === 'order-detail') {
+      if (!resourceOrders[0]) return;
+      setOrderDetail(resourceOrders[0]);
+    } else if (feedbackDialog === 'candidate-detail') {
+      if (!panelCandidates[0]) return;
+      setSubstituteDetailState({ substituteId: panelCandidates[0].id, dateStr: toDateStr(viewStart) });
+    } else return;
+    initialFeedbackDialogOpenedRef.current = true;
+  }, [employees, feedbackDialog, getScheduleShift, panelCandidates, resourceNeeds, resourceOrders, viewStart]);
 
   const openSicknessDialog = useCallback((personId: string, dateStr: string) => {
     const employee = employees.find(emp => emp.id === personId);

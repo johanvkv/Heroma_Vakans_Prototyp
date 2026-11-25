@@ -52,7 +52,7 @@ export const Header = ({ hideCaseActivityButton = false, showAutomationControls 
 
   return (
     <>
-      {!hideCaseActivityButton && <CaseActivityModal isOpen={isCaseActivityOpen} onClose={() => setIsCaseActivityOpen(false)} />}
+      {!hideCaseActivityButton && <CaseActivityModal isOpen={isCaseActivityOpen} onClose={() => setIsCaseActivityOpen(false)} feedbackType="header-activity" />}
       <MegaMenu 
         isOpen={isMegaMenuOpen} 
         onClose={() => {
