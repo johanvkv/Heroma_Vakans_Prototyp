@@ -3379,7 +3379,7 @@ function getResourceNeedActions(need: ResourceNeed): ResourceNeedAction[] {
   ];
 }
 
-function ResourceNeedsList({ needs, orders, unreadMessageEntities, orgOptions, selectedRoleId, selectedNeedId, selectedOrderId, relatedNeedIds, relatedOrderIds, onSelectNeed, onSelectOrder, onClose, onOpenDetails, onOpenOrder, onAction, onOrderAction, onDropPass, onOrderAll, onAssignAll }: {
+function ResourceNeedsList({ needs, orders, unreadMessageEntities, orgOptions, selectedRoleId, selectedNeedId, selectedOrderId, relatedNeedIds, relatedOrderIds, onSelectNeed, onSelectOrder, onClose, onOpenDetails, onOpenOrder, onOpenSubstitute, onAction, onOrderAction, onDropPass, onOrderAll, onAssignAll }: {
   needs: ResourceNeed[];
   orders: ResourceOrder[];
   unreadMessageEntities: Set<string>;
@@ -3394,6 +3394,7 @@ function ResourceNeedsList({ needs, orders, unreadMessageEntities, orgOptions, s
   onClose?: () => void;
   onOpenDetails: (need: ResourceNeed) => void;
   onOpenOrder: (order: ResourceOrder) => void;
+  onOpenSubstitute?: (substituteId: string, dateStr: string) => void;
   onAction: (needId: string, action: ResourceNeedAction) => void;
   onOrderAction: (orderId: string, action: OrderContextAction) => void;
   onDropPass: (event: React.DragEvent<HTMLDivElement>) => void;
@@ -3542,7 +3543,7 @@ function ResourceNeedsList({ needs, orders, unreadMessageEntities, orgOptions, s
                   <td className="schema-resource-need-status-cell">
                     <span className="schema-order-status">{order.status}</span>
                     <small>Bemanning · {order.handledBy}</small>
-                    {assignedSubstitute && <small>Tillsatt med · {assignedSubstitute}</small>}
+                    {order.status === 'Tillsatt' && assignedSubstitute && <small className="schema-order-assigned-substitute">Tillsatt med <SubstituteDetailLink name={assignedSubstitute} substituteId={order.acceptedSubstituteId} dateStr={order.dateStr} onOpen={onOpenSubstitute} /></small>}
                   </td>
                   <td className="schema-resource-need-pass-cell schema-context-host">
                     <strong className={`schema-resource-need-pass-time schema-resource-need-pass-${order.shift.type}`}>{order.shift.start}–{order.shift.end}</strong>
@@ -3551,6 +3552,11 @@ function ResourceNeedsList({ needs, orders, unreadMessageEntities, orgOptions, s
                 </tr>;
               }
               const need = entry.item;
+              const linkedOrder = orders.find(order => order.id === `resource-order-${need.id}`);
+              const isFilled = need.workflowStatus === 'Tillsatt' || need.status === 'Tillsatt';
+              const assignedSubstituteId = need.assignedSubstituteId ?? linkedOrder?.acceptedSubstituteId;
+              const assignedSubstituteName = need.assignedSubstituteName
+                ?? SUBSTITUTE_CANDIDATES.find(candidate => candidate.id === assignedSubstituteId)?.name;
               return (
               <tr
                 key={`need:${need.id}`}
@@ -3584,6 +3590,7 @@ function ResourceNeedsList({ needs, orders, unreadMessageEntities, orgOptions, s
                 <td className="schema-resource-need-status-cell">
                   <span className={`schema-order-status schema-resource-need-status-${need.workflowStatus === 'Tillsatt' || need.status === 'Tillsatt' ? 'filled' : need.handledBy === 'Maja Andersson' ? 'requester' : 'open'}`}>{need.workflowStatus ?? need.status}</span>
                   <small className={need.handledBy === 'Maja Andersson' ? 'schema-resource-need-owner-requester' : ''}>{need.handledBy === 'Maja Andersson' ? 'Beställare' : 'Bemanning'} · {need.handledBy}</small>
+                  {isFilled && assignedSubstituteName && <small className="schema-order-assigned-substitute">Tillsatt med <SubstituteDetailLink name={assignedSubstituteName} substituteId={assignedSubstituteId} dateStr={need.dateStr} onOpen={onOpenSubstitute} /></small>}
                 </td>
                 <td className="schema-resource-need-pass-cell schema-context-host">
                   <strong className={`schema-resource-need-pass-time schema-resource-need-pass-${need.shift.type}`}>{need.shift.start}–{need.shift.end}</strong>
@@ -6926,7 +6933,7 @@ export const Schema = ({
             </div>
           ) : activeView === 'resource-needs' ? (
             <div className="schema-orders-page-view">
-              <ResourceNeedsList needs={resourceNeeds} orders={resourceOrders} unreadMessageEntities={unreadMessageEntities} orgOptions={resourceBoardOrgOptions} selectedRoleId={selectedRoleId} selectedNeedId={highlightedNeedId} selectedOrderId={highlightedOrderId} relatedNeedIds={relatedNeedIds} relatedOrderIds={relatedOrderIds} onSelectNeed={selectResourceNeed} onSelectOrder={selectResourceOrder} onClose={() => setActiveView('schema')} onOpenDetails={setResourceNeedDetail} onOpenOrder={setOrderDetail} onAction={handleResourceNeedAction} onOrderAction={handleOrderAction} onDropPass={handleResourceNeedDrop} onOrderAll={handleOrderAllResourceNeeds} onAssignAll={isActivityTimelineScenario ? undefined : handleAssignAllResourceNeeds} />
+              <ResourceNeedsList needs={resourceNeeds} orders={resourceOrders} unreadMessageEntities={unreadMessageEntities} orgOptions={resourceBoardOrgOptions} selectedRoleId={selectedRoleId} selectedNeedId={highlightedNeedId} selectedOrderId={highlightedOrderId} relatedNeedIds={relatedNeedIds} relatedOrderIds={relatedOrderIds} onSelectNeed={selectResourceNeed} onSelectOrder={selectResourceOrder} onClose={() => setActiveView('schema')} onOpenDetails={setResourceNeedDetail} onOpenOrder={setOrderDetail} onOpenSubstitute={handleOpenSubstituteDetails} onAction={handleResourceNeedAction} onOrderAction={handleOrderAction} onDropPass={handleResourceNeedDrop} onOrderAll={handleOrderAllResourceNeeds} onAssignAll={isActivityTimelineScenario ? undefined : handleAssignAllResourceNeeds} />
             </div>
           ) : <>
 
@@ -7563,7 +7570,7 @@ export const Schema = ({
           </div>, document.body)}
           </div>
           {showOrders && <ResourceOrdersList orders={resourceOrders} unreadMessageEntities={unreadMessageEntities} selectedOrderId={highlightedOrderId} selectedPersonId={highlightedPersonId} relatedOrderIds={relatedOrderIds} onSelectOrder={selectResourceOrder} onSelectPerson={selectOrderPerson} onClose={() => setShowOrders(false)} onAction={handleOrderAction} onOpenDetails={setOrderDetail} onChooseSubstitute={alwaysShowResourceNeeds ? handleOpenCandidatesFromSelection : handleOpenAllSubstitutes} onOpenSubstitute={handleOpenSubstituteDetails} candidateButtonLabel={alwaysShowResourceNeeds ? 'Kandidater' : undefined} />}
-          {resourceNeedPrototype && (showResourceNeeds || alwaysShowResourceNeeds) && <ResourceNeedsList needs={resourceNeeds} orders={resourceOrders} unreadMessageEntities={unreadMessageEntities} orgOptions={resourceBoardOrgOptions} selectedRoleId={selectedRoleId} selectedNeedId={highlightedNeedId} selectedOrderId={highlightedOrderId} relatedNeedIds={relatedNeedIds} relatedOrderIds={relatedOrderIds} onSelectNeed={selectResourceNeed} onSelectOrder={selectResourceOrder} onClose={alwaysShowResourceNeeds ? undefined : () => setShowResourceNeeds(false)} onOpenDetails={setResourceNeedDetail} onOpenOrder={setOrderDetail} onAction={handleResourceNeedAction} onOrderAction={handleOrderAction} onDropPass={handleResourceNeedDrop} onOrderAll={handleOrderAllResourceNeeds} onAssignAll={alwaysShowResourceNeeds || !isActivityTimelineScenario ? handleAssignAllResourceNeeds : undefined} />}
+          {resourceNeedPrototype && (showResourceNeeds || alwaysShowResourceNeeds) && <ResourceNeedsList needs={resourceNeeds} orders={resourceOrders} unreadMessageEntities={unreadMessageEntities} orgOptions={resourceBoardOrgOptions} selectedRoleId={selectedRoleId} selectedNeedId={highlightedNeedId} selectedOrderId={highlightedOrderId} relatedNeedIds={relatedNeedIds} relatedOrderIds={relatedOrderIds} onSelectNeed={selectResourceNeed} onSelectOrder={selectResourceOrder} onClose={alwaysShowResourceNeeds ? undefined : () => setShowResourceNeeds(false)} onOpenDetails={setResourceNeedDetail} onOpenOrder={setOrderDetail} onOpenSubstitute={handleOpenSubstituteDetails} onAction={handleResourceNeedAction} onOrderAction={handleOrderAction} onDropPass={handleResourceNeedDrop} onOrderAll={handleOrderAllResourceNeeds} onAssignAll={alwaysShowResourceNeeds || !isActivityTimelineScenario ? handleAssignAllResourceNeeds : undefined} />}
           </div>
 
           </>}
