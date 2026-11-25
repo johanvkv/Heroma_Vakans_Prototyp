@@ -12457,7 +12457,7 @@ input.schema-sub-checkbox:checked::after {
   font-size: 11px;
 }
 .schema-kanban-need,
-.schema-kanban-linked-need {
+.schema-kanban-order-compact {
   box-sizing: border-box;
   height: 78px;
   min-height: 78px;
@@ -12468,23 +12468,23 @@ input.schema-sub-checkbox:checked::after {
   padding: 5px 6px;
 }
 .schema-kanban-need .schema-kanban-need-topline,
-.schema-kanban-linked-need .schema-kanban-need-topline { min-height: 14px; flex: 0 0 14px; }
+.schema-kanban-order-compact .schema-kanban-need-topline { min-height: 14px; flex: 0 0 14px; }
 .schema-kanban-need .schema-kanban-person,
-.schema-kanban-linked-need .schema-kanban-person { min-width: 0; overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.schema-kanban-linked-need .schema-kanban-card-badges { gap: 3px; }
-.schema-kanban-linked-need .schema-kanban-status { max-width: 100px; overflow: hidden; padding: 1px 4px; font-size: 8px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+.schema-kanban-order-compact .schema-kanban-person { min-width: 0; overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.schema-kanban-order-compact .schema-kanban-card-badges { gap: 3px; }
+.schema-kanban-order-compact .schema-kanban-status { max-width: 100px; overflow: hidden; padding: 1px 4px; font-size: 8px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
 .schema-kanban-need .schema-kanban-card-badges { gap: 3px; }
 .schema-kanban-need .schema-kanban-urgency,
-.schema-kanban-linked-need .schema-kanban-urgency { padding: 1px 4px; font-size: 8px; line-height: 1.2; }
-.schema-kanban-linked-need .schema-kanban-need-info { display: flex; min-width: 0; align-items: center; gap: 5px; overflow: hidden; }
-.schema-kanban-linked-need .schema-kanban-need-info > .schema-kanban-subtitle { min-width: 0; flex: 0 1 auto; overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
-.schema-kanban-linked-need .schema-kanban-need-info .schema-kanban-activities { min-width: 0; flex: 1 1 auto; flex-direction: row; gap: 5px; overflow: hidden; }
-.schema-kanban-linked-need .schema-kanban-need-info .schema-kanban-activity { min-width: 0; flex: 0 1 auto; gap: 3px; font-size: 8px; text-overflow: ellipsis; }
-.schema-kanban-linked-need .schema-kanban-need-info .schema-kanban-activity > i { width: 5px; height: 5px; flex-basis: 5px; }
-.schema-kanban-linked-need .schema-kanban-need-meta { min-width: 0; align-items: center; gap: 5px; padding: 0; border: 0; font-size: 8px; line-height: 1.2; }
-.schema-kanban-linked-need .schema-kanban-need-meta > span:first-child { flex: 0 0 auto; }
-.schema-kanban-linked-need .schema-kanban-need-owner { min-width: 0; overflow: hidden; color: #726b79; text-overflow: ellipsis; white-space: nowrap; }
-.schema-kanban-linked-need .schema-kanban-need-owner i { margin-right: 3px; color: #82769e; }
+.schema-kanban-order-compact .schema-kanban-urgency { padding: 1px 4px; font-size: 8px; line-height: 1.2; }
+.schema-kanban-order-compact .schema-kanban-need-info { display: flex; min-width: 0; align-items: center; gap: 5px; overflow: hidden; }
+.schema-kanban-order-compact .schema-kanban-need-info > .schema-kanban-subtitle { min-width: 0; flex: 0 1 auto; overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.schema-kanban-order-compact .schema-kanban-need-info .schema-kanban-activities { min-width: 0; flex: 1 1 auto; flex-direction: row; gap: 5px; overflow: hidden; }
+.schema-kanban-order-compact .schema-kanban-need-info .schema-kanban-activity { min-width: 0; flex: 0 1 auto; gap: 3px; font-size: 8px; text-overflow: ellipsis; }
+.schema-kanban-order-compact .schema-kanban-need-info .schema-kanban-activity > i { width: 5px; height: 5px; flex-basis: 5px; }
+.schema-kanban-order-compact .schema-kanban-need-meta { min-width: 0; align-items: center; gap: 5px; padding: 0; border: 0; font-size: 8px; line-height: 1.2; }
+.schema-kanban-order-compact .schema-kanban-need-meta > span:first-child { flex: 0 0 auto; }
+.schema-kanban-order-compact .schema-kanban-need-owner { min-width: 0; overflow: hidden; color: #726b79; text-overflow: ellipsis; white-space: nowrap; }
+.schema-kanban-order-compact .schema-kanban-need-owner i { margin-right: 3px; color: #82769e; }
 @media (max-width: 760px) {
   .schema-kanban-urgency-filter { align-items: flex-start; flex-direction: column; }
   .schema-kanban-time-window-filter { align-items: flex-start; flex-direction: column; }

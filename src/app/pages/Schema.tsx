@@ -3072,7 +3072,7 @@ function ResourceOrdersKanban({ needs, orders, unreadMessageEntities, orgOptions
 }) {
   const [needsHidden, setNeedsHidden] = useState(false);
   const [kanbanContextTarget, setKanbanContextTarget] = useState<{ kind: 'need'; id: string } | { kind: 'order'; id: string } | null>(null);
-  const [kanbanContextActions, setKanbanContextActions] = useState<Array<OrderContextAction | ResourceNeedAction>>([]);
+  const [kanbanContextActions, setKanbanContextActions] = useState<Array<OrderContextAction | ResourceNeedAction | { id: 'register-responses' | 'choose-substitute' | 'take-back'; text: string; icon: string; beginGroup?: boolean }>>([]);
   const [selectedOrgId, setSelectedOrgId] = useState('all');
   const [selectedActivities, setSelectedActivities] = useState<ActivityKind[]>([]);
   const [urgencyFilter, setUrgencyFilter] = useState<'acute' | 'nonacute' | 'all'>('all');
@@ -3142,6 +3142,14 @@ function ResourceOrdersKanban({ needs, orders, unreadMessageEntities, orgOptions
     </div>;
   };
 
+  const getKanbanOrderActions = (order: ResourceOrder) => {
+    const actions: Array<OrderContextAction | { id: 'register-responses' | 'choose-substitute' | 'take-back'; text: string; icon: string; beginGroup?: boolean }> = [...getOrderContextActions(order)];
+    if (order.status === 'Förfrågan skickad') actions.push({ id: 'register-responses', text: 'Registrera svar', icon: 'clipboard-check' });
+    if (order.status === 'Besvarad') actions.push({ id: 'choose-substitute', text: 'Hitta ersättare', icon: 'user-magnifying-glass' });
+    if (order.status !== 'Tillsatt' && order.handledBy !== 'Maja Andersson') actions.push({ id: 'take-back', text: 'Ta tillbaka', icon: 'reply', beginGroup: true });
+    return actions;
+  };
+
   const renderNeedCard = (need: ResourceNeed, isBooked = false) => (
     <article
       key={need.id}
@@ -3183,77 +3191,51 @@ function ResourceOrdersKanban({ needs, orders, unreadMessageEntities, orgOptions
   const renderOrderCard = (order: ResourceOrder) => {
     const linkedNeed = order.id.startsWith('resource-order-');
     const linkedResourceNeed = linkedNeed ? needs.find(need => need.id === order.id.slice('resource-order-'.length)) : undefined;
-    const canTakeBack = order.status !== 'Tillsatt' && order.handledBy !== 'Maja Andersson';
     const yesCount = order.invitedSubstitutes.filter(invite => invite.response === 'Tillgänglig').length;
     const noCount = order.invitedSubstitutes.filter(invite => invite.response === 'Kan inte').length;
     const responseSummary = order.status === 'Besvarad' && <div className="schema-kanban-card-responses" role="group" aria-label={`${yesCount} ja-svar, ${noCount} nej-svar`}>
       <span className="schema-kanban-card-response-yes" aria-hidden="true">👍 {yesCount}</span>
       <span className="schema-kanban-card-response-no" aria-hidden="true">👎 {noCount}</span>
     </div>;
-    const stageAction = order.status === 'Beställd'
-      ? <button className="btn-secondary" onClick={event => { event.stopPropagation(); onAction(order.id, { id: 'start-processing', text: 'Påbörja behandling', icon: 'user-gear' }); }}>Påbörja</button>
-      : order.status === 'Under behandling'
-        ? <button className="btn-secondary" onClick={event => { event.stopPropagation(); onAction(order.id, { id: 'send-order', text: 'Skicka förfrågan', icon: 'paper-plane' }); }}>Skicka förfrågan</button>
-        : order.status === 'Förfrågan skickad'
-          ? <button className="btn-secondary" onClick={event => { event.stopPropagation(); onRegisterResponses(order.id); }}>Registrera svar</button>
-          : order.status === 'Besvarad'
-            ? <button className="btn-primary" onClick={event => { event.stopPropagation(); onChooseSubstitute(order); }}><i className="fa-solid fa-user-plus" /> Välj vikarie</button>
-            : null;
     return (
       <article
         key={order.id}
-        className={`schema-kanban-card schema-kanban-order schema-kanban-order-${order.status === 'Tillsatt' ? 'booked' : order.status === 'Besvarad' ? 'responded' : 'active'}${linkedNeed ? ' schema-kanban-linked-need' : ''}`}
+        className={`schema-kanban-card schema-kanban-order schema-kanban-order-compact schema-kanban-order-${order.status === 'Tillsatt' ? 'booked' : order.status === 'Besvarad' ? 'responded' : 'active'}`}
         draggable={order.status !== 'Tillsatt'}
         onDragStart={event => handleDragStart(event, `order:${order.id}`)}
         onDoubleClick={() => onOpenOrder(order)}
         onContextMenu={event => {
           event.preventDefault();
           setKanbanContextTarget({ kind: 'order', id: order.id });
-          setKanbanContextActions(getOrderContextActions(order));
+          setKanbanContextActions(getKanbanOrderActions(order));
         }}
         title="Dubbelklicka för status och händelselogg"
       >
-        {linkedNeed ? <>
-          <div className="schema-kanban-card-topline schema-kanban-need-topline">
-            <strong className="schema-kanban-person" title={order.personName}>{order.personName}</strong>
-            <span className="schema-kanban-card-badges">
-              {linkedResourceNeed && <span className={`schema-kanban-urgency${isAcuteNeed(linkedResourceNeed) ? ' is-acute' : ''}`}>{isAcuteNeed(linkedResourceNeed) ? 'Akut' : 'Ej akut'}</span>}
-              <span className="schema-kanban-status">{order.status}</span>
-              {unreadMessageEntities.has(`order:${order.id}`) && <NewMessageIndicator />}
-              {getOrderContextActions(order).length > 0 && <ContextKebabButton className="schema-context-kebab-inline schema-kanban-context-kebab" targetSelector=".schema-kanban-card" label={`Fler åtgärder för beställning ${order.personName}`} />}
-            </span>
-          </div>
-          <div className="schema-kanban-need-info">
-            <span className="schema-kanban-subtitle" title={order.role}>{order.role}</span>
-            {activitySummary(order.personId, order.dateStr, true)}
-          </div>
-          {responseSummary}
-          <div className="schema-kanban-meta schema-kanban-need-meta">
-            <span>{order.dateStr} · {order.shift.start}–{order.shift.end}</span>
-            <span className="schema-kanban-need-owner" title={order.acceptedSubstituteId ? 'Ersättare bokad' : `Hanteras av ${order.handledBy}`}>
-              <i className={`fa-solid ${order.acceptedSubstituteId ? 'fa-circle-check' : 'fa-user'}`} />
-              {order.acceptedSubstituteId
-                ? <SubstituteDetailLink name={SUBSTITUTE_CANDIDATES.find(candidate => candidate.id === order.acceptedSubstituteId)?.name ?? 'Vikarie bokad'} substituteId={order.acceptedSubstituteId} dateStr={order.dateStr} onOpen={onOpenSubstitute} />
-                : order.handledBy}
-            </span>
-          </div>
-        </> : <>
-          <div className="schema-kanban-card-topline">
-            <span className="schema-kanban-kind"><i className="fa-solid fa-cart-shopping" /> {order.resourceType === 'vikarie' ? 'Vikarie' : 'Extrapass'}</span>
-            <span className="schema-kanban-card-badges"><span className="schema-kanban-status">{order.status}</span>{unreadMessageEntities.has(`order:${order.id}`) && <NewMessageIndicator />}{getOrderContextActions(order).length > 0 && <ContextKebabButton className="schema-context-kebab-inline schema-kanban-context-kebab" targetSelector=".schema-kanban-card" label={`Fler åtgärder för beställning ${order.personName}`} />}</span>
-          </div>
-          <strong className="schema-kanban-person">{order.personName}</strong>
-          <span className="schema-kanban-subtitle">{order.role}</span>
-          {activitySummary(order.personId, order.dateStr)}
-          {responseSummary}
-          <div className="schema-kanban-meta"><span>{order.dateStr}</span><span>{order.shift.start}–{order.shift.end}</span></div>
-          {order.acceptedSubstituteId && <div className="schema-kanban-assignment"><i className="fa-solid fa-circle-check" /> <SubstituteDetailLink name={SUBSTITUTE_CANDIDATES.find(candidate => candidate.id === order.acceptedSubstituteId)?.name ?? 'Vikarie bokad'} substituteId={order.acceptedSubstituteId} dateStr={order.dateStr} onOpen={onOpenSubstitute} /></div>}
-          <div className="schema-kanban-owner"><i className="fa-solid fa-user" /> Hanteras av {order.handledBy}</div>
-        </>}
-        {!linkedNeed && <div className="schema-kanban-card-actions">
-          {stageAction}
-          {canTakeBack && <button className="btn-secondary" onClick={event => { event.stopPropagation(); onTakeBackOrder(order.id); }}>Ta tillbaka</button>}
-        </div>}
+        <div className="schema-kanban-card-topline schema-kanban-need-topline">
+          <strong className="schema-kanban-person" title={order.personName}>{order.personName}</strong>
+          <span className="schema-kanban-card-badges">
+            {linkedResourceNeed
+              ? <span className={`schema-kanban-urgency${isAcuteNeed(linkedResourceNeed) ? ' is-acute' : ''}`}>{isAcuteNeed(linkedResourceNeed) ? 'Akut' : 'Ej akut'}</span>
+              : <span className="schema-kanban-urgency">{order.resourceType === 'vikarie' ? 'Vikarie' : 'Extrapass'}</span>}
+            <span className="schema-kanban-status">{order.status}</span>
+            {unreadMessageEntities.has(`order:${order.id}`) && <NewMessageIndicator />}
+            {getKanbanOrderActions(order).length > 0 && <ContextKebabButton className="schema-context-kebab-inline schema-kanban-context-kebab" targetSelector=".schema-kanban-card" label={`Fler åtgärder för bemanning ${order.personName}`} />}
+          </span>
+        </div>
+        <div className="schema-kanban-need-info">
+          <span className="schema-kanban-subtitle" title={order.role}>{order.role}</span>
+          {activitySummary(order.personId, order.dateStr, true)}
+        </div>
+        {responseSummary}
+        <div className="schema-kanban-meta schema-kanban-need-meta">
+          <span>{order.dateStr} · {order.shift.start}–{order.shift.end}</span>
+          <span className="schema-kanban-need-owner" title={order.acceptedSubstituteId ? 'Ersättare bokad' : `Hanteras av ${order.handledBy}`}>
+            <i className={`fa-solid ${order.acceptedSubstituteId ? 'fa-circle-check' : 'fa-user'}`} />
+            {order.acceptedSubstituteId
+              ? <SubstituteDetailLink name={SUBSTITUTE_CANDIDATES.find(candidate => candidate.id === order.acceptedSubstituteId)?.name ?? 'Vikarie bokad'} substituteId={order.acceptedSubstituteId} dateStr={order.dateStr} onOpen={onOpenSubstitute} />
+              : order.handledBy}
+          </span>
+        </div>
       </article>
     );
   };
@@ -3351,6 +3333,11 @@ function ResourceOrdersKanban({ needs, orders, unreadMessageEntities, orgOptions
         onItemClick={event => {
           if (!kanbanContextTarget || !event.itemData) return;
           if (kanbanContextTarget.kind === 'need') onNeedAction(kanbanContextTarget.id, event.itemData as ResourceNeedAction);
+          else if (event.itemData.id === 'register-responses') onRegisterResponses(kanbanContextTarget.id);
+          else if (event.itemData.id === 'choose-substitute') {
+            const order = orders.find(item => item.id === kanbanContextTarget.id);
+            if (order) onChooseSubstitute(order);
+          } else if (event.itemData.id === 'take-back') onTakeBackOrder(kanbanContextTarget.id);
           else onAction(kanbanContextTarget.id, event.itemData as OrderContextAction);
         }}
       />
