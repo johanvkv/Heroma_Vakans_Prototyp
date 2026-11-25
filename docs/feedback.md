@@ -4,7 +4,7 @@
 
 1. Öppna den delade Netlify-adressen och klicka på **Kommentarer** bredvid personsökningen högst upp. Knappen ligger även ovanpå öppna dialoger och detaljvyer.
 2. Klicka eller högerklicka där kommentaren hör hemma, skriv din kommentar och välj **Spara kommentar**.
-3. Markeringarna och panelen visar kommentarer från alla testpersoner i aktuell vy eller dialogtyp. Öppna huvudmenyn och välj **Personligt → Nämnder** för att se alla kommentarer samlade. Där kan du söka och välja **Visa på plats**. `Esc` stänger formuläret eller kommentarsläget.
+3. Kommentarsmarkeringarna visar kommentarer från alla testpersoner i aktuell vy eller dialogtyp. Klicka på en markering för att läsa kommentaren. Öppna huvudmenyn och välj **Personligt → Nämnder** för att se alla kommentarer samlade. Där kan du söka och välja **Visa på plats**. `Esc` stänger formuläret eller kommentarsläget.
 
 Kommentarerna sparas via `/api/feedback` i Netlify Blobs i EU-regionen `eu-central-1`. Varje kommentar har en egen nyckel. Nycklarna delas upp per webbplatsens värdnamn, så grenadressen och huvudadressen har skilda kommentarer även om de använder samma Netlify-projekt. Data ligger kvar efter nya deployer.
 Projektets `.node-version` låser Netlify-bygget och funktionerna till Node.js 24, vilket krävs av den använda versionen av `@netlify/blobs`.
@@ -24,7 +24,7 @@ Den äldre serverfunktionen `/api/feedback-admin` är fortsatt skyddad för even
 
 - Besökar-id gäller en webbläsare och en domän. Det är ingen verifierad identitet eller synkronisering mellan enheter.
 - Markeringar i schemat fästs vid person, datum och vy. Om ett objekt tas bort, byter identitet eller inte visas i den aktuella vyn finns kommentaren kvar i sammanställningen, men dess markering kan inte visas förrän objektet syns igen.
-- Vid lokal Vite-utveckling visas en tydligt märkt förhandsvisning som sparar i webbläsarens `localStorage`. Den delas inte med Netlify. Den delade Netlify-sajten använder endast serverfunktionen.
+- Vid lokal Vite-utveckling sparas kommentarer i webbläsarens `localStorage`. De delas inte med Netlify. Den delade Netlify-sajten använder endast serverfunktionen.
 - Dialoger som byggs om med ändrad DOM-struktur kan förlora sin tidigare markering; kommentaren finns då kvar i lagringen.
 - Länkar till dialogkommentarer öppnar en representativ medarbetare, ett pass, en kandidat, ett resursbehov eller en beställning när det finns data. Andra dialogtyper behöver öppnas manuellt i prototypen.
 - Inga verkliga personuppgifter bör matas in i en testprototyp utan att organisationen har bestämt ändamål, åtkomst och gallring.

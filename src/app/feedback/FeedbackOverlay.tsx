@@ -1,8 +1,7 @@
 import { type CSSProperties, type MouseEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { router } from '../routes';
-import { createFeedback, listAllFeedback, localDemo, type FeedbackComment } from './api';
-import { dialogNames } from './context';
+import { createFeedback, listAllFeedback, type FeedbackComment } from './api';
 import { captureFeedbackScreenshot } from './screenshot';
 import './feedback.css';
 
@@ -83,12 +82,6 @@ function commentMatchesView(comment: FeedbackComment, path: string, viewKey: str
   return comment.path === path && (comment.viewKey === viewKey || comment.viewKey === routeViewKey());
 }
 
-function commentPeriod(comment: FeedbackComment) {
-  const [, period, start] = comment.viewKey.split(':');
-  if (period && /^\d{4}-\d{2}-\d{2}$/.test(start ?? '')) return `${period} från ${start}`;
-  return '';
-}
-
 function selectorFor(element: Element): string {
   if (element.id === 'root') return '#root';
   if (element === document.body) return 'body';
@@ -133,8 +126,6 @@ export function FeedbackOverlay() {
   const [visitorId] = useState(savedVisitorId);
   const [active, setActive] = useState(false);
   const [comments, setComments] = useState<FeedbackComment[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [truncated, setTruncated] = useState(false);
   const [reviewComment, setReviewComment] = useState<FeedbackComment | null>(null);
   const [draftPoint, setDraftPoint] = useState<DraftPoint | null>(null);
   const [message, setMessage] = useState('');
@@ -179,7 +170,6 @@ export function FeedbackOverlay() {
   }, []);
 
   const refreshComments = useCallback(async () => {
-    setLoading(true);
     setError('');
     try {
       const result = await listAllFeedback();
@@ -188,10 +178,9 @@ export function FeedbackOverlay() {
         current.forEach(comment => { if (!byId.has(comment.id)) byId.set(comment.id, comment); });
         return [...byId.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
       });
-      setTruncated(result.truncated);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Kommentarer kunde inte läsas.');
-    } finally { setLoading(false); }
+    }
   }, []);
 
   useEffect(() => {
@@ -306,13 +295,10 @@ export function FeedbackOverlay() {
     } finally { setSaving(false); }
   }
 
-  const currentComments = comments.filter(comment => commentMatchesView(comment, location, viewKey))
-    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const currentCommentCount = comments.filter(comment => commentMatchesView(comment, location, viewKey)).length;
   void positionVersion;
   const modalOpen = Boolean(activeDialog());
   const searchRect = document.querySelector('.person-search-container')?.getBoundingClientRect();
-  const panelTop = modalOpen ? 56 : Math.max(64, (searchRect?.bottom ?? 120) + 8);
-  const panelMaxHeight = Math.min(460, Math.max(160, window.innerHeight - panelTop - 16));
   const headerButtonStyle: CSSProperties = modalOpen
     ? { right: 16, top: 8 }
     : searchRect && searchRect.width > 0 && searchRect.left > 180
@@ -320,7 +306,7 @@ export function FeedbackOverlay() {
     : { right: 16, top: searchRect && searchRect.width > 0 ? Math.max(8, searchRect.top - 44) : 84 };
   return createPortal(<div className="feedback-ui feedback-root">
     <button type="button" className={`feedback-header-button${active ? ' is-active' : ''}${modalOpen ? ' is-over-modal' : ''}`} style={headerButtonStyle}
-      aria-expanded={active} aria-controls="feedback-panel" onClick={() => {
+      aria-pressed={active} title={active ? 'Stäng kommentarsläget' : 'Visa markeringar och kommentera'} onClick={() => {
         setActive(value => !value);
         setDraftPoint(null);
         setOpenPin(null);
@@ -328,7 +314,7 @@ export function FeedbackOverlay() {
       }}>
       <i className="fa-regular fa-comment" aria-hidden="true" />
       <span>Kommentarer</span>
-      {currentComments.length > 0 && <span className="feedback-header-count">{currentComments.length}</span>}
+      {currentCommentCount > 0 && <span className="feedback-header-count">{currentCommentCount}</span>}
     </button>
     {active && <div className="feedback-mode-tint" aria-hidden="true" />}
     {visible.map((comment, index) => {
@@ -358,35 +344,6 @@ export function FeedbackOverlay() {
       <div className="feedback-composer-actions"><button type="button" onClick={() => setDraftPoint(null)}>Avbryt</button><button type="button" disabled={saving} onClick={save}>{saving ? 'Sparar…' : 'Spara kommentar'}</button></div>
     </div>}
 
-    {active && <aside id="feedback-panel" className="feedback-panel" style={{ top: panelTop, maxHeight: panelMaxHeight }} aria-label="Kommentarer i aktuell vy">
-      <div className="feedback-panel-heading">
-        <div><strong>Kommentarer</strong><span>{modalOpen ? dialogNames[viewKey.slice(7)] ?? 'Den här dialogen' : 'Den här vyn'} · {currentComments.length} {currentComments.length === 1 ? 'kommentar' : 'kommentarer'}</span></div>
-        <button type="button" aria-label="Stäng kommentarer" onClick={() => { setActive(false); setDraftPoint(null); setOpenPin(null); }}>×</button>
-      </div>
-      <p className="feedback-panel-instruction">Klicka eller högerklicka där du vill kommentera.</p>
-      <button type="button" className="feedback-panel-all-link" onClick={() => {
-        setActive(false);
-        setDraftPoint(null);
-        void router.navigate('/kommentarer/sammanstallning');
-      }}>Se alla kommentarer</button>
-      {loading && <p className="feedback-panel-note" role="status">Hämtar kommentarer…</p>}
-      {truncated && <p className="feedback-panel-note">Listan visar högst 5 000 kommentarer.</p>}
-      {localDemo && <p className="feedback-panel-note">Lokal förhandsvisning</p>}
-      {error && !draftPoint && <p className="feedback-error" role="alert">{error}</p>}
-      <div className="feedback-panel-list">
-        {currentComments.length === 0 && !loading && <p className="feedback-panel-empty">Inga kommentarer här ännu.</p>}
-        {currentComments.map(comment => <article key={comment.id} className="feedback-comment-card">
-          <p>{comment.text}</p>
-          <div className="feedback-comment-meta"><time>{new Date(comment.createdAt).toLocaleString('sv-SE')}</time>{commentPeriod(comment) && <span>{commentPeriod(comment)}</span>}</div>
-          <button type="button" onClick={() => {
-            const anchor = anchorElement(comment.anchor);
-            if (!anchor) { setError('Markeringen finns inte i den aktuella vyn.'); return; }
-            setOpenPin(comment.id);
-            anchor.scrollIntoView({ block: 'center', inline: 'center', behavior: 'smooth' });
-            setPositionVersion(value => value + 1);
-          }}>Visa markering</button>
-        </article>)}
-      </div>
-    </aside>}
+    {active && error && !draftPoint && <p className="feedback-load-error" role="alert">{error}</p>}
   </div>, document.body);
 }

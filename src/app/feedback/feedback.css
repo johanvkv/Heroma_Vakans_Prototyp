@@ -9,23 +9,7 @@
 .feedback-header-count { display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 20px; background: #ede7ff; color: #5636ad; font-size: 11px; }
 .feedback-header-button.is-active .feedback-header-count, .feedback-header-button.is-over-modal .feedback-header-count { background: #fff; }
 .feedback-mode-tint { position: absolute; inset: 0; background: rgba(89, 57, 179, .035); outline: 3px solid rgba(91, 55, 190, .65); outline-offset: -3px; }
-.feedback-panel { position: absolute; right: 16px; z-index: 5; display: flex; flex-direction: column; width: min(380px, calc(100vw - 32px)); border: 1px solid #d2c8e8; border-radius: 12px; background: #fff; box-shadow: 0 12px 36px #21134455; pointer-events: auto; overflow: hidden; font-size: 13px; }
-.feedback-panel-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 16px 17px 13px; }
-.feedback-panel-heading strong { display: block; color: #281a54; font-size: 18px; }
-.feedback-panel-heading span { display: block; margin-top: 3px; color: #766d87; font-size: 12px; }
-.feedback-panel-heading button { border: 0; background: transparent; color: #655a79; font-size: 25px; line-height: 1; cursor: pointer; }
-.feedback-panel-instruction { margin: 0; padding: 10px 16px; border-top: 1px solid #eeeaf5; border-bottom: 1px solid #eeeaf5; background: #f7f3ff; color: #493780; font-size: 12px; }
-.feedback-panel-all-link { align-self: flex-start; margin: 8px 16px 0; padding: 0; border: 0; background: transparent; color: #5636ad; font-size: 12px; font-weight: 700; cursor: pointer; }
-.feedback-panel-all-link:hover { text-decoration: underline; }
-.feedback-panel-note { margin: 0; padding: 9px 15px; background: #faf9fc; color: #6a6179; font-size: 12px; }
-.feedback-panel > .feedback-error { padding: 0 15px; }
-.feedback-panel-list { min-height: 0; flex: 1; overflow: auto; padding: 12px 15px 16px; }
-.feedback-panel-empty { margin: 14px 0; color: #766d87; }
-.feedback-comment-card { padding: 11px 0; border-top: 1px solid #ece8f3; }
-.feedback-comment-card p { margin: 0 0 7px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.4; }
-.feedback-comment-meta { display: flex; flex-wrap: wrap; gap: 4px 10px; color: #766d87; font-size: 11px; }
-.feedback-comment-card button { margin-top: 8px; padding: 0; border: 0; background: transparent; color: #5636ad; cursor: pointer; font-size: 12px; font-weight: 700; }
-.feedback-comment-card button:hover { text-decoration: underline; }
+.feedback-load-error { position: absolute; top: 55px; right: 16px; z-index: 11; max-width: 320px; margin: 0; padding: 9px 12px; border: 1px solid #d88b97; border-radius: 6px; background: #fff; color: #a51e35; font-size: 12px; box-shadow: 0 4px 14px #22133733; pointer-events: auto; }
 .feedback-pin-wrap { position: absolute; pointer-events: auto; }
 .feedback-pin { position: absolute; left: -13px; top: -13px; width: 27px; height: 27px; border: 2px solid #fff; border-radius: 50%; background: #5734ad; color: #fff; font-size: 11px; font-weight: 700; box-shadow: 0 2px 8px #23144677; cursor: pointer; }
 .feedback-pin:hover, .feedback-pin:focus-visible { transform: scale(1.14); }
@@ -47,4 +31,3 @@
 .feedback-composer-actions button { border: 1px solid #5636ad; border-radius: 5px; background: #fff; color: #5636ad; padding: 8px 10px; cursor: pointer; }
 .feedback-composer-actions button:last-child { background: #5636ad; color: #fff; }
 .feedback-composer-actions button:disabled { opacity: .5; cursor: wait; }
-@media (max-width: 650px) { .feedback-panel { right: 8px; width: calc(100vw - 16px); } }
