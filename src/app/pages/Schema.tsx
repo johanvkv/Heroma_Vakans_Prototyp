@@ -475,16 +475,16 @@ const ABSENCE_SHIFTS: Record<string,Shift> = {
   [`${_pid0}|${dateOffsetFromToday(1)}`]: { type:'day', start:'08:00', end:'17:00' },
   [`${_pid0}|${dateOffsetFromToday(2)}`]: { type:'day', start:'08:00', end:'17:00' },
   [`${_pid1}|2026-09-04`]:   { type:'evening', start:'14:30', end:'22:30' },
-  [`${_pid3}|${TODAY_STR}`]: { type:'day',     start:'08:00', end:'17:00' },
+  [`${_pid3}|${dateOffsetFromToday(1)}`]: { type:'day', start:'08:00', end:'17:00' },
   [`${_pid2}|2026-09-05`]:   { type:'morning', start:'06:45', end:'15:00' },
   [`${_pid2}|2026-09-06`]:   { type:'morning', start:'06:45', end:'15:00' },
   [`${_pid2}|2026-09-07`]:   { type:'day',     start:'08:00', end:'17:00' },
   [`${_pid3}|2026-09-05`]:   { type:'night',   start:'22:00', end:'06:00' },
   [`${_pid3}|2026-09-07`]:   { type:'evening', start:'14:30', end:'22:30' },
-  [`${_pid4}|${TODAY_STR}`]: { type:'morning', start:'06:45', end:'15:00' },
-  [`${_pid4}|${dateOffsetFromToday(1)}`]: { type:'morning', start:'06:45', end:'15:00' },
   [`${_pid4}|${dateOffsetFromToday(2)}`]: { type:'morning', start:'06:45', end:'15:00' },
   [`${_pid4}|${dateOffsetFromToday(3)}`]: { type:'morning', start:'06:45', end:'15:00' },
+  [`${_pid4}|${dateOffsetFromToday(4)}`]: { type:'morning', start:'06:45', end:'15:00' },
+  [`${_pid4}|${dateOffsetFromToday(5)}`]: { type:'morning', start:'06:45', end:'15:00' },
   [`${_pid4}|2026-09-06`]:   { type:'day',     start:'08:00', end:'17:00' },
   [`${_pid5}|2026-09-04`]:   { type:'night',   start:'22:00', end:'06:00' },
   [`${_pid5}|2026-09-06`]:   { type:'morning', start:'06:45', end:'15:00' },
@@ -503,13 +503,13 @@ const RUNTIME_ABSENCE_REASONS: Record<string, AbsenceReason> = {
   [`${_pid0}|${dateOffsetFromToday(1)}`]: 'Sjuk',
   [`${_pid0}|${dateOffsetFromToday(2)}`]: 'Sjuk',
   [`${_pid1}|2026-09-04`]: 'VAB',
-  [`${_pid3}|${TODAY_STR}`]: 'VAB',
-  [`${_pid4}|${TODAY_STR}`]: 'Semester',
-  [`${_pid4}|${dateOffsetFromToday(1)}`]: 'Semester',
+  [`${_pid3}|${dateOffsetFromToday(1)}`]: 'VAB',
   [`${_pid4}|${dateOffsetFromToday(2)}`]: 'Semester',
   [`${_pid4}|${dateOffsetFromToday(3)}`]: 'Semester',
+  [`${_pid4}|${dateOffsetFromToday(4)}`]: 'Semester',
+  [`${_pid4}|${dateOffsetFromToday(5)}`]: 'Semester',
 };
-const INITIAL_RESOURCE_NEED_KEYS = new Set([`${_pid0}|${TODAY_STR}`, `${_pid4}|${TODAY_STR}`]);
+const INITIAL_RESOURCE_NEED_KEYS = new Set([`${_pid0}|${TODAY_STR}`, `${_pid3}|${dateOffsetFromToday(1)}`, `${_pid4}|${dateOffsetFromToday(2)}`]);
 const REPLACED_PAST_PRESCHOOL_ABSENCE_KEYS = [
   `${_pid2}|2026-09-05`, `${_pid10}|2026-09-10`, `${_pid12}|2026-09-11`,
   `${_pid14}|2026-09-15`, `${_pid16}|2026-09-17`, `${_pid18}|2026-09-22`,
@@ -527,7 +527,7 @@ const CLINIC_SHIFT_PASS_INFO: Record<string, string> = {
   [`${_pid0}|${TODAY_STR}`]: 'Vak',
   [`${_pid2}|2026-09-05`]:   'Bil',
   [`${_pid3}|2026-09-05`]:   'Vak',
-  [`${_pid4}|${TODAY_STR}`]: 'Vak',
+  [`${_pid4}|${dateOffsetFromToday(2)}`]: 'Vak',
   [`${_pid5}|2026-09-06`]:   'Bil',
 };
 
