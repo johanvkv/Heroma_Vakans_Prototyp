@@ -3042,7 +3042,7 @@ const RESOURCE_ORDER_BOARD_COLUMNS: Array<{
   { id: 'processing', label: 'Påbörjat', icon: 'fa-user-gear', status: 'Under behandling' },
   { id: 'requested', label: 'Förfrågan skickad', icon: 'fa-paper-plane', status: 'Förfrågan skickad' },
   { id: 'responded', label: 'Besvarad', icon: 'fa-comment-dots', status: 'Besvarad' },
-  { id: 'booked', label: 'Bokad', icon: 'fa-circle-check', status: 'Tillsatt' },
+  { id: 'booked', label: 'Tillsatt', icon: 'fa-circle-check', status: 'Tillsatt' },
 ];
 
 function ResourceOrdersKanban({ needs, orders, unreadMessageEntities, orgOptions, activityKinds, hospitalMode = false, selectedRoleId, getActivitiesForPerson, isAcuteNeed, onClose, onAction, onNeedAction, onOpenNeed, onOpenOrder, onChooseSubstitute, onShowSubstitutes, onOpenSubstitute, candidateButtonLabel = 'Visa vikarier', onMoveNeed, onMoveOrder, onReturnOrderToNeed, onRegisterResponses, onTakeBackOrder }: {
@@ -3160,7 +3160,7 @@ function ResourceOrdersKanban({ needs, orders, unreadMessageEntities, orgOptions
         <strong className="schema-kanban-person" title={need.personName}>{need.personName}</strong>
         <span className="schema-kanban-card-badges">
           <span className={`schema-kanban-urgency${isAcuteNeed(need) ? ' is-acute' : ''}`}>{isAcuteNeed(need) ? 'Akut' : 'Ej akut'}</span>
-          {isBooked && <span className="schema-kanban-status">Bokad</span>}
+          {isBooked && <span className="schema-kanban-status">Tillsatt</span>}
             {unreadMessageEntities.has(`need:${need.id}`) && <NewMessageIndicator />}
             {getResourceNeedActions(need).length > 0 && <ContextKebabButton className="schema-context-kebab-inline schema-kanban-context-kebab" targetSelector=".schema-kanban-card" label={`Fler åtgärder för resursbehov ${need.personName}`} />}
         </span>
@@ -3828,7 +3828,7 @@ export const Schema = ({
         ...(!order.personId.startsWith('open-request-') ? [`pass:${order.personId}|${order.dateStr}`] : []),
         ...(needId ? [`need:${needId}`] : []),
       ]);
-    }, 60_000);
+    }, 20_000);
   }, [addOrderActivity, addPassActivity, addResourceNeedActivity, addSubstituteActivity, markMessageEntitiesUnread, updateLinkedNeedWorkflowStatus]);
   const [absenceDialogState, setAbsenceDialogState] = useState<AbsenceDialogState | null>(null);
 
