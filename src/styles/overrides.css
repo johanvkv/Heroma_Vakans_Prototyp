@@ -13403,9 +13403,27 @@ input.schema-sub-checkbox:checked::after {
 .schema-org-label-cell { position: relative; }
 .schema-context-kebab-cell:hover,
 .schema-context-kebab-cell:focus-visible { color: #5236ab; opacity: 1; background: transparent; box-shadow: none; }
-.schema-new-message-indicator { display: inline-flex; width: 12px; height: 12px; align-items: center; justify-content: center; margin-left: 3px; color: #7853c7; font-size: 10px; line-height: 1; vertical-align: middle; }
-.schema-new-message-indicator i { font-size: 10px; }
-.schema-new-message-indicator-cell { position: absolute; z-index: 29; top: 50%; right: 25px; margin-left: 0; transform: translateY(-50%); pointer-events: none; }
+.schema-new-message-indicator { position: absolute; z-index: 31; box-sizing: border-box; display: inline-flex; width: 20px; height: 18px; align-items: center; justify-content: center; margin: 0; border-radius: 10px 10px 10px 3px; color: #fff; background: #d63545; box-shadow: 0 1px 3px rgba(65, 20, 27, .3); font-size: 10px; line-height: 1; pointer-events: none; }
+.schema-new-message-indicator::after { position: absolute; bottom: -3px; left: 3px; width: 0; height: 0; border-top: 4px solid #d63545; border-right: 5px solid transparent; content: ''; }
+.schema-new-message-indicator i { font-size: 9px; }
+.schema-new-message-indicator-cell { top: 5px; right: 25px; }
+.schema-new-message-indicator-person { top: 2px; right: 2px; }
+.schema-new-message-indicator-candidate { top: 3px; right: 1px; }
+.schema-new-message-indicator-order,
+.schema-new-message-indicator-resource { top: 5px; right: 6px; }
+.schema-new-message-indicator-card { top: 5px; right: 7px; }
+.schema-day-cell,
+.schema-activity-timeline-cell,
+.schema-remaining-pass-cell { position: relative; }
+.schema-order-status-cell { position: relative; }
+.schema-order-status-cell.has-unread-message { padding-right: 30px !important; }
+.schema-employee-name.has-unread-message { position: relative; box-sizing: border-box; padding-right: 26px; }
+.schema-resource-need-type-cell { position: relative; }
+.schema-resource-need-type-cell.has-unread-message { padding-right: 24px !important; }
+.schema-sub-name-line.has-unread-message { position: relative; padding-right: 23px; }
+.schema-kanban-card { position: relative; }
+.schema-kanban-card-topline { position: relative; }
+.schema-kanban-card-topline.has-unread-message { padding-right: 30px; }
 .schema-remaining-pass-cell { position: relative; }
 .schema-sub-context-kebab { margin-left: auto; }
 .schema-sub-row:hover .schema-sub-context-kebab { opacity: 1; }

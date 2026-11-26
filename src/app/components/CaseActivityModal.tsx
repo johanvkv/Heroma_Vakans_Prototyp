@@ -141,21 +141,14 @@ export const CaseActivityModal: React.FC<CaseActivityModalProps> = ({
         </header>
 
         <div className="case-activity-toolbar">
-          <span className="case-activity-filter-label">Visa</span>
-          <div className="case-activity-filters" role="tablist" aria-label="Filtrera händelser">
+          <label className="case-activity-filter-select">
+            <i className="fa-solid fa-filter" aria-hidden="true" />
+            <select value={activeFilter} onChange={event => setActiveFilter(event.currentTarget.value as FilterType)} aria-label="Filtrera händelser">
             {filters.map(filter => (
-              <button
-                key={filter.id}
-                type="button"
-                className={`case-activity-filter ${activeFilter === filter.id ? 'active' : ''}`}
-                onClick={() => setActiveFilter(filter.id)}
-                role="tab"
-                aria-selected={activeFilter === filter.id}
-              >
-                <i className={`fa-solid ${filter.icon}`} /> {filter.label}
-              </button>
+              <option key={filter.id} value={filter.id}>{filter.label}</option>
             ))}
-          </div>
+            </select>
+          </label>
         </div>
 
         <div className={`case-activity-order-layout${details ? '' : ' case-activity-order-layout-empty'}`}>
